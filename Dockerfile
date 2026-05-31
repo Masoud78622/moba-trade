@@ -7,6 +7,9 @@ WORKDIR /app
 # Copy configuration and source files
 COPY --chown=gradle:gradle . .
 
+# Grant execute permission to the gradle wrapper
+RUN chmod +x gradlew
+
 # Compile and package everything using installDist (excludes tests for speed)
 RUN ./gradlew installDist -x test --no-daemon
 
