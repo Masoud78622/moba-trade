@@ -61,14 +61,21 @@ object MobaTradeServer {
         
         // Add CORS Headers for local client security compliance
         exchange.responseHeaders.add("Access-Control-Allow-Origin", "*")
-        exchange.responseHeaders.add("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+        exchange.responseHeaders.add("Access-Control-Allow-Methods", "GET, POST, OPTIONS, HEAD")
         exchange.responseHeaders.add("Access-Control-Allow-Headers", "Content-Type, Authorization")
         exchange.responseHeaders.add("Content-Type", "application/json")
         
-        exchange.sendResponseHeaders(statusCode, bytes.size.toLong())
-        val os: OutputStream = exchange.responseBody
-        os.write(bytes)
-        os.close()
+        val isHeadRequest = exchange.requestMethod.uppercase() == "HEAD"
+        if (isHeadRequest) {
+            exchange.responseHeaders.add("Content-Length", bytes.size.toString())
+            exchange.sendResponseHeaders(statusCode, -1) // -1 indicates no response body sent
+            exchange.responseBody.close()
+        } else {
+            exchange.sendResponseHeaders(statusCode, bytes.size.toLong())
+            val os: OutputStream = exchange.responseBody
+            os.write(bytes)
+            os.close()
+        }
     }
 
     // 1. Status Handler
