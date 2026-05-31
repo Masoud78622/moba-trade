@@ -7,8 +7,8 @@ WORKDIR /app
 # Copy configuration and source files
 COPY --chown=gradle:gradle . .
 
-# Grant execute permission to the gradle wrapper
-RUN chmod +x gradlew
+# Fix Windows CRLF line endings and grant execute permission to the gradle wrapper
+RUN tr -d '\r' < gradlew > gradlew.tmp && mv gradlew.tmp gradlew && chmod +x gradlew
 
 # Compile and package everything using installDist (excludes tests for speed)
 RUN ./gradlew installDist -x test --no-daemon
