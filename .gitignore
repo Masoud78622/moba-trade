@@ -1,0 +1,19 @@
+# Gradle files
+.gradle/
+build/
+.kotlin/
+
+# IDE files
+.idea/
+*.iml
+*.iws
+*.ipr
+local.properties
+
+# Build reports and test outputs
+backtest_reports/
+out/
+
+# OS specific files
+.DS_Store
+Thumbs.db
