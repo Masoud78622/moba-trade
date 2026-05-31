@@ -38,6 +38,7 @@ object MobaTradeServer {
         }
 
         // Set up context handlers
+        server.createContext("/", HomeHandler())
         server.createContext("/status", StatusHandler())
         server.createContext("/halal-stocks", HalalStocksHandler())
         server.createContext("/signals", SignalsHandler())
@@ -75,6 +76,41 @@ object MobaTradeServer {
             val os: OutputStream = exchange.responseBody
             os.write(bytes)
             os.close()
+        }
+    }
+
+    // 0. Welcome / Home Handler
+    class HomeHandler : HttpHandler {
+        override fun handle(exchange: HttpExchange) {
+            if (exchange.requestMethod.uppercase() == "OPTIONS") {
+                exchange.sendResponseHeaders(204, -1)
+                return
+            }
+
+            // Only respond with welcome JSON on exact root path "/", otherwise return 404
+            val path = exchange.requestURI.path
+            if (path == "/") {
+                val welcomeJson = JSONObject()
+                welcomeJson.put("name", "MobaTrade Compliant Quant Engine")
+                welcomeJson.put("status", "ONLINE")
+                welcomeJson.put("version", "1.0.0")
+                welcomeJson.put("description", "High-performance Shariah-compliant quantitative strategy scorer API gateway.")
+                
+                val endpoints = JSONObject()
+                endpoints.put("status", "/status")
+                endpoints.put("signals", "/signals")
+                endpoints.put("halal_stocks", "/halal-stocks")
+                welcomeJson.put("endpoints", endpoints)
+                
+                welcomeJson.put("docs", "Connect this gateway endpoint to your MobaTrade mobile app under the API Diagnostics panel.")
+                
+                sendResponse(exchange, 200, welcomeJson.toString())
+            } else {
+                val errJson = JSONObject()
+                errJson.put("error", "Not Found")
+                errJson.put("message", "The requested path '$path' was not found on this server.")
+                sendResponse(exchange, 404, errJson.toString())
+            }
         }
     }
 
