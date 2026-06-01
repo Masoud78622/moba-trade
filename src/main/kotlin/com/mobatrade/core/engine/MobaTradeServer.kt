@@ -192,22 +192,9 @@ object MobaTradeServer {
                     }
                 }
 
-                val majorStocks = listOf(
-                    Triple("TCS", "IT", 3045.00),
-                    Triple("INFY", "IT", 1520.50),
-                    Triple("WIPRO", "IT", 460.25),
-                    Triple("RELIANCE", "ENERGY", 2450.0),
-                    Triple("HCLTECH", "IT", 1300.00)
-                )
-
-                // Try to load symbol-to-token mapping from halal_stocks.json cache
-                val symbolToToken = mutableMapOf(
-                    "TCS" to "11536",
-                    "INFY" to "1594",
-                    "WIPRO" to "3787",
-                    "RELIANCE" to "2885",
-                    "HCLTECH" to "26347"
-                )
+                // Dynamically build the list of stocks to scan from halal_stocks.json cache
+                val activeStocks = ArrayList<Triple<String, String, Double>>()
+                val symbolToToken = mutableMapOf<String, String>()
 
                 try {
                     val isWindows = System.getProperty("os.name").lowercase().contains("win")
@@ -218,19 +205,49 @@ object MobaTradeServer {
                         for (i in 0 until array.length()) {
                             val obj = array.getJSONObject(i)
                             val symbol = obj.optString("symbol").uppercase()
+                            val sector = obj.optString("sector", "IT").uppercase()
                             val token = obj.optString("token")
                             if (symbol.isNotEmpty() && token.isNotEmpty()) {
                                 symbolToToken[symbol] = token
+                                // Provide reasonable default start prices if falling back to synthetic
+                                val defaultPrice = when (symbol) {
+                                    "TCS" -> 3045.00
+                                    "INFY" -> 1520.50
+                                    "WIPRO" -> 460.25
+                                    "RELIANCE" -> 2450.00
+                                    "HCLTECH" -> 1300.00
+                                    else -> 1000.00
+                                }
+                                activeStocks.add(Triple(symbol, sector, defaultPrice))
                             }
                         }
                     }
                 } catch (e: Exception) {
-                    System.err.println("SignalsHandler: Failed to load dynamic symbol-to-token map: ${e.message}")
+                    System.err.println("SignalsHandler: Failed to load dynamic active stocks list: ${e.message}")
+                }
+
+                // If loading from cache failed or returned nothing, fall back to our benchmark 5 stocks
+                if (activeStocks.isEmpty()) {
+                    activeStocks.addAll(listOf(
+                        Triple("TCS", "IT", 3045.00),
+                        Triple("INFY", "IT", 1520.50),
+                        Triple("WIPRO", "IT", 460.25),
+                        Triple("RELIANCE", "ENERGY", 2450.0),
+                        Triple("HCLTECH", "IT", 1300.00)
+                    ))
+                    
+                    symbolToToken.putAll(mapOf(
+                        "TCS" to "11536",
+                        "INFY" to "1594",
+                        "WIPRO" to "3787",
+                        "RELIANCE" to "2885",
+                        "HCLTECH" to "26347"
+                    ))
                 }
 
                 val signalsArray = JSONArray()
 
-                for ((symbol, sector, startPrice) in majorStocks) {
+                for ((symbol, sector, startPrice) in activeStocks) {
                     var candles: List<Candle> = emptyList()
                     val token = symbolToToken[symbol.uppercase()]
 
@@ -243,6 +260,8 @@ object MobaTradeServer {
                                 interval = "ONE_HOUR",
                                 limitDays = 15
                             )
+                            // Rate limit protection: sleep for 350ms to respect Angel One SmartAPI guidelines
+                            Thread.sleep(350)
                         } catch (e: Exception) {
                             System.err.println("SignalsHandler: Failed to fetch real-world candles for $symbol: ${e.message}")
                         }
