@@ -481,7 +481,7 @@ class AngelOneBrokerService implements BrokerService {
 
     try {
       final request = await _httpClient.getUrl(
-        Uri.parse('https://apiconnect.angelone.in/rest/secure/angelbroking/order/v1/getOrderBook'),
+        Uri.parse('https://apiconnect.angelone.in/rest/secure/angelbroking/order/v1/getPosition'),
       );
 
       await _setApiHeaders(request, privateKey: _apiKey);
@@ -496,52 +496,29 @@ class AngelOneBrokerService implements BrokerService {
           
           final List<Map<String, dynamic>> completed = [];
           for (var item in list) {
-            final String orderStatus = item['orderstatus']?.toString().toLowerCase() ?? 
-                                       item['status']?.toString().toLowerCase() ?? '';
-            if (orderStatus == 'complete' || orderStatus == 'completed') {
+            final double buyQty = double.tryParse(item['buyqty']?.toString() ?? '0') ?? 0;
+            final double sellQty = double.tryParse(item['sellqty']?.toString() ?? '0') ?? 0;
+            final double closedQty = (buyQty < sellQty) ? buyQty : sellQty;
+
+            if (closedQty > 0) {
               final String symbol = (item['tradingsymbol']?.toString() ?? 
-                                     item['tradingSymbol']?.toString() ?? 
                                      item['symbol']?.toString() ?? 
                                      'UNKNOWN').split('-')[0].trim().toUpperCase();
-              final int qty = int.tryParse(
-                item['filledshares']?.toString() ?? 
-                item['quantity']?.toString() ?? 
-                '0'
-              ) ?? 0;
-
-              final double avgPrice = double.tryParse(
-                item['averageprice']?.toString() ?? 
-                item['avgprice']?.toString() ?? 
-                item['buyavgprice']?.toString() ??
-                item['price']?.toString() ?? 
-                '0'
-              ) ?? 0.0;
-
-              final String txType = item['transactiontype']?.toString().toUpperCase() ?? 'BUY';
               
-              double entryPrice = avgPrice;
-              double exitPrice = avgPrice;
-              double pnl = 0.0;
-              bool win = true;
-
-              if (txType == 'SELL') {
-                entryPrice = avgPrice * 0.98; // Simulated margin differential
-                pnl = (avgPrice - entryPrice) * qty;
-                win = pnl >= 0;
-              } else {
-                exitPrice = avgPrice * 1.02; // Buy appreciation margin
-                pnl = (exitPrice - avgPrice) * qty;
-                win = pnl >= 0;
-              }
+              final double entryPrice = double.tryParse(item['buyavgprice']?.toString() ?? '0') ?? 0;
+              final double exitPrice = double.tryParse(item['sellavgprice']?.toString() ?? '0') ?? 0;
+              
+              // Prioritize 'realised' P&L from Angel One, fallback to manual calculation
+              final double pnl = double.tryParse(item['realised']?.toString() ?? '0') ?? ((exitPrice - entryPrice) * closedQty);
 
               completed.add({
                 'symbol': symbol.isEmpty ? 'UNKNOWN' : symbol,
-                'strategy': txType == 'BUY' ? 'LIVE BUY ORDER' : 'LIVE SELL ORDER',
-                'qty': qty,
+                'strategy': 'LIVE POSITION',
+                'qty': closedQty.toInt(),
                 'entry': entryPrice,
                 'exit': exitPrice,
                 'pnl': pnl,
-                'win': win,
+                'win': pnl >= 0,
               });
             }
           }
