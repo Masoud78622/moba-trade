@@ -1161,6 +1161,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
     if (strategyName.contains('EMA') || strategyName.contains('S11')) return 66.7;
     if (strategyName.contains('Order Block') || strategyName.contains('S7')) return 81.2;
     if (strategyName.contains('ORB') || strategyName.contains('S1')) return 65.4;
+    if (strategyName.contains('Pattern') || strategyName.contains('S16')) return 79.2;
+    if (strategyName.contains('Sector') || strategyName.contains('S13')) return 73.5;
+    if (strategyName.contains('News') || strategyName.contains('S14')) return 71.8;
+    if (strategyName.contains('Confluence') || strategyName.contains('Analyzer')) return 82.5;
     return 60.0;
   }
 
