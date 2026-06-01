@@ -163,4 +163,35 @@ class ConfluenceEngineTest {
         val orderAfterDrawdown = riskManager.evaluateAndSizeTrade("TCS", 8, 3000.0, 2950.0)
         assertNull(orderAfterDrawdown, "Trading must be halted when daily drawdown threshold is breached")
     }
+
+    @Test
+    fun printScores() {
+        // Seed News Sentiment and Sector Rotation
+        com.mobatrade.core.strategies.tier5.NewsSentiment.updateSentiment("TCS", 0.85)
+        com.mobatrade.core.strategies.tier5.NewsSentiment.updateSentiment("INFY", 0.82)
+        com.mobatrade.core.strategies.tier5.NewsSentiment.updateSentiment("WIPRO", 0.78)
+        com.mobatrade.core.strategies.tier5.NewsSentiment.updateSentiment("HCLTECH", 0.81)
+
+        com.mobatrade.core.strategies.tier4.SectorRotation.updateSectorScores(
+            mapOf("IT" to 1.12, "PHARMA" to 1.08, "FMCG" to 1.02)
+        )
+
+        val majorStocks = listOf(
+            Triple("TCS", "IT", 3045.00),
+            Triple("INFY", "IT", 1520.50),
+            Triple("WIPRO", "IT", 460.25),
+            Triple("RELIANCE", "ENERGY", 2450.0),
+            Triple("HCLTECH", "IT", 1300.00)
+        )
+        for ((symbol, sector, startPrice) in majorStocks) {
+            val candles = MarketDataService.generateSyntheticData(
+                regime = MarketRegime.TRENDING_BULLISH,
+                candleCount = 100,
+                startPrice = startPrice
+            )
+            val scorer = ConfluenceScorer(symbol, sector)
+            val scored = scorer.scoreTrade(candles)
+            println("SYMBOL: $symbol, SCORE: ${scored.totalScore}, DIRECTION: ${scored.recommendedDirection}, TRIGGERS: ${scored.triggers}")
+        }
+    }
 }

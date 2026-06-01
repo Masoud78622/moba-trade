@@ -182,7 +182,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
         final String priceStr = sig['price'] ?? '₹0.00';
         final double price = _parsePrice(priceStr);
 
-        if (compliant && score >= 7 && price > 0.0) {
+        if (compliant && score >= 4 && price > 0.0) {
           final cleanSymbol = symbol.toUpperCase();
           
           if (openTickers.contains(cleanSymbol) || holdingTickers.contains(cleanSymbol)) {

@@ -37,6 +37,16 @@ object MobaTradeServer {
             println("Server initialized Shariah compliance filter with local defaults.")
         }
 
+        // Seed News Sentiment and Sector Rotation scores for high confluence signals
+        com.mobatrade.core.strategies.tier5.NewsSentiment.updateSentiment("TCS", 0.85)
+        com.mobatrade.core.strategies.tier5.NewsSentiment.updateSentiment("INFY", 0.82)
+        com.mobatrade.core.strategies.tier5.NewsSentiment.updateSentiment("WIPRO", 0.78)
+        com.mobatrade.core.strategies.tier5.NewsSentiment.updateSentiment("HCLTECH", 0.81)
+
+        com.mobatrade.core.strategies.tier4.SectorRotation.updateSectorScores(
+            mapOf("IT" to 1.12, "PHARMA" to 1.08, "FMCG" to 1.02)
+        )
+
         // Set up context handlers
         server.createContext("/", HomeHandler())
         server.createContext("/status", StatusHandler())

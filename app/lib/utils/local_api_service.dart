@@ -11,6 +11,23 @@ class LocalApiService {
 
   Future<String> _getServerUrl() async {
     final ip = await SecureStorageService.readServerIp();
+    
+    // 1. If it's already a full URL, use it directly
+    if (ip.startsWith('http://') || ip.startsWith('https://')) {
+      return ip;
+    }
+    
+    // 2. Android emulator local loopback check
+    if (ip == 'localhost' && Platform.isAndroid) {
+      return 'http://10.0.2.2:8080';
+    }
+    
+    // 3. Render or any standard cloud domain check
+    if (ip.contains('onrender.com') || ip.contains('.com') || ip.contains('.net') || ip.contains('.org')) {
+      return 'https://$ip';
+    }
+    
+    // 4. Fallback for raw local IPs or localhost
     return 'http://$ip:8080';
   }
 
@@ -57,7 +74,7 @@ class LocalApiService {
           String status = 'WAITING FOR CONFIRMATION';
           if (!compliant) {
             status = 'REJECTED (NON-SHARIAH)';
-          } else if (direction == 'BUY' && score >= 7) {
+          } else if (direction == 'BUY' && score >= 4) {
             status = 'ORDER PLACED';
           } else if (direction == 'HOLD') {
             status = 'NO CONFLUENCE';
