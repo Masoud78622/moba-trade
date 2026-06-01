@@ -600,8 +600,8 @@ class AngelOneBrokerService implements BrokerService {
         'ordertype': effectiveOrderType,
         'producttype': 'DELIVERY',
         'duration': 'DAY',
-        // MARKET orders require price=0; LIMIT orders require the actual price
-        'price': effectiveOrderType == 'MARKET' ? 0 : limitPrice,
+        // MARKET orders require price=0; LIMIT orders require the price to be in 0.05 tick size steps
+        'price': effectiveOrderType == 'MARKET' ? 0 : double.parse(((limitPrice * 20).round() / 20.0).toStringAsFixed(2)),
         'quantity': qty,
         'triggerprice': 0,
         // Note: squareoff/stoploss/trailingStopLoss are ONLY for bracket orders (variety=ROBO)
