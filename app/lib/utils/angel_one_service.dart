@@ -340,6 +340,32 @@ class AngelOneBrokerService implements BrokerService {
     return _cachedMargin ?? 0.0;
   }
 
+  Future<double?> _fetchRealLtp(String symbol) async {
+    try {
+      final request = await _httpClient.postUrl(
+        Uri.parse('https://apiconnect.angelone.in/rest/secure/angelbroking/order/v1/getLtpData'),
+      );
+      await _setApiHeaders(request, privateKey: _apiKey);
+      request.headers.set('Authorization', 'Bearer $_jwtToken');
+      
+      request.write(jsonEncode({
+        'exchange': 'NSE',
+        'tradingsymbol': '$symbol-EQ',
+        'symboltoken': _getTokenForSymbol(symbol),
+      }));
+      
+      final response = await request.close();
+      if (response.statusCode == 200) {
+        final jsonString = await response.transform(utf8.decoder).join();
+        final Map<String, dynamic> data = jsonDecode(jsonString);
+        if (data['status'] == true && data['data'] != null) {
+          return double.tryParse(data['data']['ltp']?.toString() ?? '');
+        }
+      }
+    } catch (_) {}
+    return null;
+  }
+
   @override
   Future<List<Map<String, dynamic>>> fetchActivePositions() async {
     if (!_connected || _jwtToken == null) return [];
@@ -417,6 +443,17 @@ class AngelOneBrokerService implements BrokerService {
               'time': 'LIVE STREAM',
             };
           }).toList();
+
+          for (var p in parsed) {
+            final ltp = await _fetchRealLtp(p['symbol'] as String);
+            if (ltp != null && ltp > 0) {
+              p['current'] = ltp;
+              final entry = p['entry'] as double;
+              p['sl'] = entry > 0 ? entry * 0.98 : ltp * 0.98;
+              p['target'] = entry > 0 ? entry * 1.05 : ltp * 1.05;
+            }
+          }
+
           _cachedPositions = parsed;
           return parsed;
         }
@@ -607,6 +644,17 @@ class AngelOneBrokerService implements BrokerService {
               'compliant': true, // Halal screener universe filter is on
             };
           }).toList();
+
+          for (var p in parsed) {
+            final ltp = await _fetchRealLtp(p['symbol'] as String);
+            if (ltp != null && ltp > 0) {
+              p['current'] = ltp;
+              final entry = p['entry'] as double;
+              p['sl'] = entry > 0 ? entry * 0.95 : ltp * 0.95;
+              p['target'] = entry > 0 ? entry * 1.15 : ltp * 1.15;
+            }
+          }
+
           _cachedHoldings = parsed;
           return parsed;
         }
