@@ -897,9 +897,15 @@ class _RiskMonitorScreenState extends State<RiskMonitorScreen> {
     );
 
     try {
-      final capital = await BrokerService.current.getMarginCapital();
+      final margin = await BrokerService.current.getMarginCapital();
       final completed = await BrokerService.current.fetchCompletedTrades();
       final active = await BrokerService.current.fetchActivePositions();
+      final activeHoldings = await BrokerService.current.fetchSwingHoldings();
+      
+      double investedValue = 0.0;
+      for (var a in active) investedValue += (((a['qty'] ?? 0) as num).toDouble()) * (((a['current'] ?? a['entry'] ?? 0) as num).toDouble());
+      for (var h in activeHoldings) investedValue += (((h['qty'] ?? 0) as num).toDouble()) * (((h['current'] ?? h['entry'] ?? 0) as num).toDouble());
+      final double capital = margin + investedValue;
 
       int totalTrades = completed.length;
       int wins = completed.where((t) => t['win'] == true).length;
@@ -952,7 +958,7 @@ class _RiskMonitorScreenState extends State<RiskMonitorScreen> {
         });
       }
 
-      final List<Map<String, dynamic>> swingHoldings = active.map((a) {
+      final List<Map<String, dynamic>> swingHoldings = activeHoldings.map((a) {
         return {
           'symbol': a['symbol'],
           'strategy': BrokerService.current.isConnected ? 'Live Position' : 'S1: Active Trade',
