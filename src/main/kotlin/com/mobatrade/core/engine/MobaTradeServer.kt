@@ -267,14 +267,19 @@ object MobaTradeServer {
                         }
                     }
 
-                    // Fallback to synthetic if fetching failed or empty
+                    // SAFE FAIL: Do not use synthetic data if API fails. Return a neutral 0-score signal.
                     if (candles.isEmpty()) {
-                        println("SignalsHandler: Falling back to synthetic candle data for $symbol.")
-                        candles = MarketDataService.generateSyntheticData(
-                            regime = MarketRegime.TRENDING_BULLISH,
-                            candleCount = 100,
-                            startPrice = startPrice
-                        )
+                        println("SignalsHandler: No real-world candles available for $symbol. Returning neutral 0 score to avoid fake trades.")
+                        val item = JSONObject()
+                        item.put("symbol", symbol)
+                        item.put("score", 0)
+                        item.put("direction", "HOLD")
+                        item.put("regime", "RANGING")
+                        item.put("compliant", com.mobatrade.core.halal.ShariahFilter.isCompliantSymbol(symbol))
+                        item.put("triggers", JSONArray(listOf("FAILED_TO_FETCH_MARKET_DATA")))
+                        item.put("price", String.format("₹%,.2f", startPrice))
+                        signalsArray.put(item)
+                        continue
                     }
 
                     val scorer = ConfluenceScorer(symbol, sector)
