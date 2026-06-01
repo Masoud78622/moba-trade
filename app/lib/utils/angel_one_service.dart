@@ -376,18 +376,44 @@ class AngelOneBrokerService implements BrokerService {
         if (data['status'] == true && data['data'] != null) {
           final List<dynamic> list = data['data'];
           final parsed = list.map((e) {
-            final double entry = double.tryParse(e['averageprice']?.toString() ?? '0') ?? 0.0;
-            final double current = double.tryParse(e['ltp']?.toString() ?? '0') ?? entry;
-            final int qty = int.tryParse(e['netqty']?.toString() ?? '0') ?? 0;
-            final String symbol = e['tradingsymbol']?.toString() ?? 'UNKNOWN';
+            final double entry = double.tryParse(
+              e['buyavgprice']?.toString() ?? 
+              e['avgprice']?.toString() ?? 
+              e['averageprice']?.toString() ?? 
+              e['buyprice']?.toString() ??
+              '0'
+            ) ?? 0.0;
+
+            final double current = double.tryParse(
+              e['ltp']?.toString() ?? 
+              e['lp']?.toString() ?? 
+              e['lastprice']?.toString() ??
+              '0'
+            ) ?? entry;
+
+            final int qty = int.tryParse(
+              e['netqty']?.toString() ?? 
+              e['netQty']?.toString() ?? 
+              e['quantity']?.toString() ??
+              e['qty']?.toString() ??
+              '0'
+            ) ?? 0;
+
+            final String symbol = e['tradingsymbol']?.toString() ?? 
+                                  e['tradingSymbol']?.toString() ?? 
+                                  e['symbol']?.toString() ?? 
+                                  e['symbolname']?.toString() ??
+                                  'UNKNOWN';
+
+            final String cleanSymbol = symbol.split('-')[0].trim().toUpperCase();
 
             return {
-              'symbol': symbol.split('-')[0], // Extract asset code
+              'symbol': cleanSymbol.isEmpty ? 'UNKNOWN' : cleanSymbol,
               'qty': qty.abs(),
               'entry': entry,
               'current': current,
-              'sl': entry * 0.98, // Autocalculated stoploss representation
-              'target': entry * 1.05, // Autocalculated target
+              'sl': entry > 0 ? entry * 0.98 : current * 0.98, // Autocalculated stoploss representation
+              'target': entry > 0 ? entry * 1.05 : current * 1.05, // Autocalculated target
               'time': 'LIVE STREAM',
             };
           }).toList();
@@ -433,11 +459,27 @@ class AngelOneBrokerService implements BrokerService {
           
           final List<Map<String, dynamic>> completed = [];
           for (var item in list) {
-            final String orderStatus = item['orderstatus']?.toString().toLowerCase() ?? '';
+            final String orderStatus = item['orderstatus']?.toString().toLowerCase() ?? 
+                                       item['status']?.toString().toLowerCase() ?? '';
             if (orderStatus == 'complete' || orderStatus == 'completed') {
-              final String symbol = (item['tradingsymbol']?.toString() ?? 'UNKNOWN').split('-')[0];
-              final int qty = int.tryParse(item['filledshares']?.toString() ?? '0') ?? 0;
-              final double avgPrice = double.tryParse(item['averageprice']?.toString() ?? '0') ?? 0.0;
+              final String symbol = (item['tradingsymbol']?.toString() ?? 
+                                     item['tradingSymbol']?.toString() ?? 
+                                     item['symbol']?.toString() ?? 
+                                     'UNKNOWN').split('-')[0].trim().toUpperCase();
+              final int qty = int.tryParse(
+                item['filledshares']?.toString() ?? 
+                item['quantity']?.toString() ?? 
+                '0'
+              ) ?? 0;
+
+              final double avgPrice = double.tryParse(
+                item['averageprice']?.toString() ?? 
+                item['avgprice']?.toString() ?? 
+                item['buyavgprice']?.toString() ??
+                item['price']?.toString() ?? 
+                '0'
+              ) ?? 0.0;
+
               final String txType = item['transactiontype']?.toString().toUpperCase() ?? 'BUY';
               
               double entryPrice = avgPrice;
@@ -456,7 +498,7 @@ class AngelOneBrokerService implements BrokerService {
               }
 
               completed.add({
-                'symbol': symbol,
+                'symbol': symbol.isEmpty ? 'UNKNOWN' : symbol,
                 'strategy': txType == 'BUY' ? 'LIVE BUY ORDER' : 'LIVE SELL ORDER',
                 'qty': qty,
                 'entry': entryPrice,
@@ -524,18 +566,43 @@ class AngelOneBrokerService implements BrokerService {
         if (data['status'] == true && data['data'] != null) {
           final List<dynamic> list = data['data'];
           final parsed = list.map((e) {
-            final double averagePrice = double.tryParse(e['averageprice']?.toString() ?? '0') ?? 0.0;
-            final double ltp = double.tryParse(e['ltp']?.toString() ?? '0') ?? averagePrice;
-            final int quantity = int.tryParse(e['quantity']?.toString() ?? '0') ?? 0;
-            final String symbol = e['tradingsymbol']?.toString() ?? 'UNKNOWN';
+            final double averagePrice = double.tryParse(
+              e['averageprice']?.toString() ?? 
+              e['avgprice']?.toString() ?? 
+              e['buyavgprice']?.toString() ??
+              e['buyprice']?.toString() ??
+              '0'
+            ) ?? 0.0;
+
+            final double ltp = double.tryParse(
+              e['ltp']?.toString() ?? 
+              e['lp']?.toString() ?? 
+              e['lastprice']?.toString() ??
+              '0'
+            ) ?? averagePrice;
+
+            final int quantity = int.tryParse(
+              e['quantity']?.toString() ?? 
+              e['netqty']?.toString() ?? 
+              e['qty']?.toString() ??
+              '0'
+            ) ?? 0;
+
+            final String symbol = e['tradingsymbol']?.toString() ?? 
+                                  e['tradingSymbol']?.toString() ?? 
+                                  e['symbol']?.toString() ?? 
+                                  e['symbolname']?.toString() ??
+                                  'UNKNOWN';
+
+            final String cleanSymbol = symbol.split('-')[0].trim().toUpperCase();
 
             return {
-              'symbol': symbol.split('-')[0], // Extract ticker (e.g. INFY-EQ -> INFY)
+              'symbol': cleanSymbol.isEmpty ? 'UNKNOWN' : cleanSymbol,
               'qty': quantity,
               'entry': averagePrice,
               'current': ltp,
-              'sl': averagePrice * 0.95,
-              'target': averagePrice * 1.15,
+              'sl': averagePrice > 0 ? averagePrice * 0.95 : ltp * 0.95,
+              'target': averagePrice > 0 ? averagePrice * 1.15 : ltp * 1.15,
               'daysHeld': 4, // Default days held representation
               'compliant': true, // Halal screener universe filter is on
             };
