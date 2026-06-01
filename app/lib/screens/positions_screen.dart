@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'dart:async';
 import '../utils/broker_service.dart';
 
 class PositionsScreen extends StatefulWidget {
@@ -12,12 +13,23 @@ class _PositionsScreenState extends State<PositionsScreen> with SingleTickerProv
   late TabController _tabController;
   Future<List<Map<String, dynamic>>>? _positionsFuture;
   Future<List<Map<String, dynamic>>>? _swingHoldingsFuture;
+  Timer? _refreshTimer;
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
     _refreshPositions();
+    _startAutoRefreshLoop();
+  }
+
+  void _startAutoRefreshLoop() {
+    _refreshTimer?.cancel();
+    _refreshTimer = Timer.periodic(const Duration(seconds: 30), (timer) {
+      if (mounted) {
+        _refreshPositions();
+      }
+    });
   }
 
   void _refreshPositions() {
@@ -30,6 +42,7 @@ class _PositionsScreenState extends State<PositionsScreen> with SingleTickerProv
   @override
   void dispose() {
     _tabController.dispose();
+    _refreshTimer?.cancel();
     super.dispose();
   }
 
