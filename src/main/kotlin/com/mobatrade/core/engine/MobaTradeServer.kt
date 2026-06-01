@@ -181,6 +181,17 @@ object MobaTradeServer {
             }
 
             try {
+                // Try logging in to Angel One if not already logged in
+                if (!AngelOneClient.isLoggedIn) {
+                    println("SignalsHandler: Angel One session is not authenticated. Attempting auto-login...")
+                    val success = AngelOneClient.login()
+                    if (success) {
+                        println("SignalsHandler: Auto-login successful.")
+                    } else {
+                        System.err.println("SignalsHandler: Auto-login failed. Will gracefully fall back to synthetic data.")
+                    }
+                }
+
                 val majorStocks = listOf(
                     Triple("TCS", "IT", 3045.00),
                     Triple("INFY", "IT", 1520.50),
@@ -189,15 +200,63 @@ object MobaTradeServer {
                     Triple("HCLTECH", "IT", 1300.00)
                 )
 
+                // Try to load symbol-to-token mapping from halal_stocks.json cache
+                val symbolToToken = mutableMapOf(
+                    "TCS" to "11536",
+                    "INFY" to "1594",
+                    "WIPRO" to "3787",
+                    "RELIANCE" to "2885",
+                    "HCLTECH" to "26347"
+                )
+
+                try {
+                    val isWindows = System.getProperty("os.name").lowercase().contains("win")
+                    val cacheFile = if (isWindows) File("c:\\moba trade\\halal_stocks.json") else File("halal_stocks.json")
+                    if (cacheFile.exists()) {
+                        val content = cacheFile.readText(StandardCharsets.UTF_8)
+                        val array = JSONArray(content)
+                        for (i in 0 until array.length()) {
+                            val obj = array.getJSONObject(i)
+                            val symbol = obj.optString("symbol").uppercase()
+                            val token = obj.optString("token")
+                            if (symbol.isNotEmpty() && token.isNotEmpty()) {
+                                symbolToToken[symbol] = token
+                            }
+                        }
+                    }
+                } catch (e: Exception) {
+                    System.err.println("SignalsHandler: Failed to load dynamic symbol-to-token map: ${e.message}")
+                }
+
                 val signalsArray = JSONArray()
 
                 for ((symbol, sector, startPrice) in majorStocks) {
-                    // Generate 100 realistic candles for active trend-following strategies
-                    val candles = MarketDataService.generateSyntheticData(
-                        regime = MarketRegime.TRENDING_BULLISH,
-                        candleCount = 100,
-                        startPrice = startPrice
-                    )
+                    var candles: List<Candle> = emptyList()
+                    val token = symbolToToken[symbol.uppercase()]
+
+                    if (AngelOneClient.isLoggedIn && token != null) {
+                        try {
+                            println("SignalsHandler: Fetching real-world hourly candles for $symbol ($token)...")
+                            candles = AngelOneClient.fetchHistoricalCandles(
+                                symbolToken = token,
+                                symbol = symbol,
+                                interval = "ONE_HOUR",
+                                limitDays = 15
+                            )
+                        } catch (e: Exception) {
+                            System.err.println("SignalsHandler: Failed to fetch real-world candles for $symbol: ${e.message}")
+                        }
+                    }
+
+                    // Fallback to synthetic if fetching failed or empty
+                    if (candles.isEmpty()) {
+                        println("SignalsHandler: Falling back to synthetic candle data for $symbol.")
+                        candles = MarketDataService.generateSyntheticData(
+                            regime = MarketRegime.TRENDING_BULLISH,
+                            candleCount = 100,
+                            startPrice = startPrice
+                        )
+                    }
 
                     val scorer = ConfluenceScorer(symbol, sector)
                     val scored = scorer.scoreTrade(candles)
@@ -214,7 +273,10 @@ object MobaTradeServer {
                         triggersArray.put(trigger)
                     }
                     item.put("triggers", triggersArray)
-                    item.put("price", String.format("₹%,.2f", startPrice))
+                    
+                    // Return the actual last close price as the stock's current price in the signals JSON.
+                    val currentPrice = if (candles.isNotEmpty()) candles.last().close else startPrice
+                    item.put("price", String.format("₹%,.2f", currentPrice))
                     
                     signalsArray.put(item)
                 }

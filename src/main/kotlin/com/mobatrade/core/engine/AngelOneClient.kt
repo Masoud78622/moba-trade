@@ -4,12 +4,20 @@ import com.mobatrade.core.auth.TotpGenerator
 import com.mobatrade.core.halal.ShariahFilter
 import com.mobatrade.core.model.Direction
 import com.mobatrade.core.model.Order
+import com.mobatrade.core.model.Candle
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 import org.json.JSONObject
+import org.json.JSONArray
 import java.util.concurrent.TimeUnit
+import java.time.Instant
+import java.time.ZoneId
+import java.time.ZonedDateTime
+import java.time.OffsetDateTime
+import java.time.format.DateTimeFormatter
+import java.time.temporal.ChronoUnit
 
 object AngelOneClient {
     private const val BASE_URL = "https://apiconnect.angelone.in"
@@ -197,6 +205,109 @@ object AngelOneClient {
             e.printStackTrace()
         }
         return null
+    }
+
+    /**
+     * Fetches real-world historical candle data directly from Angel One SmartAPI getIntervalData.
+     * Generates a precise fromdate and todate in Asia/Kolkata (IST) timezone.
+     *
+     * @param symbolToken Official scrip token mapped for this symbol.
+     * @param symbol The stock ticker symbol.
+     * @param interval Time interval step (defaults to "ONE_HOUR").
+     * @param limitDays Number of historical days to pull.
+     * @return List<Candle> Containing the parsed candles, or empty list on failure.
+     */
+    fun fetchHistoricalCandles(
+        symbolToken: String,
+        symbol: String,
+        interval: String = "ONE_HOUR",
+        limitDays: Int = 15,
+        apiKey: String = DEFAULT_API_KEY
+    ): List<Candle> {
+        val token = jwtToken
+        if (token == null) {
+            System.err.println("BLOCK: Angel One historical fetch failed. Session is not authenticated.")
+            return emptyList()
+        }
+
+        try {
+            // Generate standard yyyy-MM-dd HH:mm formats in Asia/Kolkata (IST)
+            val zone = ZoneId.of("Asia/Kolkata")
+            val nowIst = ZonedDateTime.now(zone)
+            val fromIst = nowIst.minusDays(limitDays.toLong())
+
+            val formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm")
+            val fromDateStr = fromIst.format(formatter)
+            val toDateStr = nowIst.format(formatter)
+
+            val requestBodyJson = JSONObject()
+            requestBodyJson.put("exchange", "NSE")
+            requestBodyJson.put("symboltoken", symbolToken)
+            requestBodyJson.put("interval", interval)
+            requestBodyJson.put("fromdate", fromDateStr)
+            requestBodyJson.put("todate", toDateStr)
+
+            val requestBody = requestBodyJson.toString().toRequestBody(mediaType)
+
+            val request = Request.Builder()
+                .url("$BASE_URL/rest/secure/angelbroking/historical/v1/getIntervalData")
+                .post(requestBody)
+                .addHeader("Authorization", "Bearer $token")
+                .addHeader("Content-Type", "application/json")
+                .addHeader("Accept", "application/json")
+                .addHeader("X-PrivateKey", apiKey)
+                .addHeader("X-UserType", "USER")
+                .addHeader("X-SourceID", "WEB")
+                .addHeader("X-ClientLocalIP", "192.168.1.100")
+                .addHeader("X-ClientPublicIP", "106.193.147.98")
+                .addHeader("X-MACAddress", "00-50-56-C0-00-08")
+                .build()
+
+            httpClient.newCall(request).execute().use { response ->
+                if (!response.isSuccessful) {
+                    System.err.println("Historical fetch failed: HTTP ${response.code}")
+                    return emptyList()
+                }
+
+                val bodyStr = response.body?.string() ?: ""
+                if (bodyStr.isEmpty()) return emptyList()
+
+                val responseJson = JSONObject(bodyStr)
+                if (responseJson.optBoolean("status", false)) {
+                    val dataArray = responseJson.optJSONArray("data") ?: return emptyList()
+                    val candles = ArrayList<Candle>()
+
+                    for (i in 0 until dataArray.length()) {
+                        val row = dataArray.getJSONArray(i)
+                        val timestampStr = row.getString(0)
+
+                        // Parse timestamp (ISO-8601 offset like '2026-06-01T09:15:00+05:30')
+                        val timestamp = try {
+                            OffsetDateTime.parse(timestampStr).toInstant()
+                        } catch (e: Exception) {
+                            // Fallback incremental timestamp
+                            Instant.now().minus((dataArray.length() - i).toLong(), ChronoUnit.HOURS)
+                        }
+
+                        val open = row.getDouble(1)
+                        val high = row.getDouble(2)
+                        val low = row.getDouble(3)
+                        val close = row.getDouble(4)
+                        val volume = row.getLong(5)
+
+                        candles.add(Candle(timestamp, open, high, low, close, volume))
+                    }
+
+                    return candles
+                } else {
+                    System.err.println("Angel One Historical API Error: ${responseJson.optString("message")}")
+                }
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+
+        return emptyList()
     }
 
     /**

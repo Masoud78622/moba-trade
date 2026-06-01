@@ -88,4 +88,32 @@ class ZoyaSyncTest {
         
         assertNull(shortResult, "Short-selling order must be blocked by Shariah rules")
     }
+
+    @Test
+    fun testHistoricalCandleTimeParsing() {
+        val timestampStr = "2026-06-01T09:15:00+05:30"
+        val parsed = java.time.OffsetDateTime.parse(timestampStr)
+        assertNotNull(parsed)
+        assertEquals(2026, parsed.year)
+        assertEquals(6, parsed.monthValue)
+        assertEquals(1, parsed.dayOfMonth)
+        assertEquals(9, parsed.hour)
+        assertEquals(15, parsed.minute)
+        
+        val instant = parsed.toInstant()
+        assertNotNull(instant)
+    }
+
+    @Test
+    fun testFetchHistoricalCandlesUnauthenticated() {
+        // Ensure we are logged out
+        AngelOneClient.logout()
+        
+        val candles = AngelOneClient.fetchHistoricalCandles(
+            symbolToken = "11536",
+            symbol = "TCS"
+        )
+        assertNotNull(candles)
+        assertTrue(candles.isEmpty(), "Should return an empty list when unauthenticated")
+    }
 }
