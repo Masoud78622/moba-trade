@@ -206,7 +206,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
               transactionType: 'BUY',
               qty: calculatedQty,
               limitPrice: price,
-              orderType: 'LIMIT',
+              orderType: 'MARKET',
             );
 
             if (success) {
