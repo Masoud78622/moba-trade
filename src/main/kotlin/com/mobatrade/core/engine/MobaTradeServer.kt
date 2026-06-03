@@ -15,6 +15,8 @@ import java.nio.charset.StandardCharsets
 import java.time.Instant
 
 object MobaTradeServer {
+    @Volatile
+    private var cachedSignalsJson: String = "[]"
 
     @JvmStatic
     fun main(args: Array<String>) {
@@ -82,6 +84,32 @@ object MobaTradeServer {
                 }
             } catch (e: Exception) {
                 System.err.println("Server startup: login thread exception: ${e.message}")
+            }
+        }.also { it.isDaemon = true }.start()
+
+        // Start background scanner thread to update signals cache without blocking HTTP endpoints
+        Thread {
+            while (true) {
+                try {
+                    if (AngelOneClient.isLoggedIn) {
+                        println("BackgroundScanner: Starting scheduled scan of stock universe...")
+                        val signalsArray = computeSignals()
+                        cachedSignalsJson = signalsArray.toString()
+                        println("BackgroundScanner: Successfully updated signals cache with ${signalsArray.length()} items.")
+                        
+                        // Sleep 5 minutes between full scans
+                        Thread.sleep(5 * 60 * 1000)
+                    } else {
+                        // Check again in 5 seconds if login has succeeded
+                        Thread.sleep(5000)
+                    }
+                } catch (e: InterruptedException) {
+                    break
+                } catch (e: Exception) {
+                    System.err.println("BackgroundScanner Exception: ${e.message}")
+                    // On error, sleep 15 seconds before retrying
+                    try { Thread.sleep(15000) } catch (ie: InterruptedException) { break }
+                }
             }
         }.also { it.isDaemon = true }.start()
     }
@@ -200,138 +228,132 @@ object MobaTradeServer {
             }
 
             try {
-                // Try logging in to Angel One if not already logged in
-                if (!AngelOneClient.isLoggedIn) {
-                    println("SignalsHandler: Angel One session is not authenticated. Attempting auto-login...")
-                    val success = AngelOneClient.login()
-                    if (success) {
-                        println("SignalsHandler: Auto-login successful.")
-                    } else {
-                        System.err.println("SignalsHandler: Auto-login failed. Will gracefully fall back to synthetic data.")
-                    }
-                }
-
-                // Dynamically build the list of stocks to scan from halal_stocks.json cache
-                val activeStocks = ArrayList<Triple<String, String, Double>>()
-                val symbolToToken = mutableMapOf<String, String>()
-
-                try {
-                    val isWindows = System.getProperty("os.name").lowercase().contains("win")
-                    val cacheFile = if (isWindows) File("c:\\moba trade\\halal_stocks.json") else File("halal_stocks.json")
-                    if (cacheFile.exists()) {
-                        val content = cacheFile.readText(StandardCharsets.UTF_8)
-                        val array = JSONArray(content)
-                        for (i in 0 until array.length()) {
-                            val obj = array.getJSONObject(i)
-                            val symbol = obj.optString("symbol").uppercase()
-                            val sector = obj.optString("sector", "IT").uppercase()
-                            val token = obj.optString("token")
-                            if (symbol.isNotEmpty() && token.isNotEmpty()) {
-                                symbolToToken[symbol] = token
-                                // Provide reasonable default start prices if falling back to synthetic
-                                val defaultPrice = when (symbol) {
-                                    "TCS" -> 3045.00
-                                    "INFY" -> 1520.50
-                                    "WIPRO" -> 460.25
-                                    "RELIANCE" -> 2450.00
-                                    "HCLTECH" -> 1300.00
-                                    else -> 1000.00
-                                }
-                                activeStocks.add(Triple(symbol, sector, defaultPrice))
-                            }
-                        }
-                    }
-                } catch (e: Exception) {
-                    System.err.println("SignalsHandler: Failed to load dynamic active stocks list: ${e.message}")
-                }
-
-                // If loading from cache failed or returned nothing, fall back to our benchmark 5 stocks
-                if (activeStocks.isEmpty()) {
-                    activeStocks.addAll(listOf(
-                        Triple("TCS", "IT", 3045.00),
-                        Triple("INFY", "IT", 1520.50),
-                        Triple("WIPRO", "IT", 460.25),
-                        Triple("RELIANCE", "ENERGY", 2450.0),
-                        Triple("HCLTECH", "IT", 1300.00)
-                    ))
-                    
-                    symbolToToken.putAll(mapOf(
-                        "TCS" to "11536",
-                        "INFY" to "1594",
-                        "WIPRO" to "3787",
-                        "RELIANCE" to "2885",
-                        "HCLTECH" to "26347"
-                    ))
-                }
-
-                val signalsArray = JSONArray()
-
-                for ((symbol, sector, startPrice) in activeStocks) {
-                    var candles: List<Candle> = emptyList()
-                    val token = symbolToToken[symbol.uppercase()]
-
-                    if (AngelOneClient.isLoggedIn && token != null) {
-                        try {
-                            println("SignalsHandler: Fetching real-world hourly candles for $symbol ($token)...")
-                            candles = AngelOneClient.fetchHistoricalCandles(
-                                symbolToken = token,
-                                symbol = symbol,
-                                interval = "ONE_HOUR",
-                                limitDays = 15
-                            )
-                            // Rate limit protection: sleep for 350ms to respect Angel One SmartAPI guidelines
-                            Thread.sleep(350)
-                        } catch (e: Exception) {
-                            System.err.println("SignalsHandler: Failed to fetch real-world candles for $symbol: ${e.message}")
-                        }
-                    }
-
-                    // SAFE FAIL: Do not use synthetic data if API fails. Return a neutral 0-score signal.
-                    if (candles.isEmpty()) {
-                        println("SignalsHandler: No real-world candles available for $symbol. Returning neutral 0 score to avoid fake trades.")
-                        val item = JSONObject()
-                        item.put("symbol", symbol)
-                        item.put("score", 0)
-                        item.put("direction", "HOLD")
-                        item.put("regime", "RANGING")
-                        item.put("compliant", com.mobatrade.core.halal.ShariahFilter.isCompliantSymbol(symbol))
-                        item.put("triggers", JSONArray(listOf("FAILED_TO_FETCH_MARKET_DATA")))
-                        item.put("price", String.format("₹%,.2f", startPrice))
-                        signalsArray.put(item)
-                        continue
-                    }
-
-                    val scorer = ConfluenceScorer(symbol, sector)
-                    val scored = scorer.scoreTrade(candles)
-
-                    val item = JSONObject()
-                    item.put("symbol", scored.symbol)
-                    item.put("score", scored.totalScore)
-                    item.put("direction", scored.recommendedDirection.name)
-                    item.put("regime", scored.marketRegime.name)
-                    item.put("compliant", scored.isShariahCompliant)
-                    
-                    val triggersArray = JSONArray()
-                    for (trigger in scored.triggers) {
-                        triggersArray.put(trigger)
-                    }
-                    item.put("triggers", triggersArray)
-                    
-                    // Return the actual last close price as the stock's current price in the signals JSON.
-                    val currentPrice = if (candles.isNotEmpty()) candles.last().close else startPrice
-                    item.put("price", String.format("₹%,.2f", currentPrice))
-                    
-                    signalsArray.put(item)
-                }
-
-                sendResponse(exchange, 200, signalsArray.toString())
+                // Instantly return the cached signals json to prevent client / proxy timeouts
+                sendResponse(exchange, 200, cachedSignalsJson)
             } catch (e: Exception) {
                 e.printStackTrace()
                 val err = JSONObject()
-                err.put("error", "Failed to compute signals")
+                err.put("error", "Failed to retrieve signals")
                 err.put("details", e.message)
                 sendResponse(exchange, 500, err.toString())
             }
         }
+    }
+
+    private fun computeSignals(): JSONArray {
+        // Dynamically build the list of stocks to scan from halal_stocks.json cache
+        val activeStocks = ArrayList<Triple<String, String, Double>>()
+        val symbolToToken = mutableMapOf<String, String>()
+
+        try {
+            val isWindows = System.getProperty("os.name").lowercase().contains("win")
+            val cacheFile = if (isWindows) File("c:\\moba trade\\halal_stocks.json") else File("halal_stocks.json")
+            if (cacheFile.exists()) {
+                val content = cacheFile.readText(StandardCharsets.UTF_8)
+                val array = JSONArray(content)
+                for (i in 0 until array.length()) {
+                    val obj = array.getJSONObject(i)
+                    val symbol = obj.optString("symbol").uppercase()
+                    val sector = obj.optString("sector", "IT").uppercase()
+                    val token = obj.optString("token")
+                    if (symbol.isNotEmpty() && token.isNotEmpty()) {
+                        symbolToToken[symbol] = token
+                        // Provide reasonable default start prices if falling back to synthetic
+                        val defaultPrice = when (symbol) {
+                            "TCS" -> 3045.00
+                            "INFY" -> 1520.50
+                            "WIPRO" -> 460.25
+                            "RELIANCE" -> 2450.00
+                            "HCLTECH" -> 1300.00
+                            else -> 1000.00
+                        }
+                        activeStocks.add(Triple(symbol, sector, defaultPrice))
+                    }
+                }
+            }
+        } catch (e: Exception) {
+            System.err.println("computeSignals: Failed to load dynamic active stocks list: ${e.message}")
+        }
+
+        // If loading from cache failed or returned nothing, fall back to our benchmark 5 stocks
+        if (activeStocks.isEmpty()) {
+            activeStocks.addAll(listOf(
+                Triple("TCS", "IT", 3045.00),
+                Triple("INFY", "IT", 1520.50),
+                Triple("WIPRO", "IT", 460.25),
+                Triple("RELIANCE", "ENERGY", 2450.0),
+                Triple("HCLTECH", "IT", 1300.00)
+            ))
+            
+            symbolToToken.putAll(mapOf(
+                "TCS" to "11536",
+                "INFY" to "1594",
+                "WIPRO" to "3787",
+                "RELIANCE" to "2885",
+                "HCLTECH" to "26347"
+            ))
+        }
+
+        val signalsArray = JSONArray()
+
+        for ((symbol, sector, startPrice) in activeStocks) {
+            var candles: List<Candle> = emptyList()
+            val token = symbolToToken[symbol.uppercase()]
+
+            if (AngelOneClient.isLoggedIn && token != null) {
+                try {
+                    println("BackgroundScanner: Fetching real-world hourly candles for $symbol ($token)...")
+                    candles = AngelOneClient.fetchHistoricalCandles(
+                        symbolToken = token,
+                        symbol = symbol,
+                        interval = "ONE_HOUR",
+                        limitDays = 15
+                    )
+                    // Rate limit protection: sleep for 350ms to respect Angel One SmartAPI guidelines
+                    Thread.sleep(350)
+                } catch (e: Exception) {
+                    System.err.println("BackgroundScanner: Failed to fetch real-world candles for $symbol: ${e.message}")
+                }
+            }
+
+            // SAFE FAIL: Do not use synthetic data if API fails. Return a neutral 0-score signal.
+            if (candles.isEmpty()) {
+                println("BackgroundScanner: No real-world candles available for $symbol. Returning neutral 0 score to avoid fake trades.")
+                val item = JSONObject()
+                item.put("symbol", symbol)
+                item.put("score", 0)
+                item.put("direction", "HOLD")
+                item.put("regime", "RANGING")
+                item.put("compliant", com.mobatrade.core.halal.ShariahFilter.isCompliantSymbol(symbol))
+                item.put("triggers", JSONArray(listOf("FAILED_TO_FETCH_MARKET_DATA")))
+                item.put("price", String.format("₹%,.2f", startPrice))
+                signalsArray.put(item)
+                continue
+            }
+
+            val scorer = ConfluenceScorer(symbol, sector)
+            val scored = scorer.scoreTrade(candles)
+
+            val item = JSONObject()
+            item.put("symbol", scored.symbol)
+            item.put("score", scored.totalScore)
+            item.put("direction", scored.recommendedDirection.name)
+            item.put("regime", scored.marketRegime.name)
+            item.put("compliant", scored.isShariahCompliant)
+            
+            val triggersArray = JSONArray()
+            for (trigger in scored.triggers) {
+                triggersArray.put(trigger)
+            }
+            item.put("triggers", triggersArray)
+            
+            // Return the actual last close price as the stock's current price in the signals JSON.
+            val currentPrice = if (candles.isNotEmpty()) candles.last().close else startPrice
+            item.put("price", String.format("₹%,.2f", currentPrice))
+            
+            signalsArray.put(item)
+        }
+
+        return signalsArray
     }
 }
