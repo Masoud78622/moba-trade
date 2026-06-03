@@ -22,7 +22,8 @@ import java.time.temporal.ChronoUnit
 object AngelOneClient {
     private const val BASE_URL = "https://apiconnect.angelone.in"
     private const val DEFAULT_API_KEY = "8M5vqGDS"
-    private const val DEFAULT_SECRET = "K336YHYAV6NN5H2DYMPBBZ55NM"
+    const val DEFAULT_TOTP_SECRET = "K336YHYAV6NN5H2DYMPBBZ55NM"
+    private const val DEFAULT_SECRET = DEFAULT_TOTP_SECRET
     private const val DEFAULT_CLIENT_ID = "AAAC764774"
 
     private val httpClient = OkHttpClient.Builder()

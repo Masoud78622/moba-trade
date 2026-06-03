@@ -63,8 +63,27 @@ object MobaTradeServer {
         println("  -> GET http://localhost:$port/halal-stocks")
         println("  -> GET http://localhost:$port/signals")
         println("==========================================================")
-        
+
         server.start()
+
+        // Eagerly attempt Angel One login in a background thread at startup
+        // so /status immediately reflects the real brokerConnected state.
+        // Credentials are read from env vars first, falling back to defaults.
+        Thread {
+            try {
+                val pin = System.getenv("ANGEL_PIN") ?: "1996"
+                val totpSecret = System.getenv("ANGEL_TOTP_SECRET") ?: AngelOneClient.DEFAULT_TOTP_SECRET
+                println("Server startup: attempting Angel One auto-login...")
+                val success = AngelOneClient.login(tradingPassword = pin, totpSecret = totpSecret)
+                if (success) {
+                    println("Server startup: Angel One login successful. brokerConnected = true")
+                } else {
+                    System.err.println("Server startup: Angel One login failed. Check ANGEL_PIN and ANGEL_TOTP_SECRET env vars.")
+                }
+            } catch (e: Exception) {
+                System.err.println("Server startup: login thread exception: ${e.message}")
+            }
+        }.also { it.isDaemon = true }.start()
     }
 
     private fun sendResponse(exchange: HttpExchange, statusCode: Int, responseBody: String) {
