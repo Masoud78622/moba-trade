@@ -71,7 +71,7 @@ object MobaTradeServer {
         // Credentials are read from env vars first, falling back to defaults.
         Thread {
             try {
-                val pin = System.getenv("ANGEL_PIN") ?: "1996"
+                val pin = System.getenv("ANGEL_PIN") ?: "3112"
                 val totpSecret = System.getenv("ANGEL_TOTP_SECRET") ?: AngelOneClient.DEFAULT_TOTP_SECRET
                 println("Server startup: attempting Angel One auto-login...")
                 val success = AngelOneClient.login(tradingPassword = pin, totpSecret = totpSecret)

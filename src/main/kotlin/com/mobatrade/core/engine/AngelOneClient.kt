@@ -58,7 +58,7 @@ object AngelOneClient {
     @Synchronized
     fun login(
         clientId: String = DEFAULT_CLIENT_ID,
-        tradingPassword: String = "123456",
+        tradingPassword: String = "3112",
         apiKey: String = DEFAULT_API_KEY,
         totpSecret: String = DEFAULT_SECRET
     ): Boolean {
