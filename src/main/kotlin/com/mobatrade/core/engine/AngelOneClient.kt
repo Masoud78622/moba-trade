@@ -251,7 +251,7 @@ object AngelOneClient {
             val requestBody = requestBodyJson.toString().toRequestBody(mediaType)
 
             val request = Request.Builder()
-                .url("$BASE_URL/rest/secure/angelbroking/historical/v1/getIntervalData")
+                .url("$BASE_URL/rest/secure/angelbroking/historical/v1/getCandleData")
                 .post(requestBody)
                 .addHeader("Authorization", "Bearer $token")
                 .addHeader("Content-Type", "application/json")
@@ -273,7 +273,13 @@ object AngelOneClient {
                 val bodyStr = response.body?.string() ?: ""
                 if (bodyStr.isEmpty()) return emptyList()
 
-                val responseJson = JSONObject(bodyStr)
+                val responseJson = try {
+                    JSONObject(bodyStr)
+                } catch (e: Exception) {
+                    System.err.println("AngelOneClient: Failed to parse historical response as JSON. Body length: ${bodyStr.length}. Preview: ${bodyStr.take(500)}")
+                    System.err.println("AngelOneClient: Response code: ${response.code}, Headers: ${response.headers}")
+                    throw e
+                }
                 if (responseJson.optBoolean("status", false)) {
                     val dataArray = responseJson.optJSONArray("data") ?: return emptyList()
                     val candles = ArrayList<Candle>()
