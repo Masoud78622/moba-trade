@@ -9,7 +9,7 @@ COPY --chown=gradle:gradle . .
 
 # Compile and package everything using the globally installed gradle
 # (This completely bypasses local shell script line-ending and permission issues)
-RUN gradle installDist -x test --no-daemon
+RUN gradle installDist -x test --no-daemon -Dorg.gradle.jvmargs="-Xmx256m -XX:MaxMetaspaceSize=128m"
 
 # ========================================================
 # Stage 2: Create the super-lightweight runtime image
