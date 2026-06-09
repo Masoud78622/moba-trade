@@ -59,6 +59,7 @@ object MobaTradeServer {
         server.createContext("/autobot/status", AutoBotStatusHandler())
         server.createContext("/autobot/toggle", AutoBotToggleHandler())
         server.createContext("/learning/report", LearningReportHandler())
+        server.createContext("/learning/trigger", LearningTriggerHandler())
 
         server.executor = null // Creates a default executor
         
@@ -324,6 +325,25 @@ object MobaTradeServer {
             }
             val reportJsonStr = LearnedWeights.getReport()
             sendResponse(exchange, 200, reportJsonStr)
+        }
+    }
+
+    // 7. Manual EOD Learning Trigger Handler
+    class LearningTriggerHandler : HttpHandler {
+        override fun handle(exchange: HttpExchange) {
+            if (exchange.requestMethod.uppercase() == "OPTIONS") {
+                exchange.sendResponseHeaders(204, -1)
+                return
+            }
+            Thread {
+                println("Manual EOD scan triggered via API...")
+                SelfLearningEngine.runAnalysis()
+            }.start()
+            
+            val statusJson = JSONObject()
+            statusJson.put("status", "STARTED")
+            statusJson.put("message", "EOD Self-Learning Analysis started in background. Check server console for progress.")
+            sendResponse(exchange, 200, statusJson.toString())
         }
     }
 
