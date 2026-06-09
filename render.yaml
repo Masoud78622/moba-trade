@@ -1,0 +1,5 @@
+services:
+  - type: web
+    name: moba-trade-backend
+    env: docker
+    plan: free
