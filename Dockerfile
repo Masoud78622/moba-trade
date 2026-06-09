@@ -12,7 +12,7 @@ RUN sed -i 's/\r$//' gradlew
 RUN chmod +x gradlew
 
 # Compile and package everything using the project's exact Gradle wrapper
-RUN ./gradlew installDist -x test --no-daemon -Dorg.gradle.jvmargs="-Xmx300m -XX:MaxMetaspaceSize=128m"
+RUN ./gradlew installDist -x test --no-daemon
 
 # ========================================================
 # Stage 2: Create the super-lightweight runtime image
