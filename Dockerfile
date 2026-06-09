@@ -1,20 +1,23 @@
 # ========================================================
 # Stage 1: Build the packaged distribution
 # ========================================================
-FROM gradle:8.8-jdk21-alpine AS builder
+FROM eclipse-temurin:21-jdk AS builder
 WORKDIR /app
 
-# Copy configuration and source files
-COPY --chown=gradle:gradle . .
+# Copy everything into the container
+COPY . .
 
-# Compile and package everything using the globally installed gradle
-# (This completely bypasses local shell script line-ending and permission issues)
-RUN gradle installDist -x test --no-daemon -Dorg.gradle.jvmargs="-Xmx256m -XX:MaxMetaspaceSize=128m"
+# Fix Windows CRLF line endings that cause "bad interpreter" errors on Linux
+RUN sed -i 's/\r$//' gradlew
+RUN chmod +x gradlew
+
+# Compile and package everything using the project's exact Gradle wrapper
+RUN ./gradlew installDist -x test --no-daemon -Dorg.gradle.jvmargs="-Xmx300m -XX:MaxMetaspaceSize=128m"
 
 # ========================================================
 # Stage 2: Create the super-lightweight runtime image
 # ========================================================
-FROM eclipse-temurin:21-jre-alpine
+FROM eclipse-temurin:21-jre
 WORKDIR /app
 
 # Copy the built distribution
