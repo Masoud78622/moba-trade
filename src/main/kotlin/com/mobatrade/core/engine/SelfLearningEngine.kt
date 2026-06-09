@@ -51,7 +51,7 @@ object SelfLearningEngine {
                 
                 if (dailyLow > 0) {
                     val percentMove = ((dailyHigh - dailyLow) / dailyLow) * 100.0
-                    if (percentMove >= 3.0) {
+                    if (percentMove >= 0.5) { // Lowered to 0.5% for aggressive testing
                         val scorer = ConfluenceScorer(symbol, "UNKNOWN")
                         val scoredTrade = scorer.scoreTrade(candles, null)
                         
