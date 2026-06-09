@@ -42,6 +42,7 @@ abstract class BrokerService {
     required int qty,
     required double limitPrice,
     String orderType = 'LIMIT',
+    String? token,
   });
 
   /// Runs a comprehensive API diagnostics check and returns the results.
@@ -72,6 +73,7 @@ class MockBrokerService implements BrokerService {
       'sl': 2900.00,
       'target': 3200.00,
       'time': '10:14 AM',
+      'token': '11536',
     }
   ];
 
@@ -137,7 +139,8 @@ class MockBrokerService implements BrokerService {
         'sl': 415.00,
         'target': 480.00,
         'daysHeld': 5,
-        'compliant': true
+        'compliant': true,
+        'token': '3787',
       },
       {
         'symbol': 'TCS',
@@ -147,7 +150,8 @@ class MockBrokerService implements BrokerService {
         'sl': 2880.00,
         'target': 3250.00,
         'daysHeld': 12,
-        'compliant': true
+        'compliant': true,
+        'token': '11536',
       }
     ];
   }
@@ -159,6 +163,7 @@ class MockBrokerService implements BrokerService {
     required int qty,
     required double limitPrice,
     String orderType = 'LIMIT',
+    String? token,
   }) async {
     final cleanSymbol = symbol.toUpperCase();
     if (transactionType.toUpperCase() == 'BUY') {
@@ -172,6 +177,7 @@ class MockBrokerService implements BrokerService {
           'sl': limitPrice * 0.98,
           'target': limitPrice * 1.05,
           'time': 'JUST NOW (SIM)',
+          'token': token ?? '0',
         });
         _simulatedCompletedTrades.add({
           'symbol': cleanSymbol,

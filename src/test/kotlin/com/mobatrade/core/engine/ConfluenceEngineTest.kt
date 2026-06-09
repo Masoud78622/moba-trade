@@ -194,4 +194,25 @@ class ConfluenceEngineTest {
             println("SYMBOL: $symbol, SCORE: ${scored.totalScore}, DIRECTION: ${scored.recommendedDirection}, TRIGGERS: ${scored.triggers}")
         }
     }
+
+    @Test
+    fun testRealCandlesScoring() {
+        val loginSuccess = AngelOneClient.login(
+            tradingPassword = "3112",
+            totpSecret = "K336YHYAV6NN5H2DYMPBBZ55NM"
+        )
+        assertTrue(loginSuccess, "Login must succeed to run real candles test")
+        val candles = AngelOneClient.fetchHistoricalCandles(
+            symbolToken = "11536",
+            symbol = "TCS"
+        )
+        assertFalse(candles.isEmpty(), "Candles must not be empty")
+        
+        val scorer = ConfluenceScorer("TCS", "IT")
+        val scored = scorer.scoreTrade(candles)
+        println("=== REAL CANDLE SCORING TEST ===")
+        println("Symbol: ${scored.symbol}, Score: ${scored.totalScore}, Direction: ${scored.recommendedDirection}")
+        println("Triggers: ${scored.triggers}")
+        assertNotNull(scored)
+    }
 }

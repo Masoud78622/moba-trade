@@ -15,6 +15,10 @@ class _PositionsScreenState extends State<PositionsScreen> with SingleTickerProv
   Future<List<Map<String, dynamic>>>? _swingHoldingsFuture;
   Timer? _refreshTimer;
 
+  // Manual SL/TP overrides keyed by symbol (survive tab switches)
+  final Map<String, double> _slOverrides = {};
+  final Map<String, double> _tpOverrides = {};
+
   @override
   void initState() {
     super.initState();
@@ -46,7 +50,7 @@ class _PositionsScreenState extends State<PositionsScreen> with SingleTickerProv
     super.dispose();
   }
 
-  void _confirmLiquidate(String symbol, int qty, double currentPrice) {
+  void _confirmLiquidate(String symbol, int qty, double currentPrice, {String? token}) {
     showDialog(
       context: context,
       builder: (BuildContext context) {
@@ -92,9 +96,11 @@ class _PositionsScreenState extends State<PositionsScreen> with SingleTickerProv
                           child: CircularProgressIndicator(strokeWidth: 1.5, valueColor: AlwaysStoppedAnimation<Color>(Colors.white)),
                         ),
                         const SizedBox(width: 12),
-                        Text(
-                          isLive ? 'SUBMITTING LIVE ORDER TO ANGEL ONE...' : 'SIMULATING ORDER EXECUTION...',
-                          style: const TextStyle(fontFamily: 'Courier', color: Colors.white),
+                        Expanded(
+                          child: Text(
+                            isLive ? 'SUBMITTING LIVE ORDER TO ANGEL ONE...' : 'SIMULATING ORDER EXECUTION...',
+                            style: const TextStyle(fontFamily: 'Courier', color: Colors.white),
+                          ),
                         ),
                       ],
                     ),
@@ -107,6 +113,7 @@ class _PositionsScreenState extends State<PositionsScreen> with SingleTickerProv
                   qty: qty,
                   limitPrice: 0, // MARKET orders require price=0
                   orderType: 'MARKET', // Always use MARKET for liquidation — fills at best bid
+                  token: token,
                 );
 
                 if (context.mounted) {
@@ -143,6 +150,126 @@ class _PositionsScreenState extends State<PositionsScreen> with SingleTickerProv
                 isLive ? 'SUBMIT SELL ORDER' : 'CONFIRM SIMULATION',
                 style: const TextStyle(fontFamily: 'Courier', fontWeight: FontWeight.bold),
               ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+  void _showAdjustDialog(String symbol, double currentSl, double currentTp) {
+    final slController = TextEditingController(text: currentSl.toStringAsFixed(2));
+    final tpController = TextEditingController(text: currentTp.toStringAsFixed(2));
+
+    showDialog(
+      context: context,
+      builder: (ctx) {
+        return AlertDialog(
+          backgroundColor: const Color(0xFF121215),
+          shape: RoundedRectangleBorder(
+            side: const BorderSide(color: Color(0xFF27272A), width: 1.0),
+            borderRadius: BorderRadius.circular(4),
+          ),
+          title: Text(
+            'ADJUST: $symbol',
+            style: const TextStyle(
+              fontFamily: 'Courier', color: Colors.white,
+              fontWeight: FontWeight.bold, fontSize: 14,
+            ),
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text(
+                'Override the auto-calculated Stop-Loss and Target Price. Changes are saved locally and persist across refreshes.',
+                style: TextStyle(fontFamily: 'Courier', color: Color(0xFFA1A1AA), fontSize: 11, height: 1.4),
+              ),
+              const SizedBox(height: 20),
+              TextField(
+                controller: slController,
+                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                style: const TextStyle(fontFamily: 'Courier', color: Colors.white),
+                cursorColor: Colors.white,
+                decoration: const InputDecoration(
+                  labelText: 'STOP LOSS (SL) ₹',
+                  labelStyle: TextStyle(fontFamily: 'Courier', color: Color(0xFFA1A1AA), fontSize: 12),
+                  enabledBorder: UnderlineInputBorder(borderSide: BorderSide(color: Color(0xFF27272A))),
+                  focusedBorder: UnderlineInputBorder(borderSide: BorderSide(color: Colors.white)),
+                ),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: tpController,
+                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                style: const TextStyle(fontFamily: 'Courier', color: Colors.white),
+                cursorColor: Colors.white,
+                decoration: const InputDecoration(
+                  labelText: 'TARGET PRICE (TP) ₹',
+                  labelStyle: TextStyle(fontFamily: 'Courier', color: Color(0xFFA1A1AA), fontSize: 12),
+                  enabledBorder: UnderlineInputBorder(borderSide: BorderSide(color: Color(0xFF27272A))),
+                  focusedBorder: UnderlineInputBorder(borderSide: BorderSide(color: Colors.white)),
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                setState(() {
+                  _slOverrides.remove(symbol);
+                  _tpOverrides.remove(symbol);
+                });
+                Navigator.pop(ctx);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    backgroundColor: Color(0xFF27272A),
+                    content: Text('SL/TP reset to auto-calculated values.',
+                      style: TextStyle(fontFamily: 'Courier', color: Colors.white, fontSize: 11)),
+                    duration: Duration(seconds: 2),
+                  ),
+                );
+              },
+              child: const Text('RESET', style: TextStyle(fontFamily: 'Courier', color: Color(0xFF71717A))),
+            ),
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('CANCEL', style: TextStyle(fontFamily: 'Courier', color: Color(0xFF71717A))),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.white,
+                foregroundColor: Colors.black,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(2)),
+              ),
+              onPressed: () {
+                final double? newSl = double.tryParse(slController.text.trim());
+                final double? newTp = double.tryParse(tpController.text.trim());
+                if (newSl == null || newTp == null) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      backgroundColor: Color(0xFFEF4444),
+                      content: Text('Invalid values — please enter numeric prices.',
+                        style: TextStyle(fontFamily: 'Courier', color: Colors.white, fontSize: 11)),
+                    ),
+                  );
+                  return;
+                }
+                setState(() {
+                  _slOverrides[symbol] = newSl;
+                  _tpOverrides[symbol] = newTp;
+                });
+                Navigator.pop(ctx);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    backgroundColor: const Color(0xFF121215),
+                    content: Text(
+                      '✓ $symbol: SL → ₹${newSl.toStringAsFixed(2)}, TP → ₹${newTp.toStringAsFixed(2)}',
+                      style: const TextStyle(fontFamily: 'Courier', color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold),
+                    ),
+                    duration: const Duration(seconds: 3),
+                  ),
+                );
+              },
+              child: const Text('SAVE', style: TextStyle(fontFamily: 'Courier', fontWeight: FontWeight.bold)),
             ),
           ],
         );
@@ -269,6 +396,14 @@ class _PositionsScreenState extends State<PositionsScreen> with SingleTickerProv
                     separatorBuilder: (context, index) => const SizedBox(height: 12),
                     itemBuilder: (context, index) {
                       final pos = positions[index];
+                      debugPrint('🤖 MOBA POSITIONS SCREEN INTRADAY: $pos');
+                      final String sym = pos['symbol']?.toString() ?? 'UNKNOWN';
+                      final double rawSl = (pos['sl'] as num?)?.toDouble() ?? 0.0;
+                      final double rawTp = (pos['target'] as num?)?.toDouble() ?? 0.0;
+                      final double sl = _slOverrides[sym] ?? rawSl;
+                      final double target = _tpOverrides[sym] ?? rawTp;
+                      final bool slOverridden = _slOverrides.containsKey(sym);
+                      final bool tpOverridden = _tpOverrides.containsKey(sym);
                       final totalCost = pos['qty'] * pos['entry'];
                       final totalVal = pos['qty'] * pos['current'];
                       final pnl = totalVal - totalCost;
@@ -276,12 +411,12 @@ class _PositionsScreenState extends State<PositionsScreen> with SingleTickerProv
                       final isProfit = pnl >= 0;
 
                       return _buildPositionCard(
-                        symbol: pos['symbol'],
+                        symbol: sym,
                         qty: pos['qty'],
                         entry: pos['entry'],
                         current: pos['current'],
-                        sl: pos['sl'],
-                        target: pos['target'],
+                        sl: sl,
+                        target: target,
                         pnl: pnl,
                         pnlPercent: pnlPercent,
                         isProfit: isProfit,
@@ -289,6 +424,9 @@ class _PositionsScreenState extends State<PositionsScreen> with SingleTickerProv
                         timeText: BrokerService.current.isConnected ? 'LIVE FEED (NSE)' : 'OPENED AT ${pos['time']}',
                         isCompliant: true,
                         daysHeld: null,
+                        token: pos['token']?.toString(),
+                        slOverridden: slOverridden,
+                        tpOverridden: tpOverridden,
                       );
                     },
                   ),
@@ -384,10 +522,17 @@ class _PositionsScreenState extends State<PositionsScreen> with SingleTickerProv
                     separatorBuilder: (context, index) => const SizedBox(height: 12),
                     itemBuilder: (context, index) {
                       final pos = holdings[index];
+                      debugPrint('🤖 MOBA POSITIONS SCREEN HOLDING: $pos');
+                      final String sym = pos['symbol']?.toString() ?? 'UNKNOWN';
                       final double entry = (pos['entry'] as num).toDouble();
                       final double current = (pos['current'] as num).toDouble();
-                      final double sl = (pos['sl'] as num?)?.toDouble() ?? 0.0;
-                      final double target = (pos['target'] as num?)?.toDouble() ?? 0.0;
+                      final double rawSl = (pos['sl'] as num?)?.toDouble() ?? 0.0;
+                      final double rawTp = (pos['target'] as num?)?.toDouble() ?? 0.0;
+                      // Apply manual override if set
+                      final double sl = _slOverrides[sym] ?? rawSl;
+                      final double target = _tpOverrides[sym] ?? rawTp;
+                      final bool slOverridden = _slOverrides.containsKey(sym);
+                      final bool tpOverridden = _tpOverrides.containsKey(sym);
                       final int qty = (pos['qty'] as num).toInt();
                       final totalCost = qty * entry;
                       final totalVal = qty * current;
@@ -396,7 +541,7 @@ class _PositionsScreenState extends State<PositionsScreen> with SingleTickerProv
                       final isProfit = pnl >= 0;
 
                       return _buildPositionCard(
-                        symbol: pos['symbol'],
+                        symbol: sym,
                         qty: qty,
                         entry: entry,
                         current: current,
@@ -409,6 +554,9 @@ class _PositionsScreenState extends State<PositionsScreen> with SingleTickerProv
                         timeText: 'HELD FOR ${pos['daysHeld'] ?? 0} DAYS',
                         isCompliant: pos['compliant'] ?? false,
                         daysHeld: pos['daysHeld'] as int?,
+                        token: pos['token']?.toString(),
+                        slOverridden: slOverridden,
+                        tpOverridden: tpOverridden,
                       );
                     },
                   ),
@@ -434,6 +582,9 @@ class _PositionsScreenState extends State<PositionsScreen> with SingleTickerProv
     required String timeText,
     required bool isCompliant,
     required int? daysHeld,
+    String? token,
+    bool slOverridden = false,
+    bool tpOverridden = false,
   }) {
     final totalVal = qty * current;
 
@@ -447,75 +598,83 @@ class _PositionsScreenState extends State<PositionsScreen> with SingleTickerProv
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Expanded(
-                child: Row(
-                  children: [
-                    Flexible(
-                      child: Text(
-                        symbol,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          fontFamily: 'Courier',
-                          fontSize: 20,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white,
-                        ),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Expanded(
+                    child: Text(
+                      symbol,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontFamily: 'Courier',
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
                       ),
                     ),
-                    const SizedBox(width: 8),
+                  ),
+                  const SizedBox(width: 8),
+                  Flexible(
+                    child: Text(
+                      '${isProfit ? "+" : ""}₹${pnl.toStringAsFixed(2)} (${isProfit ? "+" : ""}${pnlPercent.toStringAsFixed(2)}%)',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontFamily: 'Courier',
+                        fontSize: 14,
+                        fontWeight: FontWeight.bold,
+                        color: isProfit ? const Color(0xFF10B981) : const Color(0xFFEF4444),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 6),
+              Wrap(
+                spacing: 8,
+                runSpacing: 4,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                    decoration: BoxDecoration(
+                      border: Border.all(color: const Color(0xFF71717A), width: 0.5),
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                    child: Text(
+                      badge,
+                      style: const TextStyle(fontSize: 8, fontWeight: FontWeight.bold, color: Color(0xFFA1A1AA)),
+                    ),
+                  ),
+                  if (isCompliant)
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                       decoration: BoxDecoration(
-                        border: Border.all(color: const Color(0xFF71717A), width: 0.5),
+                        color: Colors.white,
                         borderRadius: BorderRadius.circular(2),
+                        border: Border.all(color: Colors.white, width: 0.5),
                       ),
-                      child: Text(
-                        badge,
-                        style: const TextStyle(fontSize: 8, fontWeight: FontWeight.bold, color: Color(0xFFA1A1AA)),
+                      child: const Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.verified, size: 8, color: Colors.black),
+                          SizedBox(width: 3),
+                          Text(
+                            'HALAL',
+                            style: TextStyle(
+                              fontSize: 8,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.black,
+                              letterSpacing: 0.5,
+                            ),
+                          ),
+                        ],
                       ),
                     ),
-                    if (isCompliant) ...[
-                      const SizedBox(width: 8),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(2),
-                          border: Border.all(color: Colors.white, width: 0.5),
-                        ),
-                        child: const Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(Icons.verified, size: 8, color: Colors.black),
-                            SizedBox(width: 3),
-                            Text(
-                              'HALAL',
-                              style: TextStyle(
-                                fontSize: 8,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.black,
-                                letterSpacing: 0.5,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ],
-                ),
-              ),
-              const SizedBox(width: 8),
-              Text(
-                '${isProfit ? "+" : ""}₹${pnl.toStringAsFixed(2)} (${isProfit ? "+" : ""}${pnlPercent.toStringAsFixed(2)}%)',
-                style: TextStyle(
-                  fontFamily: 'Courier',
-                  fontSize: 14,
-                  fontWeight: FontWeight.bold,
-                  color: isProfit ? const Color(0xFF10B981) : const Color(0xFFEF4444),
-                ),
+                ],
               ),
             ],
           ),
@@ -534,18 +693,34 @@ class _PositionsScreenState extends State<PositionsScreen> with SingleTickerProv
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text(
-                      'STOP LOSS (SL)',
-                      style: TextStyle(fontFamily: 'Courier', fontSize: 10, color: Color(0xFF71717A)),
+                    Wrap(
+                      crossAxisAlignment: WrapCrossAlignment.center,
+                      children: [
+                        const Text(
+                          'STOP LOSS (SL)',
+                          style: TextStyle(fontFamily: 'Courier', fontSize: 10, color: Color(0xFF71717A)),
+                        ),
+                        if (slOverridden) ...[
+                          const SizedBox(width: 4),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF1E293B),
+                              borderRadius: BorderRadius.circular(2),
+                            ),
+                            child: const Text('MANUAL', style: TextStyle(fontFamily: 'Courier', fontSize: 7, color: Color(0xFF38BDF8), fontWeight: FontWeight.bold)),
+                          ),
+                        ],
+                      ],
                     ),
                     const SizedBox(height: 4),
                     Text(
                       '₹${sl.toStringAsFixed(2)}',
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontFamily: 'Courier',
                         fontSize: 14,
                         fontWeight: FontWeight.bold,
-                        color: Colors.white,
+                        color: slOverridden ? const Color(0xFF38BDF8) : Colors.white,
                       ),
                     ),
                   ],
@@ -555,18 +730,35 @@ class _PositionsScreenState extends State<PositionsScreen> with SingleTickerProv
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
-                    const Text(
-                      'TARGET (TP)',
-                      style: TextStyle(fontFamily: 'Courier', fontSize: 10, color: Color(0xFF71717A)),
+                    Wrap(
+                      crossAxisAlignment: WrapCrossAlignment.center,
+                      alignment: WrapAlignment.end,
+                      children: [
+                        if (tpOverridden) ...[
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF1E293B),
+                              borderRadius: BorderRadius.circular(2),
+                            ),
+                            child: const Text('MANUAL', style: TextStyle(fontFamily: 'Courier', fontSize: 7, color: Color(0xFF38BDF8), fontWeight: FontWeight.bold)),
+                          ),
+                          const SizedBox(width: 4),
+                        ],
+                        const Text(
+                          'TARGET (TP)',
+                          style: TextStyle(fontFamily: 'Courier', fontSize: 10, color: Color(0xFF71717A)),
+                        ),
+                      ],
                     ),
                     const SizedBox(height: 4),
                     Text(
                       '₹${target.toStringAsFixed(2)}',
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontFamily: 'Courier',
                         fontSize: 14,
                         fontWeight: FontWeight.bold,
-                        color: Colors.white,
+                        color: tpOverridden ? const Color(0xFF38BDF8) : Colors.white,
                       ),
                     ),
                   ],
@@ -576,47 +768,39 @@ class _PositionsScreenState extends State<PositionsScreen> with SingleTickerProv
           ),
           const Divider(color: Color(0xFF27272A), height: 20),
           Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
+              if (daysHeld != null) ...[
+                const Icon(Icons.access_time_filled, size: 12, color: Color(0xFFA1A1AA)),
+                const SizedBox(width: 4),
+              ] else ...[
+                const Icon(Icons.bolt, size: 12, color: Color(0xFFA1A1AA)),
+                const SizedBox(width: 4),
+              ],
               Expanded(
-                child: Row(
-                  children: [
-                    if (daysHeld != null) ...[
-                      const Icon(Icons.access_time_filled, size: 12, color: Color(0xFFA1A1AA)),
-                      const SizedBox(width: 4),
-                    ] else ...[
-                      const Icon(Icons.bolt, size: 12, color: Color(0xFFA1A1AA)),
-                      const SizedBox(width: 4),
-                    ],
-                    Expanded(
-                      child: Text(
-                        timeText,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          fontFamily: 'Courier',
-                          fontSize: 10,
-                          fontWeight: FontWeight.bold,
-                          color: Color(0xFFA1A1AA),
-                        ),
-                      ),
-                    ),
-                  ],
+                child: Text(
+                  timeText,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontFamily: 'Courier',
+                    fontSize: 10,
+                    fontWeight: FontWeight.bold,
+                    color: Color(0xFFA1A1AA),
+                  ),
                 ),
               ),
               const SizedBox(width: 8),
-              Row(
-                children: [
-                  GestureButton(text: 'ADJUST', onTap: () {}),
-                  const SizedBox(width: 8),
-                  GestureButton(
-                    text: 'LIQUIDATE',
-                    onTap: () {
-                      _confirmLiquidate(symbol, qty, current);
-                    },
-                    isHighlight: true,
-                  ),
-                ],
-              )
+              GestureButton(
+                text: 'ADJUST',
+                onTap: () => _showAdjustDialog(symbol, sl, target),
+              ),
+              const SizedBox(width: 8),
+              GestureButton(
+                text: 'LIQUIDATE',
+                onTap: () {
+                  _confirmLiquidate(symbol, qty, current, token: token);
+                },
+                isHighlight: true,
+              ),
             ],
           )
         ],

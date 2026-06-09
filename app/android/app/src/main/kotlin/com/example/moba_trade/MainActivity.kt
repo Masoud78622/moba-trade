@@ -38,12 +38,17 @@ class MainActivity : FlutterActivity() {
         val intent = Intent(this, MobaTradeService::class.java).apply {
             action = MobaTradeService.ACTION_START
         }
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            startForegroundService(intent)
-        } else {
-            startService(intent)
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                startForegroundService(intent)
+            } else {
+                startService(intent)
+            }
+            isServiceRunning = true
+        } catch (e: Exception) {
+            android.util.Log.e("MobaTrade", "Failed to start background service: " + e.message)
+            isServiceRunning = false
         }
-        isServiceRunning = true
     }
 
     private fun stopMobaService() {

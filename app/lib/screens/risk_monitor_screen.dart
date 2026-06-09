@@ -24,6 +24,10 @@ class _RiskMonitorScreenState extends State<RiskMonitorScreen> {
   List<Map<String, String>>? _diagnosticResults;
 
   PortfolioStatus? _portfolioStatus;
+  double _dailyPnL = 0.0;
+  bool _isLoadingStats = false;
+  bool _isSafeguardEnabled = true;
+  bool _isMarketHoursGuardEnabled = true;
 
   Future<void> _saveServerIpSetting() async {
     final ip = _serverIpController.text.trim();
@@ -69,14 +73,21 @@ class _RiskMonitorScreenState extends State<RiskMonitorScreen> {
   }
 
   Future<void> _refreshPortfolioStatus() async {
+    if (_isLoadingStats) return;
+    _isLoadingStats = true;
     try {
       final status = await PortfolioRiskEngine.getPortfolioStatus();
+      final completed = await BrokerService.current.fetchCompletedTrades();
+      final double dailyPnL = completed.fold(0.0, (sum, t) => sum + ((t['pnl'] as num?)?.toDouble() ?? 0.0));
       if (mounted) {
         setState(() {
           _portfolioStatus = status;
+          _dailyPnL = dailyPnL;
         });
       }
-    } catch (_) {}
+    } catch (_) {} finally {
+      _isLoadingStats = false;
+    }
   }
 
   @override
@@ -86,6 +97,15 @@ class _RiskMonitorScreenState extends State<RiskMonitorScreen> {
   }
 
   Future<void> _loadSavedCredentials() async {
+    final isSafeguard = await SecureStorageService.readSafeguardEnabled();
+    final isGuard = await SecureStorageService.readMarketHoursGuardEnabled();
+    if (mounted) {
+      setState(() {
+        _isSafeguardEnabled = isSafeguard;
+        _isMarketHoursGuardEnabled = isGuard;
+      });
+    }
+
     final ip = await SecureStorageService.readServerIp();
     _serverIpController.text = ip;
 
@@ -95,20 +115,38 @@ class _RiskMonitorScreenState extends State<RiskMonitorScreen> {
       _passwordController.text = credentials['password'] ?? '';
       _apiKeyController.text = credentials['apiKey'] ?? '';
       _totpController.text = credentials['totpSecret'] ?? '';
-      
-      if (credentials['isLiveMode'] == true && !BrokerService.current.isConnected) {
-        final service = AngelOneBrokerService();
-        final success = await service.connect(
+    } else {
+      // Pre-populate with default system credentials for seamless quick-start
+      _clientIdController.text = 'AAAC764774';
+      _passwordController.text = '3112';
+      _apiKeyController.text = '8M5vqGDS';
+      _totpController.text = 'K336YHYAV6NN5H2DYMPBBZ55NM';
+    }
+
+    final bool hasCreds = credentials != null;
+    final bool isLiveMode = hasCreds ? (credentials['isLiveMode'] == true) : true; // Default auto-connect on first boot
+    
+    if (isLiveMode && !BrokerService.current.isConnected) {
+      final service = AngelOneBrokerService();
+      final success = await service.connect(
+        clientId: _clientIdController.text.trim(),
+        password: _passwordController.text,
+        apiKey: _apiKeyController.text.trim(),
+        totpSecret: _totpController.text.trim(),
+      );
+      if (success) {
+        BrokerService.current = service;
+        widget.onBrokerChanged?.call();
+        if (mounted) setState(() {});
+        
+        // Auto-save the default credentials so they persist
+        await SecureStorageService.saveCredentials(
           clientId: _clientIdController.text.trim(),
           password: _passwordController.text,
           apiKey: _apiKeyController.text.trim(),
           totpSecret: _totpController.text.trim(),
+          isLiveMode: true,
         );
-        if (success) {
-          BrokerService.current = service;
-          widget.onBrokerChanged?.call();
-          if (mounted) setState(() {});
-        }
       }
     }
     await _refreshPortfolioStatus();
@@ -255,9 +293,10 @@ class _RiskMonitorScreenState extends State<RiskMonitorScreen> {
 
   @override
   Widget build(BuildContext context) {
-    const double currentDailyLoss = 0.00;
-    const double maxDrawdownLimit = 3000.00;
-    const double drawdownPercent = (currentDailyLoss / maxDrawdownLimit) * 100;
+    final double totalVal = _portfolioStatus?.totalPortfolioValue ?? 100000.0;
+    final double maxDrawdownLimit = totalVal * 0.03; // Dynamic 3% Daily Drawdown Limit
+    final double currentDailyLoss = _dailyPnL < 0.0 ? _dailyPnL.abs() : 0.0;
+    final double drawdownPercent = maxDrawdownLimit > 0 ? (currentDailyLoss / maxDrawdownLimit) * 100 : 0.0;
 
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16.0),
@@ -364,19 +403,19 @@ class _RiskMonitorScreenState extends State<RiskMonitorScreen> {
                   ),
                 ),
                 const SizedBox(height: 12),
-                const Row(
+                Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Expanded(
+                    const Expanded(
                       child: Text(
                         'CURRENT DEVIATION',
                         style: TextStyle(fontSize: 12, color: Color(0xFF71717A)),
                       ),
                     ),
-                    SizedBox(width: 8),
+                    const SizedBox(width: 8),
                     Text(
-                      '₹0.00 / ₹3,000.00',
-                      style: TextStyle(
+                      '₹${currentDailyLoss.toStringAsFixed(2)} / ₹${maxDrawdownLimit.toStringAsFixed(2)}',
+                      style: const TextStyle(
                         fontFamily: 'Courier',
                         fontSize: 13,
                         fontWeight: FontWeight.bold,
@@ -390,10 +429,10 @@ class _RiskMonitorScreenState extends State<RiskMonitorScreen> {
                 // Drawdown progress bar
                 ClipRRect(
                   borderRadius: BorderRadius.circular(2),
-                  child: const LinearProgressIndicator(
-                    value: currentDailyLoss / maxDrawdownLimit,
-                    backgroundColor: Color(0xFF27272A),
-                    valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                  child: LinearProgressIndicator(
+                    value: (maxDrawdownLimit > 0) ? (currentDailyLoss / maxDrawdownLimit) : 0.0,
+                    backgroundColor: const Color(0xFF27272A),
+                    valueColor: const AlwaysStoppedAnimation<Color>(Colors.white),
                     minHeight: 8,
                   ),
                 ),
@@ -432,14 +471,133 @@ class _RiskMonitorScreenState extends State<RiskMonitorScreen> {
             ),
             child: Column(
               children: [
-                _buildParameterRow(
-                  'PORTFOLIO SAFEGUARD',
-                  _portfolioStatus == null
-                      ? '🔒 ACTIVE (<₹100k)'
-                      : (_portfolioStatus!.isSafeguardActive ? '🔒 ACTIVE (<₹100k)' : '✓ INACTIVE'),
-                  valueColor: _portfolioStatus == null
-                      ? const Color(0xFFEF4444)
-                      : (_portfolioStatus!.isSafeguardActive ? const Color(0xFFEF4444) : const Color(0xFF10B981)),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text(
+                              'PORTFOLIO SAFEGUARD',
+                              style: TextStyle(
+                                fontFamily: 'Courier',
+                                fontSize: 11,
+                                color: Color(0xFFA1A1AA),
+                              ),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              _isSafeguardEnabled 
+                                  ? 'Blocks low win-rate trades when capital < ₹100k'
+                                  : 'Disabled - All strategy triggers unlocked',
+                              style: const TextStyle(fontSize: 8, color: Color(0xFF71717A)),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            _isSafeguardEnabled 
+                                ? (_portfolioStatus != null && _portfolioStatus!.isSafeguardActive ? '🔒 ACTIVE' : '🔒 ARMED')
+                                : '✓ INACTIVE',
+                            style: TextStyle(
+                              fontFamily: 'Courier',
+                              fontSize: 11,
+                              fontWeight: FontWeight.bold,
+                              color: _isSafeguardEnabled ? const Color(0xFFEF4444) : const Color(0xFF10B981),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Switch(
+                            value: _isSafeguardEnabled,
+                            onChanged: (val) async {
+                              await SecureStorageService.saveSafeguardEnabled(val);
+                              setState(() {
+                                _isSafeguardEnabled = val;
+                              });
+                              await _refreshPortfolioStatus();
+                              if (widget.onBrokerChanged != null) {
+                                widget.onBrokerChanged!();
+                              }
+                            },
+                            activeThumbColor: const Color(0xFFEF4444),
+                            activeTrackColor: const Color(0xFF3F1D1D),
+                            inactiveThumbColor: const Color(0xFF71717A),
+                            inactiveTrackColor: const Color(0xFF1F1F23),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+                const Divider(color: Color(0xFF27272A), height: 1),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text(
+                              'MARKET HOURS GUARD',
+                              style: TextStyle(
+                                fontFamily: 'Courier',
+                                fontSize: 11,
+                                color: Color(0xFFA1A1AA),
+                              ),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              _isMarketHoursGuardEnabled 
+                                  ? 'Blocks orders outside 09:15 - 15:35 weekdays'
+                                  : 'Disabled - Orders sent directly to broker anytime',
+                              style: const TextStyle(fontSize: 8, color: Color(0xFF71717A)),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            _isMarketHoursGuardEnabled ? '🔒 ACTIVE' : '✓ INACTIVE',
+                            style: TextStyle(
+                              fontFamily: 'Courier',
+                              fontSize: 11,
+                              fontWeight: FontWeight.bold,
+                              color: _isMarketHoursGuardEnabled ? const Color(0xFFEF4444) : const Color(0xFF10B981),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Switch(
+                            value: _isMarketHoursGuardEnabled,
+                            onChanged: (val) async {
+                              await SecureStorageService.saveMarketHoursGuardEnabled(val);
+                              setState(() {
+                                _isMarketHoursGuardEnabled = val;
+                              });
+                              if (widget.onBrokerChanged != null) {
+                                widget.onBrokerChanged!();
+                              }
+                            },
+                            activeThumbColor: const Color(0xFFEF4444),
+                            activeTrackColor: const Color(0xFF3F1D1D),
+                            inactiveThumbColor: const Color(0xFF71717A),
+                            inactiveTrackColor: const Color(0xFF1F1F23),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
                 ),
                 const Divider(color: Color(0xFF27272A), height: 1),
                 _buildParameterRow(
@@ -461,11 +619,11 @@ class _RiskMonitorScreenState extends State<RiskMonitorScreen> {
                 const Divider(color: Color(0xFF27272A), height: 1),
                 _buildParameterRow('MAX CONCURRENT TRADES', '3 EXPOSURES'),
                 const Divider(color: Color(0xFF27272A), height: 1),
-                _buildParameterRow('MAX SINGLE TRADE RISK', '₹1,500.00 (1.5%)'),
+                _buildParameterRow('MAX SINGLE TRADE RISK', '₹${(totalVal * 0.015).toStringAsFixed(2)} (1.5%)'),
                 const Divider(color: Color(0xFF27272A), height: 1),
-                _buildParameterRow('STANDARD ALLOCATION', '₹20,000.00 (T1-T2)'),
+                _buildParameterRow('STANDARD ALLOCATION', '₹${(totalVal * 0.15 > 20000.0 ? 20000.0 : totalVal * 0.15).toStringAsFixed(2)} (Max 15%)'),
                 const Divider(color: Color(0xFF27272A), height: 1),
-                _buildParameterRow('HALF SIZE ALLOCATION', '₹10,000.00 (T3-T4)'),
+                _buildParameterRow('HALF SIZE ALLOCATION', '₹${(totalVal * 0.05 > 10000.0 ? 10000.0 : totalVal * 0.05).toStringAsFixed(2)} (Max 5%)'),
                 const Divider(color: Color(0xFF27272A), height: 1),
                 _buildParameterRow('POSITION SIZE CRITERIA', 'DYNAMIC RISK-BASED'),
                 const Divider(color: Color(0xFF27272A), height: 1),
@@ -903,8 +1061,12 @@ class _RiskMonitorScreenState extends State<RiskMonitorScreen> {
       final activeHoldings = await BrokerService.current.fetchSwingHoldings();
       
       double investedValue = 0.0;
-      for (var a in active) investedValue += (((a['qty'] ?? 0) as num).toDouble()) * (((a['current'] ?? a['entry'] ?? 0) as num).toDouble());
-      for (var h in activeHoldings) investedValue += (((h['qty'] ?? 0) as num).toDouble()) * (((h['current'] ?? h['entry'] ?? 0) as num).toDouble());
+      for (var a in active) {
+        investedValue += (((a['qty'] ?? 0) as num).toDouble()) * (((a['current'] ?? a['entry'] ?? 0) as num).toDouble());
+      }
+      for (var h in activeHoldings) {
+        investedValue += (((h['qty'] ?? 0) as num).toDouble()) * (((h['current'] ?? h['entry'] ?? 0) as num).toDouble());
+      }
       final double capital = margin + investedValue;
 
       int totalTrades = completed.length;

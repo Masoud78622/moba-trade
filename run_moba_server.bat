@@ -2,5 +2,12 @@
 title MOBA TRADE // COMPLIANT QUANT ENGINE
 echo Starting MobaTrade Quant Scorer Server...
 cd "C:\moba trade"
+
+:: ⚠️ EDIT THESE WITH YOUR REAL ANGEL ONE CREDENTIALS:
+set ANGEL_CLIENT_ID=YOUR_CLIENT_ID
+set ANGEL_API_KEY=YOUR_API_KEY
+set ANGEL_PIN=YOUR_4_DIGIT_PIN
+set ANGEL_TOTP_SECRET=YOUR_TOTP_SECRET_KEY
+
 call .\gradlew.bat runServer
 pause

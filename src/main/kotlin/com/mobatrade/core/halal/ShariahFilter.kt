@@ -111,4 +111,11 @@ object ShariahFilter {
      * Get the size of the current halal universe.
      */
     fun size(): Int = compliantSymbols.size
+    
+    /**
+     * Get all compliant symbols.
+     */
+    fun getAllCompliantSymbols(): Set<String> {
+        return compliantSymbols.toSet()
+    }
 }

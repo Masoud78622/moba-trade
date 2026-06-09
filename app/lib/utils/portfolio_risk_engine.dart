@@ -1,4 +1,6 @@
 import 'broker_service.dart';
+import 'secure_storage_service.dart';
+
 
 class PortfolioStatus {
   final double cashBalance;
@@ -6,6 +8,7 @@ class PortfolioStatus {
   final double activePositionsValue;
   final double totalPortfolioValue;
   final bool isSafeguardActive;
+  final int activePositionsCount;
 
   PortfolioStatus({
     required this.cashBalance,
@@ -13,6 +16,7 @@ class PortfolioStatus {
     required this.activePositionsValue,
     required this.totalPortfolioValue,
     required this.isSafeguardActive,
+    required this.activePositionsCount,
   });
 }
 
@@ -36,8 +40,10 @@ class PortfolioRiskEngine {
       }
     } catch (_) {}
 
+    int activeCount = 0;
     try {
       final activePos = await BrokerService.current.fetchActivePositions();
+      activeCount = activePos.length;
       for (var p in activePos) {
         final double qty = (p['qty'] as num?)?.toDouble() ?? 0.0;
         final double currentPrice = (p['current'] as num?)?.toDouble() ?? (p['entry'] as num?)?.toDouble() ?? 0.0;
@@ -46,7 +52,8 @@ class PortfolioRiskEngine {
     } catch (_) {}
 
     final total = cash + holdingsVal + activePositionsVal;
-    final safeguardActive = total < 100000.0;
+    final isSafeguardEnabled = await SecureStorageService.readSafeguardEnabled();
+    final safeguardActive = isSafeguardEnabled && (total < 100000.0);
 
     return PortfolioStatus(
       cashBalance: cash,
@@ -54,7 +61,22 @@ class PortfolioRiskEngine {
       activePositionsValue: activePositionsVal,
       totalPortfolioValue: total,
       isSafeguardActive: safeguardActive,
+      activePositionsCount: activeCount,
     );
+  }
+
+  /// Calculates the dynamic swing stop-loss threshold percentage based on account size.
+  /// - Under ₹1L: -5.0%
+  /// - ₹1L to ₹5L: -7.0%
+  /// - Over ₹5L: -10.0%
+  static double calculateSwingStopLossThreshold(double totalPortfolioValue) {
+    if (totalPortfolioValue < 100000.0) {
+      return -5.0;
+    } else if (totalPortfolioValue <= 500000.0) {
+      return -7.0;
+    } else {
+      return -10.0;
+    }
   }
 
   /// Calculates target trade size allocation based on strategy win rate and total portfolio value.

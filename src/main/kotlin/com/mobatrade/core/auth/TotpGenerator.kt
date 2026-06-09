@@ -15,14 +15,13 @@ object TotpGenerator {
      * @param base32Secret The Base32-encoded TOTP secret key provided by Angel One
      * @return 6-digit TOTP code as a string (e.g. "123456")
      */
-    fun generateTOTP(base32Secret: String): String {
+    fun generateTOTP(base32Secret: String, currentTimeSeconds: Long = java.time.Instant.now().epochSecond): String {
         try {
             val normalizedSecret = base32Secret.replace(" ", "").uppercase()
             val base32 = Base32()
             val decodedKey = base32.decode(normalizedSecret)
 
             // Step 1: Calculate the time steps (30-second windows since Unix Epoch)
-            val currentTimeSeconds = Instant.now().epochSecond
             val timeStep = currentTimeSeconds / 30
 
             // Step 2: Convert time step to 8-byte big-endian byte array

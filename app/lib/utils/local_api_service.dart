@@ -1,12 +1,13 @@
 import 'dart:convert';
 import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'secure_storage_service.dart';
 
 class LocalApiService {
   final HttpClient _client = HttpClient();
 
   LocalApiService() {
-    _client.connectionTimeout = const Duration(milliseconds: 800); // Super fast tick response
+    _client.connectionTimeout = const Duration(seconds: 5); // Accommodate cloud API latency and cold starts
   }
 
   Future<String> _getServerUrl() async {
@@ -42,7 +43,9 @@ class LocalApiService {
         final data = jsonDecode(jsonString);
         return data['status'] == 'ONLINE';
       }
-    } catch (_) {}
+    } catch (e) {
+      debugPrint('🤖 MOBA LocalApiService: isServerOnline failed: $e');
+    }
     return false;
   }
 
@@ -58,6 +61,7 @@ class LocalApiService {
         
         return data.map((sig) {
           final String symbol = sig['symbol'] ?? 'UNKNOWN';
+          final String? token = sig['token']?.toString();
           final int score = sig['score'] ?? 0;
           final String direction = sig['direction'] ?? 'HOLD';
           final bool compliant = sig['compliant'] ?? false;
@@ -82,6 +86,7 @@ class LocalApiService {
 
           return {
             'symbol': symbol,
+            'token': token,
             'strategy': primaryStrategy,
             'score': score,
             'price': priceStr,
@@ -91,8 +96,12 @@ class LocalApiService {
             'triggers': triggersList.map((t) => t.toString()).toList(),
           };
         }).toList();
+      } else {
+        debugPrint('🤖 MOBA LocalApiService: fetchLiveSignals non-200 code: ${response.statusCode}');
       }
-    } catch (_) {}
+    } catch (e) {
+      debugPrint('🤖 MOBA LocalApiService: fetchLiveSignals failed: $e');
+    }
     return null;
   }
 
@@ -107,7 +116,58 @@ class LocalApiService {
         final data = jsonDecode(jsonString);
         return data['complianceDatabaseSize'] as int?;
       }
-    } catch (_) {}
+    } catch (e) {
+      debugPrint('🤖 MOBA LocalApiService: fetchCompliantStockCount failed: $e');
+    }
+    return null;
+  }
+
+  Future<Map<String, dynamic>?> getAutoBotStatus() async {
+    try {
+      final url = await _getServerUrl();
+      final request = await _client.getUrl(Uri.parse('$url/autobot/status'));
+      final response = await request.close();
+      if (response.statusCode == 200) {
+        final jsonString = await response.transform(utf8.decoder).join();
+        return jsonDecode(jsonString);
+      }
+    } catch (e) {
+      debugPrint('🤖 MOBA LocalApiService: getAutoBotStatus failed: $e');
+    }
+    return null;
+  }
+
+  Future<bool> toggleAutoBot({bool? isEnabled, bool? isSwingManageEnabled}) async {
+    try {
+      final url = await _getServerUrl();
+      final request = await _client.postUrl(Uri.parse('$url/autobot/toggle'));
+      request.headers.set('Content-Type', 'application/json');
+      
+      final body = <String, dynamic>{};
+      if (isEnabled != null) body['isEnabled'] = isEnabled;
+      if (isSwingManageEnabled != null) body['isSwingManageEnabled'] = isSwingManageEnabled;
+      
+      request.write(jsonEncode(body));
+      final response = await request.close();
+      return response.statusCode == 200;
+    } catch (e) {
+      debugPrint('🤖 MOBA LocalApiService: toggleAutoBot failed: $e');
+    }
+    return false;
+  }
+
+  Future<Map<String, dynamic>?> fetchLearningReport() async {
+    try {
+      final url = await _getServerUrl();
+      final request = await _client.getUrl(Uri.parse('$url/learning/report'));
+      final response = await request.close();
+      if (response.statusCode == 200) {
+        final jsonString = await response.transform(utf8.decoder).join();
+        return jsonDecode(jsonString);
+      }
+    } catch (e) {
+      debugPrint('🤖 MOBA LocalApiService: fetchLearningReport failed: $e');
+    }
     return null;
   }
 }

@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'broker_service.dart';
+import 'secure_storage_service.dart';
 
 class AngelOneBrokerService implements BrokerService {
   String? _jwtToken;
@@ -340,7 +341,7 @@ class AngelOneBrokerService implements BrokerService {
     return _cachedMargin ?? 0.0;
   }
 
-  Future<double?> _fetchRealLtp(String symbol) async {
+  Future<double?> _fetchRealLtp(String symbol, {String? token}) async {
     try {
       final request = await _httpClient.postUrl(
         Uri.parse('https://apiconnect.angelone.in/rest/secure/angelbroking/order/v1/getLtpData'),
@@ -348,10 +349,14 @@ class AngelOneBrokerService implements BrokerService {
       await _setApiHeaders(request, privateKey: _apiKey);
       request.headers.set('Authorization', 'Bearer $_jwtToken');
       
+      final effectiveToken = (token != null && token.isNotEmpty) 
+          ? token 
+          : _getTokenForSymbol(symbol);
+      
       request.write(jsonEncode({
         'exchange': 'NSE',
         'tradingsymbol': '$symbol-EQ',
-        'symboltoken': _getTokenForSymbol(symbol),
+        'symboltoken': effectiveToken,
       }));
       
       final response = await request.close();
@@ -383,6 +388,7 @@ class AngelOneBrokerService implements BrokerService {
           'sl': 2900.00,
           'target': 3200.00,
           'time': 'LIVE (ANGEL ONE)',
+          'token': '11536',
         }
       ];
     }
@@ -401,7 +407,17 @@ class AngelOneBrokerService implements BrokerService {
         final Map<String, dynamic> data = jsonDecode(jsonString);
         if (data['status'] == true && data['data'] != null) {
           final List<dynamic> list = data['data'];
-          final parsed = list.map((e) {
+          final List<Map<String, dynamic>> parsed = [];
+          
+          for (var e in list) {
+            debugPrint('🤖 MOBA RAW POSITION ITEM FROM API: $e');
+            
+            final String productType = e['producttype']?.toString().toUpperCase() ?? '';
+            if (productType == 'DELIVERY') {
+              // Skip delivery positions from active day trades (handled in Swing Holdings reconciliation)
+              continue;
+            }
+
             final double entry = double.tryParse(
               e['buyavgprice']?.toString() ?? 
               e['avgprice']?.toString() ?? 
@@ -417,35 +433,43 @@ class AngelOneBrokerService implements BrokerService {
               '0'
             ) ?? entry;
 
-            final int qty = int.tryParse(
+            final int qty = (double.tryParse(
               e['netqty']?.toString() ?? 
               e['netQty']?.toString() ?? 
               e['quantity']?.toString() ??
               e['qty']?.toString() ??
               '0'
-            ) ?? 0;
+            ) ?? 0.0).round();
 
             final String symbol = e['tradingsymbol']?.toString() ?? 
                                   e['tradingSymbol']?.toString() ?? 
+                                  e['trading_symbol']?.toString() ?? 
                                   e['symbol']?.toString() ?? 
                                   e['symbolname']?.toString() ??
+                                  e['symbolName']?.toString() ?? 
+                                  e['symbol_name']?.toString() ?? 
                                   'UNKNOWN';
 
             final String cleanSymbol = symbol.split('-')[0].trim().toUpperCase();
+            final String token = e['symboltoken']?.toString() ??
+                                 e['symbolToken']?.toString() ??
+                                 e['token']?.toString() ??
+                                 '';
 
-            return {
+            parsed.add({
               'symbol': cleanSymbol.isEmpty ? 'UNKNOWN' : cleanSymbol,
               'qty': qty.abs(),
               'entry': entry,
               'current': current,
-              'sl': entry > 0 ? entry * 0.98 : current * 0.98, // Autocalculated stoploss representation
-              'target': entry > 0 ? entry * 1.05 : current * 1.05, // Autocalculated target
+              'sl': entry > 0 ? entry * 0.98 : current * 0.98,
+              'target': entry > 0 ? entry * 1.05 : current * 1.05,
               'time': 'LIVE STREAM',
-            };
-          }).toList();
+              'token': token,
+            });
+          }
 
           for (var p in parsed) {
-            final ltp = await _fetchRealLtp(p['symbol'] as String);
+            final ltp = await _fetchRealLtp(p['symbol'] as String, token: p['token'] as String?);
             if (ltp != null && ltp > 0) {
               p['current'] = ltp;
               final entry = p['entry'] as double;
@@ -550,7 +574,8 @@ class AngelOneBrokerService implements BrokerService {
           'sl': 415.00,
           'target': 480.00,
           'daysHeld': 5,
-          'compliant': true
+          'compliant': true,
+          'token': '3787',
         },
         {
           'symbol': 'TCS',
@@ -560,7 +585,8 @@ class AngelOneBrokerService implements BrokerService {
           'sl': 2880.00,
           'target': 3250.00,
           'daysHeld': 12,
-          'compliant': true
+          'compliant': true,
+          'token': '11536',
         }
       ];
     }
@@ -578,8 +604,51 @@ class AngelOneBrokerService implements BrokerService {
         final jsonString = await response.transform(utf8.decoder).join();
         final Map<String, dynamic> data = jsonDecode(jsonString);
         if (data['status'] == true && data['data'] != null) {
+          // Fetch raw positions to adjust holdings for today's delivery transactions (real-time reconciliation)
+          List<dynamic> rawPositions = [];
+          try {
+            final posRequest = await _httpClient.getUrl(
+              Uri.parse('https://apiconnect.angelone.in/rest/secure/angelbroking/order/v1/getPosition'),
+            );
+            await _setApiHeaders(posRequest, privateKey: _apiKey);
+            posRequest.headers.set('Authorization', 'Bearer $_jwtToken');
+            final posResponse = await posRequest.close();
+            if (posResponse.statusCode == 200) {
+              final posJsonString = await posResponse.transform(utf8.decoder).join();
+              final Map<String, dynamic> posData = jsonDecode(posJsonString);
+              if (posData['status'] == true && posData['data'] != null) {
+                rawPositions = posData['data'] as List<dynamic>;
+              }
+            }
+          } catch (_) {}
+
+          // Map to track today's net DELIVERY changes by symbol
+          final Map<String, int> deliveryChanges = {};
+          for (var p in rawPositions) {
+            final String productType = p['producttype']?.toString().toUpperCase() ?? '';
+            if (productType == 'DELIVERY') {
+              final String pSymbol = (p['tradingsymbol']?.toString() ?? 
+                                      p['symbol']?.toString() ?? 
+                                      '').split('-')[0].trim().toUpperCase();
+              if (pSymbol.isNotEmpty) {
+                final int pQty = (double.tryParse(
+                  p['netqty']?.toString() ?? 
+                  p['netQty']?.toString() ?? 
+                  p['quantity']?.toString() ??
+                  p['qty']?.toString() ??
+                  '0'
+                ) ?? 0.0).round();
+                deliveryChanges[pSymbol] = (deliveryChanges[pSymbol] ?? 0) + pQty;
+              }
+            }
+          }
+
           final List<dynamic> list = data['data'];
-          final parsed = list.map((e) {
+          final Set<String> originalSymbols = {};
+          final List<Map<String, dynamic>> parsed = [];
+
+          for (var e in list) {
+            debugPrint('🤖 MOBA RAW HOLDING ITEM FROM API: $e');
             final double averagePrice = double.tryParse(
               e['averageprice']?.toString() ?? 
               e['avgprice']?.toString() ?? 
@@ -595,35 +664,112 @@ class AngelOneBrokerService implements BrokerService {
               '0'
             ) ?? averagePrice;
 
-            final int quantity = int.tryParse(
+            int quantity = (double.tryParse(
               e['quantity']?.toString() ?? 
-              e['netqty']?.toString() ?? 
-              e['qty']?.toString() ??
               '0'
-            ) ?? 0;
+            ) ?? 0.0).round();
+
+            if (quantity <= 0) {
+              quantity = (double.tryParse(
+                e['realisedquantity']?.toString() ?? 
+                e['realisedqty']?.toString() ??
+                e['netqty']?.toString() ?? 
+                e['qty']?.toString() ??
+                '0'
+              ) ?? 0.0).round();
+            }
 
             final String symbol = e['tradingsymbol']?.toString() ?? 
                                   e['tradingSymbol']?.toString() ?? 
+                                  e['trading_symbol']?.toString() ?? 
                                   e['symbol']?.toString() ?? 
                                   e['symbolname']?.toString() ??
+                                  e['symbolName']?.toString() ?? 
+                                  e['symbol_name']?.toString() ?? 
                                   'UNKNOWN';
 
             final String cleanSymbol = symbol.split('-')[0].trim().toUpperCase();
+            final String token = e['symboltoken']?.toString() ??
+                                 e['symbolToken']?.toString() ??
+                                 e['token']?.toString() ??
+                                 '';
 
-            return {
-              'symbol': cleanSymbol.isEmpty ? 'UNKNOWN' : cleanSymbol,
-              'qty': quantity,
-              'entry': averagePrice,
-              'current': ltp,
-              'sl': averagePrice > 0 ? averagePrice * 0.95 : ltp * 0.95,
-              'target': averagePrice > 0 ? averagePrice * 1.15 : ltp * 1.15,
-              'daysHeld': 4, // Default days held representation
-              'compliant': true, // Halal screener universe filter is on
-            };
-          }).toList();
+            if (cleanSymbol.isNotEmpty && cleanSymbol != 'UNKNOWN') {
+              originalSymbols.add(cleanSymbol);
+            }
+
+            final int todayNetQty = deliveryChanges[cleanSymbol] ?? 0;
+            final int finalQuantity = quantity + todayNetQty;
+
+            // If the holding has been completely sold today (finalQuantity <= 0), omit it.
+            if (finalQuantity > 0) {
+              // Persist first-seen date for days-held calculation
+              final String holdingKey = token.isNotEmpty ? token : cleanSymbol;
+              await SecureStorageService.saveHoldingBuyDate(holdingKey, DateTime.now());
+              final DateTime? buyDate = await SecureStorageService.readHoldingBuyDate(holdingKey);
+              final int daysHeld = buyDate != null
+                  ? DateTime.now().difference(buyDate).inDays
+                  : 0;
+              parsed.add({
+                'symbol': cleanSymbol.isEmpty ? 'UNKNOWN' : cleanSymbol,
+                'qty': finalQuantity,
+                'entry': averagePrice,
+                'current': ltp,
+                'sl': averagePrice > 0 ? averagePrice * 0.95 : ltp * 0.95,
+                'target': averagePrice > 0 ? averagePrice * 1.15 : ltp * 1.15,
+                'daysHeld': daysHeld,
+                'compliant': true,
+                'token': token,
+              });
+            } else {
+              // Fully liquidated: clear the stored buy date
+              final String holdingKey = token.isNotEmpty ? token : cleanSymbol;
+              await SecureStorageService.clearHoldingBuyDate(holdingKey);
+            }
+          }
+
+          // Add any new swing holdings bought today (net positive DELIVERY in positions, not in getHolding)
+          deliveryChanges.forEach((sym, netQty) {
+            if (sym.isNotEmpty && !originalSymbols.contains(sym) && netQty > 0) {
+              final posItem = rawPositions.firstWhere(
+                (p) => (p['tradingsymbol']?.toString() ?? p['symbol']?.toString() ?? '').split('-')[0].trim().toUpperCase() == sym,
+                orElse: () => null,
+              );
+              if (posItem != null) {
+                final double entryPrice = double.tryParse(
+                  posItem['buyavgprice']?.toString() ?? 
+                  posItem['avgprice']?.toString() ?? 
+                  posItem['averageprice']?.toString() ?? 
+                  posItem['buyprice']?.toString() ??
+                  '0'
+                ) ?? 0.0;
+                final double currentLtp = double.tryParse(
+                  posItem['ltp']?.toString() ?? 
+                  posItem['lp']?.toString() ?? 
+                  posItem['lastprice']?.toString() ??
+                  '0'
+                ) ?? entryPrice;
+                final String token = posItem['symboltoken']?.toString() ??
+                                     posItem['symbolToken']?.toString() ??
+                                     posItem['token']?.toString() ??
+                                     '';
+                parsed.add({
+                  'symbol': sym,
+                  'qty': netQty,
+                  'entry': entryPrice,
+                  'current': currentLtp,
+                  'sl': entryPrice > 0 ? entryPrice * 0.95 : currentLtp * 0.95,
+                  'target': entryPrice > 0 ? entryPrice * 1.15 : currentLtp * 1.15,
+                  'daysHeld': 0, // New holding bought today!
+                  'compliant': true,
+                  'token': token,
+                });
+              }
+            }
+          });
 
           for (var p in parsed) {
-            final ltp = await _fetchRealLtp(p['symbol'] as String);
+            final ltp = await _fetchRealLtp(p['symbol'] as String, token: p['token'] as String?);
             if (ltp != null && ltp > 0) {
               p['current'] = ltp;
               final entry = p['entry'] as double;
@@ -649,7 +795,9 @@ class AngelOneBrokerService implements BrokerService {
     required int qty,
     required double limitPrice,
     String orderType = 'LIMIT',
+    String? token,
   }) async {
+    debugPrint('🤖 MOBA: placeOrder called: symbol=$symbol, transactionType=$transactionType, qty=$qty, limitPrice=$limitPrice, orderType=$orderType, token=$token');
     if (!_connected || _jwtToken == null) {
       _lastError = 'Not connected to broker';
       return false;
@@ -662,16 +810,20 @@ class AngelOneBrokerService implements BrokerService {
       return true;
     }
 
-    // NSE market hours guard: 09:15 to 15:30 IST (UTC+5:30)
     final nowUtc = DateTime.now().toUtc();
     final nowIst = nowUtc.add(const Duration(hours: 5, minutes: 30));
-    final marketOpen = nowIst.hour * 60 + nowIst.minute >= 9 * 60 + 15;
-    final marketClose = nowIst.hour * 60 + nowIst.minute <= 15 * 60 + 30;
-    final isWeekday = nowIst.weekday >= 1 && nowIst.weekday <= 5;
-    if (!marketOpen || !marketClose || !isWeekday) {
-      _lastError = 'NSE market is closed (${nowIst.hour.toString().padLeft(2,"0")}:${nowIst.minute.toString().padLeft(2,"0")} IST). Orders will be placed when market opens at 09:15 IST.';
-      debugPrint('🤖 MOBA AUTO-BOT: Market closed. $_lastError');
-      return false;
+
+    // NSE market hours guard: 09:15 to 15:35 IST (5 min buffer after close for pending fills)
+    final bool guardEnabled = await SecureStorageService.readMarketHoursGuardEnabled();
+    if (guardEnabled) {
+      final marketOpen = nowIst.hour * 60 + nowIst.minute >= 9 * 60 + 15;
+      final marketClose = nowIst.hour * 60 + nowIst.minute <= 15 * 60 + 35; // 5-min buffer after 15:30
+      final isWeekday = nowIst.weekday >= 1 && nowIst.weekday <= 5;
+      if (!marketOpen || !marketClose || !isWeekday) {
+        _lastError = 'NSE market is closed (${nowIst.hour.toString().padLeft(2,"0")}:${nowIst.minute.toString().padLeft(2,"0")} IST). Orders will be placed when market opens at 09:15 IST.';
+        debugPrint('🤖 MOBA AUTO-BOT: Market closed. $_lastError');
+        return false;
+      }
     }
 
     try {
@@ -686,7 +838,7 @@ class AngelOneBrokerService implements BrokerService {
       final body = {
         'variety': 'NORMAL',
         'tradingsymbol': '$symbol-EQ',
-        'symboltoken': _getTokenForSymbol(symbol),
+        'symboltoken': (token != null && token.isNotEmpty) ? token : _getTokenForSymbol(symbol),
         'transactiontype': transactionType.toUpperCase(),
         'exchange': 'NSE',
         'ordertype': effectiveOrderType,
@@ -713,7 +865,31 @@ class AngelOneBrokerService implements BrokerService {
           final errMsg = data['message'] ?? 'Broker Rejected Order';
           final errCode = data['errorcode'] ?? 'N/A';
           debugPrint('🤖 MOBA ORDER REJECTED: $errMsg (ErrorCode: $errCode) Body: $jsonString');
-          _lastError = '$errMsg [Code: $errCode]';
+
+          // Fallback to LIMIT order at LTP for cautionary listings (AB4036)
+          if (errCode == 'AB4036' && effectiveOrderType == 'MARKET') {
+            debugPrint('⚠️ MOBA: Cautionary listing detected (AB4036). Retrying as LIMIT order at LTP.');
+            final double? ltp = await _fetchRealLtp(symbol, token: token);
+            if (ltp != null && ltp > 0) {
+              debugPrint('🤖 MOBA: Fetched LTP for fallback limit order: ₹$ltp');
+              return await placeOrder(
+                symbol: symbol,
+                transactionType: transactionType,
+                qty: qty,
+                limitPrice: ltp,
+                orderType: 'LIMIT',
+                token: token,
+              );
+            } else {
+              debugPrint('❌ MOBA: Failed to fetch LTP for cautionary stock fallback.');
+            }
+          }
+
+          if (errCode == 'AB4036') {
+            _lastError = 'Exchange cautionary listing restriction (ASM/GSM). Angel One blocks API trading for this stock. Please close/sell this position manually using the official Angel One App or Web Portal.';
+          } else {
+            _lastError = '$errMsg [Code: $errCode]';
+          }
           return false;
         }
       } else {

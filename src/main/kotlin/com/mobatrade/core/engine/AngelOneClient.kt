@@ -21,10 +21,10 @@ import java.time.temporal.ChronoUnit
 
 object AngelOneClient {
     private const val BASE_URL = "https://apiconnect.angelone.in"
-    private const val DEFAULT_API_KEY = "8M5vqGDS"
+    const val DEFAULT_API_KEY = "8M5vqGDS"
     const val DEFAULT_TOTP_SECRET = "K336YHYAV6NN5H2DYMPBBZ55NM"
     private const val DEFAULT_SECRET = DEFAULT_TOTP_SECRET
-    private const val DEFAULT_CLIENT_ID = "AAAC764774"
+    const val DEFAULT_CLIENT_ID = "AAAC764774"
 
     private val httpClient = OkHttpClient.Builder()
         .connectTimeout(15, TimeUnit.SECONDS)
@@ -46,6 +46,14 @@ object AngelOneClient {
     var feedToken: String? = null
         private set
 
+    @Volatile
+    var activeApiKey: String = DEFAULT_API_KEY
+        private set
+
+    @Volatile
+    var activeClientId: String = DEFAULT_CLIENT_ID
+        private set
+
     val isLoggedIn: Boolean
         get() = jwtToken != null
 
@@ -62,6 +70,8 @@ object AngelOneClient {
         apiKey: String = DEFAULT_API_KEY,
         totpSecret: String = DEFAULT_SECRET
     ): Boolean {
+        activeClientId = clientId
+        activeApiKey = apiKey
         try {
             // Generate standard RFC 6238 TOTP
             val totpCode = TotpGenerator.generateTOTP(totpSecret)
@@ -126,11 +136,19 @@ object AngelOneClient {
     fun placeOrder(
         order: Order,
         symbolToken: String,
-        apiKey: String = DEFAULT_API_KEY
+        apiKey: String = DEFAULT_API_KEY,
+        isRetry: Boolean = false
     ): String? {
+        // Token Integrity Guard QA Layer
+        val verifiedToken = TokenIntegrityGuard.verifyAndGetToken(order.symbol, symbolToken)
+        if (verifiedToken == null) {
+            System.err.println("BLOCK: Order for ${order.symbol} blocked. Token integrity failed (Symbol not found in Scrip Master).")
+            return null
+        }
+
         // Shariah Guard: Double-check that this token is compliant
-        if (!ShariahFilter.isCompliantToken(symbolToken) && !ShariahFilter.isCompliantSymbol(order.symbol)) {
-            System.err.println("BLOCK: Order for ${order.symbol} (${symbolToken}) blocked. Asset is NOT Shariah-compliant!")
+        if (!ShariahFilter.isCompliantToken(verifiedToken) && !ShariahFilter.isCompliantSymbol(order.symbol)) {
+            System.err.println("BLOCK: Order for ${order.symbol} (${verifiedToken}) blocked. Asset is NOT Shariah-compliant!")
             return null
         }
 
@@ -150,10 +168,11 @@ object AngelOneClient {
             val requestBodyJson = JSONObject()
             requestBodyJson.put("variety", "NORMAL")
             
-            // Map our symbol representation (e.g., TCS to TCS-EQ for Angel One)
-            val tradingSymbol = if (order.symbol.contains("-EQ")) order.symbol else "${order.symbol}-EQ"
+            // Map our symbol representation using the Token Integrity Guard's exact trading symbol
+            val info = TokenIntegrityGuard.getTokenInfoForSymbol(order.symbol)
+            val tradingSymbol = info?.second ?: if (order.symbol.contains("-EQ")) order.symbol else "${order.symbol}-EQ"
             requestBodyJson.put("tradingsymbol", tradingSymbol)
-            requestBodyJson.put("symboltoken", symbolToken)
+            requestBodyJson.put("symboltoken", verifiedToken)
             requestBodyJson.put("transactiontype", order.direction.name)
             requestBodyJson.put("exchange", "NSE")
             requestBodyJson.put("ordertype", order.orderType.uppercase())
@@ -175,7 +194,7 @@ object AngelOneClient {
                 .addHeader("Authorization", "Bearer $token")
                 .addHeader("Content-Type", "application/json")
                 .addHeader("Accept", "application/json")
-                .addHeader("X-PrivateKey", apiKey)
+                .addHeader("X-PrivateKey", activeApiKey)
                 .addHeader("X-UserType", "USER")
                 .addHeader("X-SourceID", "WEB")
                 .addHeader("X-ClientLocalIP", "192.168.1.100")
@@ -199,7 +218,15 @@ object AngelOneClient {
                     println("Order placed successfully on Angel One. OrderID: $orderId")
                     return orderId
                 } else {
-                    System.err.println("Angel One Order API Error: ${responseJson.optString("message")}")
+                    val errMsg = responseJson.optString("message")
+                    System.err.println("Angel One Order API Error: $errMsg")
+                    
+                    // Self-Healing Logic for AB1019 Mismatch
+                    if (errMsg.contains("AB1019") && !isRetry) {
+                        System.err.println("AB1019 Detected for ${order.symbol}. Refreshing Scrip Master and retrying...")
+                        TokenIntegrityGuard.forceRefresh()
+                        return placeOrder(order, verifiedToken, apiKey, true)
+                    }
                 }
             }
         } catch (e: Exception) {
@@ -256,7 +283,89 @@ object AngelOneClient {
                 .addHeader("Authorization", "Bearer $token")
                 .addHeader("Content-Type", "application/json")
                 .addHeader("Accept", "application/json")
-                .addHeader("X-PrivateKey", apiKey)
+                .addHeader("X-PrivateKey", activeApiKey)
+                .addHeader("X-UserType", "USER")
+                .addHeader("X-SourceID", "WEB")
+                .addHeader("X-ClientLocalIP", "192.168.1.100")
+                .addHeader("X-ClientPublicIP", "106.193.147.98")
+                .addHeader("X-MACAddress", "00-50-56-C0-00-08")
+                .build()
+
+            var attempt = 0
+            val maxAttempts = 3
+            while (attempt < maxAttempts) {
+                attempt++
+                try {
+                    httpClient.newCall(request).execute().use { response ->
+                        if (response.isSuccessful) {
+                            val bodyStr = response.body?.string() ?: ""
+                            if (bodyStr.isEmpty()) return emptyList()
+
+                            val responseJson = JSONObject(bodyStr)
+                            if (responseJson.optBoolean("status", false)) {
+                                val dataArray = responseJson.optJSONArray("data") ?: return emptyList()
+                                val candles = ArrayList<Candle>()
+
+                                for (i in 0 until dataArray.length()) {
+                                    val row = dataArray.getJSONArray(i)
+                                    val timestampStr = row.getString(0)
+                                    val timestamp = try {
+                                        OffsetDateTime.parse(timestampStr).toInstant()
+                                    } catch (e: Exception) {
+                                        Instant.now().minus((dataArray.length() - i).toLong(), ChronoUnit.HOURS)
+                                    }
+                                    val open = row.getDouble(1)
+                                    val high = row.getDouble(2)
+                                    val low = row.getDouble(3)
+                                    val close = row.getDouble(4)
+                                    val volume = row.getLong(5)
+                                    candles.add(Candle(timestamp, open, high, low, close, volume))
+                                }
+                                return candles
+                            } else {
+                                System.err.println("Angel One Historical API Error for $symbol: ${responseJson.optString("message")}")
+                                return emptyList()
+                            }
+                        } else {
+                            val errBody = response.body?.string() ?: ""
+                            System.err.println("Historical fetch failed for $symbol ($symbolToken) (Attempt $attempt/$maxAttempts): HTTP ${response.code} - Body: $errBody")
+                            if (response.code == 403 && errBody.contains("exceeding access rate")) {
+                                println("Rate limit hit for $symbol! Sleeping 10 seconds to cool down before retry...")
+                                try { Thread.sleep(10000) } catch (e: InterruptedException) {}
+                                // Continue loop to retry
+                            } else {
+                                return emptyList()
+                            }
+                        }
+                    }
+                } catch (e: Exception) {
+                    System.err.println("Exception in historical fetch for $symbol: ${e.message}")
+                    if (attempt >= maxAttempts) {
+                        return emptyList()
+                    }
+                    try { Thread.sleep(2000) } catch (ie: InterruptedException) {}
+                }
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+
+        return emptyList()
+    }
+
+    /**
+     * Fetches the available margin capital from getRMS.
+     */
+    fun fetchMarginCapital(): Double {
+        val token = jwtToken ?: return 0.0
+        try {
+            val request = Request.Builder()
+                .url("$BASE_URL/rest/secure/angelbroking/user/v1/getRMS")
+                .get()
+                .addHeader("Authorization", "Bearer $token")
+                .addHeader("Content-Type", "application/json")
+                .addHeader("Accept", "application/json")
+                .addHeader("X-PrivateKey", activeApiKey)
                 .addHeader("X-UserType", "USER")
                 .addHeader("X-SourceID", "WEB")
                 .addHeader("X-ClientLocalIP", "192.168.1.100")
@@ -265,56 +374,152 @@ object AngelOneClient {
                 .build()
 
             httpClient.newCall(request).execute().use { response ->
-                if (!response.isSuccessful) {
-                    System.err.println("Historical fetch failed: HTTP ${response.code}")
-                    return emptyList()
-                }
-
-                val bodyStr = response.body?.string() ?: ""
-                if (bodyStr.isEmpty()) return emptyList()
-
-                val responseJson = try {
-                    JSONObject(bodyStr)
-                } catch (e: Exception) {
-                    System.err.println("AngelOneClient: Failed to parse historical response as JSON. Body length: ${bodyStr.length}. Preview: ${bodyStr.take(500)}")
-                    System.err.println("AngelOneClient: Response code: ${response.code}, Headers: ${response.headers}")
-                    throw e
-                }
-                if (responseJson.optBoolean("status", false)) {
-                    val dataArray = responseJson.optJSONArray("data") ?: return emptyList()
-                    val candles = ArrayList<Candle>()
-
-                    for (i in 0 until dataArray.length()) {
-                        val row = dataArray.getJSONArray(i)
-                        val timestampStr = row.getString(0)
-
-                        // Parse timestamp (ISO-8601 offset like '2026-06-01T09:15:00+05:30')
-                        val timestamp = try {
-                            OffsetDateTime.parse(timestampStr).toInstant()
-                        } catch (e: Exception) {
-                            // Fallback incremental timestamp
-                            Instant.now().minus((dataArray.length() - i).toLong(), ChronoUnit.HOURS)
+                if (response.isSuccessful) {
+                    val bodyStr = response.body?.string() ?: ""
+                    val responseJson = JSONObject(bodyStr)
+                    if (responseJson.optBoolean("status", false)) {
+                        val data = responseJson.optJSONObject("data")
+                        if (data != null) {
+                            val netStr = data.optString("net", null) ?:
+                                         data.optString("availablecash", null) ?:
+                                         data.optString("availablemargin", "0.0")
+                            return netStr.toDoubleOrNull() ?: 0.0
                         }
-
-                        val open = row.getDouble(1)
-                        val high = row.getDouble(2)
-                        val low = row.getDouble(3)
-                        val close = row.getDouble(4)
-                        val volume = row.getLong(5)
-
-                        candles.add(Candle(timestamp, open, high, low, close, volume))
                     }
-
-                    return candles
-                } else {
-                    System.err.println("Angel One Historical API Error: ${responseJson.optString("message")}")
                 }
             }
         } catch (e: Exception) {
-            e.printStackTrace()
+            System.err.println("fetchMarginCapital failed: ${e.message}")
         }
+        return 0.0
+    }
 
-        return emptyList()
+    fun fetchRealLtp(symbol: String, tokenOverride: String? = null): Double {
+        val token = jwtToken ?: return 0.0
+        try {
+            val effToken = tokenOverride ?: TokenIntegrityGuard.verifyAndGetToken(symbol, null) ?: return 0.0
+            val info = TokenIntegrityGuard.getTokenInfoForSymbol(symbol)
+            val tradingSymbol = info?.second ?: if (symbol.contains("-EQ")) symbol else "$symbol-EQ"
+            
+            val requestBodyJson = JSONObject()
+            requestBodyJson.put("exchange", "NSE")
+            requestBodyJson.put("tradingsymbol", tradingSymbol)
+            requestBodyJson.put("symboltoken", effToken)
+            
+            val requestBody = requestBodyJson.toString().toRequestBody(mediaType)
+            val request = Request.Builder()
+                .url("$BASE_URL/rest/secure/angelbroking/order/v1/getLtpData")
+                .post(requestBody)
+                .addHeader("Authorization", "Bearer $token")
+                .addHeader("Content-Type", "application/json")
+                .addHeader("Accept", "application/json")
+                .addHeader("X-PrivateKey", activeApiKey)
+                .addHeader("X-UserType", "USER")
+                .addHeader("X-SourceID", "WEB")
+                .addHeader("X-ClientLocalIP", "192.168.1.100")
+                .addHeader("X-ClientPublicIP", "106.193.147.98")
+                .addHeader("X-MACAddress", "00-50-56-C0-00-08")
+                .build()
+
+            httpClient.newCall(request).execute().use { response ->
+                if (response.isSuccessful) {
+                    val bodyStr = response.body?.string() ?: ""
+                    val responseJson = JSONObject(bodyStr)
+                    if (responseJson.optBoolean("status", false)) {
+                        val data = responseJson.optJSONObject("data")
+                        return data?.optDouble("ltp", 0.0) ?: 0.0
+                    }
+                }
+            }
+        } catch (e: Exception) {
+            System.err.println("fetchRealLtp failed: ${e.message}")
+        }
+        return 0.0
+    }
+
+    /**
+     * Fetches active intraday positions.
+     */
+    fun fetchActivePositions(): List<JSONObject> {
+        val token = jwtToken ?: return emptyList()
+        val results = ArrayList<JSONObject>()
+        try {
+            val request = Request.Builder()
+                .url("$BASE_URL/rest/secure/angelbroking/order/v1/getPosition")
+                .get()
+                .addHeader("Authorization", "Bearer $token")
+                .addHeader("Content-Type", "application/json")
+                .addHeader("Accept", "application/json")
+                .addHeader("X-PrivateKey", activeApiKey)
+                .addHeader("X-UserType", "USER")
+                .addHeader("X-SourceID", "WEB")
+                .addHeader("X-ClientLocalIP", "192.168.1.100")
+                .addHeader("X-ClientPublicIP", "106.193.147.98")
+                .addHeader("X-MACAddress", "00-50-56-C0-00-08")
+                .build()
+
+            httpClient.newCall(request).execute().use { response ->
+                if (response.isSuccessful) {
+                    val bodyStr = response.body?.string() ?: ""
+                    val responseJson = JSONObject(bodyStr)
+                    if (responseJson.optBoolean("status", false)) {
+                        val dataArray = responseJson.optJSONArray("data")
+                        if (dataArray != null) {
+                            for (i in 0 until dataArray.length()) {
+                                val item = dataArray.getJSONObject(i)
+                                val productType = item.optString("producttype", "").uppercase()
+                                if (productType == "DELIVERY") continue // Skip delivery, handled in swing holdings
+                                results.add(item)
+                            }
+                        }
+                    }
+                }
+            }
+        } catch (e: Exception) {
+            System.err.println("fetchActivePositions failed: ${e.message}")
+        }
+        return results
+    }
+
+    /**
+     * Fetches delivery swing holdings.
+     */
+    fun fetchSwingHoldings(): List<JSONObject> {
+        val token = jwtToken ?: return emptyList()
+        val results = ArrayList<JSONObject>()
+        try {
+            val request = Request.Builder()
+                .url("$BASE_URL/rest/secure/angelbroking/portfolio/v1/getHolding")
+                .get()
+                .addHeader("Authorization", "Bearer $token")
+                .addHeader("Content-Type", "application/json")
+                .addHeader("Accept", "application/json")
+                .addHeader("X-PrivateKey", activeApiKey)
+                .addHeader("X-UserType", "USER")
+                .addHeader("X-SourceID", "WEB")
+                .addHeader("X-ClientLocalIP", "192.168.1.100")
+                .addHeader("X-ClientPublicIP", "106.193.147.98")
+                .addHeader("X-MACAddress", "00-50-56-C0-00-08")
+                .build()
+
+            httpClient.newCall(request).execute().use { response ->
+                if (response.isSuccessful) {
+                    val bodyStr = response.body?.string() ?: ""
+                    val responseJson = JSONObject(bodyStr)
+                    if (responseJson.optBoolean("status", false)) {
+                        val dataArray = responseJson.optJSONArray("data")
+                        if (dataArray != null) {
+                            for (i in 0 until dataArray.length()) {
+                                results.add(dataArray.getJSONObject(i))
+                            }
+                        }
+                    }
+                }
+            }
+        } catch (e: Exception) {
+            System.err.println("fetchSwingHoldings failed: ${e.message}")
+        }
+        return results
     }
 
     /**

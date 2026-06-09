@@ -57,7 +57,8 @@ class ConfluenceScorer(
         val recommendedDirection: Direction,
         val marketRegime: MarketRegime,
         val triggers: List<String>,
-        val isShariahCompliant: Boolean
+        val isShariahCompliant: Boolean,
+        val isSwingEligible: Boolean
     )
 
     /**
@@ -75,7 +76,8 @@ class ConfluenceScorer(
                 recommendedDirection = Direction.HOLD,
                 marketRegime = MarketRegime.RANGING,
                 triggers = listOf("NON_SHARIAH_COMPLIANT"),
-                isShariahCompliant = false
+                isShariahCompliant = false,
+                isSwingEligible = false
             )
         }
 
@@ -90,18 +92,25 @@ class ConfluenceScorer(
                 recommendedDirection = Direction.HOLD,
                 marketRegime = regime,
                 triggers = listOf("REGIME_UNSAFE_FOR_BUYING"),
-                isShariahCompliant = true
+                isShariahCompliant = true,
+                isSwingEligible = false
             )
         }
 
         var totalScore = 0
         val triggers = ArrayList<String>()
+        var structuralTriggerFound = false
 
         // 3. Evaluate each strategy and sum weighted scores
         for (strategy in strategies) {
             val signal = strategy.evaluate(candles, currentTick)
             if (signal != null && signal.direction == Direction.BUY) {
                 var weight = signal.score
+                
+                // Track structural swing indicators
+                if (strategy is BreakOfStructure || strategy is DarvasBox || strategy is OrderBlocks || strategy is SectorRotation) {
+                    structuralTriggerFound = true
+                }
                 
                 // Regime-Based Score Adaptation
                 when (regime) {
@@ -124,14 +133,22 @@ class ConfluenceScorer(
                     else -> {}
                 }
                 
+                // Add dynamically learned EOD bonus
+                val learnedBonus = LearnedWeights.getBonus(strategy.name)
+                weight += learnedBonus
+                
                 totalScore += weight
-                triggers.add("${strategy.name} (+$weight)")
+                val triggerString = if (learnedBonus > 0) "${strategy.name} (+$weight) [AI+${learnedBonus}]" else "${strategy.name} (+$weight)"
+                triggers.add(triggerString)
             }
         }
 
         // Cap score at 10
         val finalScore = totalScore.coerceIn(0, 10)
         val finalDirection = if (finalScore >= 4) Direction.BUY else Direction.HOLD
+        
+        // Swing Eligibility: High conviction + Structural support
+        val swingEligible = structuralTriggerFound && finalScore >= 8 && regime == MarketRegime.TRENDING_BULLISH
 
         return ScoredTrade(
             symbol = symbol,
@@ -139,7 +156,8 @@ class ConfluenceScorer(
             recommendedDirection = finalDirection,
             marketRegime = regime,
             triggers = triggers,
-            isShariahCompliant = true
+            isShariahCompliant = true,
+            isSwingEligible = swingEligible
         )
     }
 }

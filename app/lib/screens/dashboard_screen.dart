@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:io';
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'positions_screen.dart';
@@ -10,6 +11,7 @@ import '../utils/broker_service.dart';
 import '../utils/portfolio_risk_engine.dart';
 import '../utils/local_api_service.dart';
 import '../utils/secure_storage_service.dart';
+import '../utils/angel_one_service.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -27,6 +29,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
   String _syncStep = '';
   double _marginCapital = 100000.00;
   PortfolioStatus? _portfolioStatus;
+  bool _isAutoManageSwingEnabled = false;
 
   final List<Map<String, dynamic>> _mockSignals = [
     {
@@ -72,47 +75,40 @@ class _DashboardScreenState extends State<DashboardScreen> {
   bool _isLocalServerOnline = false;
   bool _isLoadingCapital = false; // Guard to prevent concurrent balance calls
 
-  static const MethodChannel _serviceChannel = MethodChannel('com.mobatrade.core/service');
   Timer? _autoBotTimer;
+  Timer? _signalsRefreshTimer;
   bool _isAutoBotEnabled = false;
 
   Future<void> _initAutoBotState() async {
     try {
-      final enabled = await SecureStorageService.readAutoBotState();
-      if (mounted) {
-        setState(() {
-          _isAutoBotEnabled = enabled;
-        });
-      }
-      if (enabled) {
-        _startAutoBotLoop();
-      }
-    } catch (_) {}
-  }
-
-  void _startAutoBotLoop() {
-    _autoBotTimer?.cancel();
-    _autoBotTimer = Timer.periodic(const Duration(seconds: 30), (timer) {
-      _runAutoBotScanningCycle();
-    });
-    Timer(const Duration(milliseconds: 500), () {
-      _runAutoBotScanningCycle();
-    });
-    try {
-      if (Platform.isAndroid) {
-        _serviceChannel.invokeMethod('startAutoBot');
+      final status = await _localApiService.getAutoBotStatus();
+      if (status != null) {
+        if (mounted) {
+          setState(() {
+            _isAutoBotEnabled = status['isEnabled'] ?? false;
+            _isAutoManageSwingEnabled = status['isSwingManageEnabled'] ?? false;
+          });
+        }
       }
     } catch (_) {}
   }
 
-  void _stopAutoBotLoop() {
-    _autoBotTimer?.cancel();
-    _autoBotTimer = null;
-    try {
-      if (Platform.isAndroid) {
-        _serviceChannel.invokeMethod('stopAutoBot');
+  void _toggleAutoManageSwing(bool enable) async {
+    if (mounted) {
+      setState(() {
+        _isAutoManageSwingEnabled = enable;
+      });
+    }
+    final success = await _localApiService.toggleAutoBot(isSwingManageEnabled: enable);
+    if (success) {
+      if (enable) {
+        _showSystemNotification('🛡️ SWING AUTO-MANAGE: ENABLED ON BACKEND');
+      } else {
+        _showSystemNotification('🛡️ SWING AUTO-MANAGE: DEACTIVATED ON BACKEND');
       }
-    } catch (_) {}
+    } else {
+      _showSystemNotification('⚠️ FAILED TO SYNC WITH BACKEND. IS SERVER RUNNING?');
+    }
   }
 
   void _toggleAutoBot(bool enable) async {
@@ -121,13 +117,15 @@ class _DashboardScreenState extends State<DashboardScreen> {
         _isAutoBotEnabled = enable;
       });
     }
-    await SecureStorageService.saveAutoBotState(enable);
-    if (enable) {
-      _startAutoBotLoop();
-      _showSystemNotification('🤖 AUTO-TRADING ENGINE: ACTIVE & ARMED');
+    final success = await _localApiService.toggleAutoBot(isEnabled: enable);
+    if (success) {
+      if (enable) {
+        _showSystemNotification('🤖 AUTO-TRADING ENGINE: ACTIVE ON BACKEND');
+      } else {
+        _showSystemNotification('🤖 AUTO-TRADING ENGINE: DEACTIVATED ON BACKEND');
+      }
     } else {
-      _stopAutoBotLoop();
-      _showSystemNotification('🤖 AUTO-TRADING ENGINE: DEACTIVATED');
+       _showSystemNotification('⚠️ FAILED TO START AUTO-TRADING. IS SERVER RUNNING?');
     }
   }
 
@@ -147,86 +145,112 @@ class _DashboardScreenState extends State<DashboardScreen> {
     }
   }
 
-  Future<void> _runAutoBotScanningCycle() async {
-    if (!_isAutoBotEnabled) return;
-    if (!BrokerService.current.isConnected) return;
+  void _showAiInsightsDialog() async {
+    final report = await _localApiService.fetchLearningReport();
+    if (!mounted) return;
 
-    // Only scan if we have live signals from the local quant server
-    // Never use mock signals to place real orders
-    final bool hasLiveSignals = _isLocalServerOnline && _liveSignals.isNotEmpty;
-    if (!hasLiveSignals) {
-      if (BrokerService.current is! MockBrokerService) {
-        debugPrint('🤖 AUTO-BOT: No live signals from local server. Waiting for quant engine...');
-      }
+    if (report == null || report.isEmpty) {
+      _showSystemNotification('🧠 EOD Learning Engine has no data yet. Check back after 4:00 PM.');
       return;
     }
 
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          backgroundColor: const Color(0xFF121215),
+          title: const Text(
+            '🧠 EOD AI LEARNING REPORT',
+            style: TextStyle(fontFamily: 'Courier', color: Colors.white, fontSize: 14, fontWeight: FontWeight.bold),
+          ),
+          content: SizedBox(
+            width: double.maxFinite,
+            child: ListView.builder(
+              shrinkWrap: true,
+              itemCount: report.keys.length,
+              itemBuilder: (context, index) {
+                final strategy = report.keys.elementAt(index);
+                final bonus = report[strategy];
+                return Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 4.0),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        strategy,
+                        style: const TextStyle(fontFamily: 'Courier', color: Color(0xFFA1A1AA), fontSize: 12),
+                      ),
+                      Text(
+                        '+$bonus',
+                        style: const TextStyle(fontFamily: 'Courier', color: Color(0xFF10B981), fontSize: 12, fontWeight: FontWeight.bold),
+                      ),
+                    ],
+                  ),
+                );
+              },
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () async {
+                try {
+                  final String downloadPath = '/storage/emulated/0/Download/MobaTrade_AI_Report_${DateTime.now().millisecondsSinceEpoch}.json';
+                  final file = File(downloadPath);
+                  await file.writeAsString(jsonEncode(report));
+                  _showSystemNotification('✅ REPORT SAVED TO DOWNLOADS: $downloadPath');
+                  if (context.mounted) Navigator.pop(context);
+                } catch (e) {
+                  _showSystemNotification('⚠️ FAILED TO SAVE REPORT: $e');
+                }
+              },
+              child: const Text('DOWNLOAD TO PHONE', style: TextStyle(fontFamily: 'Courier', color: Color(0xFF10B981))),
+            ),
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('CLOSE', style: TextStyle(fontFamily: 'Courier', color: Colors.white)),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  // _runAutoBotScanningCycle removed (now handled by Kotlin backend)
+
+  Future<void> _autoConnectBroker() async {
     try {
-      final activePositions = await BrokerService.current.fetchActivePositions();
-      final openTickers = activePositions.map((p) => p['symbol']?.toString().toUpperCase()).toSet();
+      final credentials = await SecureStorageService.readCredentials();
+      final bool hasCreds = credentials != null;
+      final bool isLiveMode = hasCreds ? (credentials['isLiveMode'] == true) : true;
 
-      if (activePositions.length >= 3) {
-        return; // Positions cap reached (3 limit)
-      }
+      if (isLiveMode && !BrokerService.current.isConnected) {
+        final String clientId = credentials?['clientId']?.toString() ?? 'AAAC764774';
+        final String password = credentials?['password']?.toString() ?? '3112';
+        final String apiKey = credentials?['apiKey']?.toString() ?? '8M5vqGDS';
+        final String totpSecret = credentials?['totpSecret']?.toString() ?? 'K336YHYAV6NN5H2DYMPBBZ55NM';
 
-      final swingHoldings = await BrokerService.current.fetchSwingHoldings();
-      final holdingTickers = swingHoldings.map((h) => h['symbol']?.toString().toUpperCase()).toSet();
+        final service = AngelOneBrokerService();
+        final success = await service.connect(
+          clientId: clientId,
+          password: password,
+          apiKey: apiKey,
+          totpSecret: totpSecret,
+        );
 
-      final double totalVal = _portfolioStatus?.totalPortfolioValue ?? _marginCapital;
-      final double cashBal = _portfolioStatus?.cashBalance ?? _marginCapital;
-
-      for (var sig in _liveSignals) {
-        final String symbol = sig['symbol'] ?? '';
-        final int score = sig['score'] ?? 0;
-        final bool compliant = sig['compliant'] ?? false;
-        final String priceStr = sig['price'] ?? '₹0.00';
-        final double price = _parsePrice(priceStr);
-
-        if (compliant && score >= 4 && price > 0.0) {
-          final cleanSymbol = symbol.toUpperCase();
-          
-          if (openTickers.contains(cleanSymbol) || holdingTickers.contains(cleanSymbol)) {
-            continue; // Already holds, skip
+        if (success) {
+          BrokerService.current = service;
+          if (mounted) {
+            setState(() {});
           }
-
-          final double winRate = _getWinRateForStrategy(sig['strategy']);
-          final double targetAlloc = PortfolioRiskEngine.calculateTargetTradeAllocation(
-            winRate: winRate,
-            totalPortfolioValue: totalVal,
-          );
-          final int calculatedQty = PortfolioRiskEngine.calculateOrderQuantity(
-            targetAllocation: targetAlloc,
-            currentPrice: price,
-            availableCash: cashBal,
-          );
-
-          if (calculatedQty > 0) {
-            final success = await BrokerService.current.placeOrder(
-              symbol: cleanSymbol,
-              transactionType: 'BUY',
-              qty: calculatedQty,
-              limitPrice: price,
-              orderType: 'MARKET',
-            );
-
-            if (success) {
-              final isMock = BrokerService.current is MockBrokerService;
-              if (isMock) {
-                _showSystemNotification('🤖 [SIMULATION] AUTO-BOT: BOUGHT $calculatedQty × $cleanSymbol @ ₹${price.toStringAsFixed(2)}');
-              } else {
-                _showSystemNotification('🤖 AUTO-BOT: LIVE ORDER PLACED — $calculatedQty × $cleanSymbol @ ₹${price.toStringAsFixed(2)} ON ANGEL ONE!');
-              }
-              _loadCapital();
-              break; // One order per cycle to prevent race conditions
-            } else {
-              final err = BrokerService.current.lastError ?? 'Unknown error';
-              _showSystemNotification('🤖 AUTO-BOT: ORDER FAILED — $cleanSymbol: $err');
-            }
-          }
+          _showSystemNotification('🛡️ AUTO-CONNECT: LIVE BROKER SESSION RE-ESTABLISHED');
+          _loadCapital();
+        } else {
+          final err = service.lastError ?? 'Unknown error';
+          _showSystemNotification('⚠️ AUTO-CONNECT FAILED: $err');
         }
       }
     } catch (e) {
-      debugPrint('🤖 AUTO-BOT CYCLE ERROR: $e');
+      debugPrint('🤖 AUTO-CONNECT EXCEPTION: $e');
     }
   }
 
@@ -345,13 +369,20 @@ class _DashboardScreenState extends State<DashboardScreen> {
     _compliantStockCount = 58; // offline pre-populated count
     _isSynced = true;
     _lastSyncTime = 'OFFLINE CACHE';
+    _autoConnectBroker();
     _loadCapital();
     _initAutoBotState();
+    
+    // Periodically refresh signals and server status every 15 seconds to keep dashboard up-to-date
+    _signalsRefreshTimer = Timer.periodic(const Duration(seconds: 15), (timer) {
+      _loadLocalApiSignals();
+    });
   }
 
   @override
   void dispose() {
     _autoBotTimer?.cancel();
+    _signalsRefreshTimer?.cancel();
     super.dispose();
   }
 
@@ -396,19 +427,30 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 Container(
                   width: 8,
                   height: 8,
-                  decoration: const BoxDecoration(
-                    color: Colors.green, // Clean emerald pulse for active state
+                  decoration: BoxDecoration(
+                    color: BrokerService.current.isConnected
+                        ? const Color(0xFF10B981)  // Emerald green = live Angel One
+                        : const Color(0xFFF59E0B), // Amber = simulation mode
                     shape: BoxShape.circle,
+                    boxShadow: BrokerService.current.isConnected ? [
+                      BoxShadow(
+                        color: const Color(0xFF10B981).withValues(alpha: 0.5),
+                        blurRadius: 5,
+                        spreadRadius: 1,
+                      )
+                    ] : [],
                   ),
                 ),
                 const SizedBox(width: 8),
-                const Text(
-                  'LIVE FEED',
+                Text(
+                  BrokerService.current.isConnected ? 'LIVE FEED' : 'SIMULATION',
                   style: TextStyle(
                     fontFamily: 'Courier',
                     fontSize: 12,
                     fontWeight: FontWeight.bold,
-                    color: Color(0xFFA1A1AA),
+                    color: BrokerService.current.isConnected
+                        ? const Color(0xFF10B981)
+                        : const Color(0xFFF59E0B),
                   ),
                 ),
               ],
@@ -627,68 +669,127 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 width: 1.0,
               ),
             ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Container(
-                            width: 8,
-                            height: 8,
-                            decoration: BoxDecoration(
+                          Row(
+                            children: [
+                              Container(
+                                width: 8,
+                                height: 8,
+                                decoration: BoxDecoration(
+                                  color: _isAutoBotEnabled ? const Color(0xFF10B981) : const Color(0xFF71717A),
+                                  shape: BoxShape.circle,
+                                  boxShadow: _isAutoBotEnabled ? [
+                                    BoxShadow(
+                                      color: const Color(0xFF10B981).withValues(alpha: 0.5),
+                                      blurRadius: 6,
+                                      spreadRadius: 2,
+                                    )
+                                  ] : [],
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              const Expanded(
+                                child: Text(
+                                  'AUTONOMOUS EXECUTION ENGINE',
+                                  overflow: TextOverflow.ellipsis,
+                                  style: TextStyle(
+                                    fontFamily: 'Courier',
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.white,
+                                    letterSpacing: 0.5,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 6),
+                          Text(
+                            _isAutoBotEnabled 
+                                ? _buildAutoBotStatusText()
+                                : '🤖 ENGINE: STANDBY (MANUAL ONLY)',
+                            style: TextStyle(
+                              fontFamily: 'Courier',
+                              fontSize: 10,
                               color: _isAutoBotEnabled ? const Color(0xFF10B981) : const Color(0xFF71717A),
-                              shape: BoxShape.circle,
-                              boxShadow: _isAutoBotEnabled ? [
-                                BoxShadow(
-                                  color: const Color(0xFF10B981).withValues(alpha: 0.5),
-                                  blurRadius: 6,
-                                  spreadRadius: 2,
-                                )
-                              ] : [],
                             ),
                           ),
-                          const SizedBox(width: 8),
-                          const Expanded(
-                            child: Text(
-                              'AUTONOMOUS EXECUTION ENGINE',
-                              overflow: TextOverflow.ellipsis,
+                        ],
+                      ),
+                    ),
+                    Switch(
+                      value: _isAutoBotEnabled,
+                      onChanged: _toggleAutoBot,
+                      activeThumbColor: const Color(0xFF10B981),
+                      activeTrackColor: const Color(0xFF064E3B),
+                      inactiveThumbColor: const Color(0xFF71717A),
+                      inactiveTrackColor: const Color(0xFF1F1F23),
+                    ),
+                  ],
+                ),
+                if (_isAutoBotEnabled) ...[
+                  const Divider(color: Color(0xFF27272A), height: 24),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text(
+                              'AUTO-MANAGE SWING HOLDINGS',
                               style: TextStyle(
                                 fontFamily: 'Courier',
-                                fontSize: 12,
+                                fontSize: 11,
                                 fontWeight: FontWeight.bold,
                                 color: Colors.white,
                                 letterSpacing: 0.5,
                               ),
                             ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 6),
-                      Text(
-                        _isAutoBotEnabled 
-                            ? _buildAutoBotStatusText()
-                            : '🤖 ENGINE: STANDBY (MANUAL ONLY)',
-                        style: TextStyle(
-                          fontFamily: 'Courier',
-                          fontSize: 10,
-                          color: _isAutoBotEnabled ? const Color(0xFF10B981) : const Color(0xFF71717A),
+                            const SizedBox(height: 4),
+                            Builder(
+                              builder: (context) {
+                                final totalVal = _portfolioStatus?.totalPortfolioValue ?? _marginCapital;
+                                final threshold = PortfolioRiskEngine.calculateSwingStopLossThreshold(totalVal);
+                                String ruleReason = 'Account > ₹5L';
+                                if (totalVal < 100000.0) {
+                                  ruleReason = 'Account < ₹1L';
+                                } else if (totalVal <= 500000.0) {
+                                  ruleReason = 'Account ₹1L–₹5L';
+                                }
+                                return Text(
+                                  '🛡️ Stop-Loss Cut: ${threshold.toStringAsFixed(1)}% ($ruleReason)',
+                                  style: const TextStyle(
+                                    fontFamily: 'Courier',
+                                    fontSize: 9,
+                                    color: Color(0xFFA1A1AA),
+                                  ),
+                                );
+                              }
+                            ),
+                          ],
                         ),
+                      ),
+                      Switch(
+                        value: _isAutoManageSwingEnabled,
+                        onChanged: _toggleAutoManageSwing,
+                        activeThumbColor: Colors.white,
+                        activeTrackColor: const Color(0xFF27272A),
+                        inactiveThumbColor: const Color(0xFF71717A),
+                        inactiveTrackColor: const Color(0xFF1F1F23),
                       ),
                     ],
                   ),
-                ),
-                Switch(
-                  value: _isAutoBotEnabled,
-                  onChanged: _toggleAutoBot,
-                  activeThumbColor: const Color(0xFF10B981),
-                  activeTrackColor: const Color(0xFF064E3B),
-                  inactiveThumbColor: const Color(0xFF71717A),
-                  inactiveTrackColor: const Color(0xFF1F1F23),
-                ),
+                ],
               ],
             ),
           ),
@@ -885,16 +986,16 @@ class _DashboardScreenState extends State<DashboardScreen> {
               Expanded(
                 child: _buildMetricCard(
                   title: 'MARKET REGIME',
-                  value: 'BULLISH TREND',
-                  subtext: 'EMA & ADX Aligned',
+                  value: _getMarketRegimeText(),
+                  subtext: _getMarketRegimeSubtext(),
                 ),
               ),
               const SizedBox(width: 12),
               Expanded(
                 child: _buildMetricCard(
                   title: 'POSITIONS LIMIT',
-                  value: '2 / 3 ACTIVE',
-                  subtext: 'Risk Allocated',
+                  value: _getPositionsLimitText(),
+                  subtext: _getPositionsLimitSubtext(),
                 ),
               ),
             ],
@@ -918,6 +1019,27 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   ),
                 ),
               ),
+              const SizedBox(width: 8),
+              if (_isLocalServerOnline)
+                InkWell(
+                  onTap: _showAiInsightsDialog,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF27272A),
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                    child: const Text(
+                      '🧠 AI INSIGHTS',
+                      style: TextStyle(
+                        fontFamily: 'Courier',
+                        fontSize: 10,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                      ),
+                    ),
+                  ),
+                ),
               const SizedBox(width: 8),
               Text(
                 '${_liveSignals.length} DETECTED',
@@ -981,43 +1103,36 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 child: Column(
                   children: [
                     Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Expanded(
-                          child: Row(
-                            children: [
-                              Flexible(
-                                child: Text(
-                                  sig['symbol'],
-                                  overflow: TextOverflow.ellipsis,
-                                  style: const TextStyle(
-                                    fontFamily: 'Courier',
-                                    fontSize: 18,
-                                    fontWeight: FontWeight.bold,
-                                    color: Colors.white,
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(width: 8),
-                              Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                decoration: BoxDecoration(
-                                  color: sig['compliant'] ? const Color(0xFF1E293B) : const Color(0xFF450A0A),
-                                  borderRadius: BorderRadius.circular(2),
-                                ),
-                                child: Text(
-                                  sig['compliant'] ? 'HALAL' : 'NON-HALAL',
-                                  style: TextStyle(
-                                    fontSize: 8,
-                                    fontWeight: FontWeight.bold,
-                                    color: sig['compliant'] ? const Color(0xFF38BDF8) : const Color(0xFFF87171),
-                                  ),
-                                ),
-                              ),
-                            ],
+                        Flexible(
+                          child: Text(
+                            sig['symbol'],
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              fontFamily: 'Courier',
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white,
+                            ),
                           ),
                         ),
                         const SizedBox(width: 8),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: sig['compliant'] ? const Color(0xFF1E293B) : const Color(0xFF450A0A),
+                            borderRadius: BorderRadius.circular(2),
+                          ),
+                          child: Text(
+                            sig['compliant'] ? 'HALAL' : 'NON-HALAL',
+                            style: TextStyle(
+                              fontSize: 8,
+                              fontWeight: FontWeight.bold,
+                              color: sig['compliant'] ? const Color(0xFF38BDF8) : const Color(0xFFF87171),
+                            ),
+                          ),
+                        ),
+                        const Spacer(),
                         Text(
                           sig['price'],
                           style: const TextStyle(
@@ -1152,6 +1267,50 @@ class _DashboardScreenState extends State<DashboardScreen> {
         ],
       ),
     );
+  }
+
+  String _getMarketRegimeText() {
+    if (_liveSignals.isNotEmpty) {
+      final sig = _liveSignals.first;
+      final regime = sig['regime']?.toString();
+      if (regime != null && regime.isNotEmpty) {
+        if (regime == 'TRENDING_BULLISH') return 'BULLISH TREND';
+        if (regime == 'TRENDING_BEARISH') return 'BEARISH TREND';
+        if (regime == 'RANGING') return 'RANGING MARKET';
+        if (regime == 'VOLATILE') return 'VOLATILE MARKET';
+        return regime.replaceAll('_', ' ').toUpperCase();
+      }
+      return 'BULLISH TREND'; // default for mock signals
+    }
+    return 'DETERMINING...';
+  }
+
+  String _getMarketRegimeSubtext() {
+    if (_liveSignals.isNotEmpty) {
+      final sig = _liveSignals.first;
+      final regime = sig['regime']?.toString();
+      if (regime != null && regime.isNotEmpty) {
+        if (regime == 'TRENDING_BULLISH') return 'Trend-Following Active';
+        if (regime == 'TRENDING_BEARISH') return 'Warning: Buying Paused';
+        if (regime == 'RANGING') return 'Mean-Reversion Active';
+        if (regime == 'VOLATILE') return 'Warning: High Risk';
+      }
+      return 'EMA & ADX Aligned'; // default for mock signals
+    }
+    return 'Awaiting Quant Feed';
+  }
+
+  String _getPositionsLimitText() {
+    final count = _portfolioStatus?.activePositionsCount ?? 0;
+    return '$count / 3 ACTIVE';
+  }
+
+  String _getPositionsLimitSubtext() {
+    final count = _portfolioStatus?.activePositionsCount ?? 0;
+    if (count >= 3) {
+      return 'Max Exposure Reached';
+    }
+    return 'Risk Capacity Open';
   }
 
   double _getWinRateForStrategy(String strategyName) {

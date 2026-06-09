@@ -18,6 +18,8 @@ object MobaTradeServer {
     @Volatile
     private var cachedSignalsJson: String = "[]"
 
+    fun getCachedSignalsJson(): String = cachedSignalsJson
+
     @JvmStatic
     fun main(args: Array<String>) {
         val portStr = System.getenv("PORT")
@@ -54,8 +56,22 @@ object MobaTradeServer {
         server.createContext("/status", StatusHandler())
         server.createContext("/halal-stocks", HalalStocksHandler())
         server.createContext("/signals", SignalsHandler())
+        server.createContext("/autobot/status", AutoBotStatusHandler())
+        server.createContext("/autobot/toggle", AutoBotToggleHandler())
+        server.createContext("/learning/report", LearningReportHandler())
 
         server.executor = null // Creates a default executor
+        
+        // Start AutoBot Engine (dormant until toggled)
+        AutoBotEngine.start()
+        
+        // Start EOD Self-Learning Engine (daemon)
+        SelfLearningEngine.start()
+
+        // Holdings Verification Module Initialization
+        println("Initializing Token Integrity Guard...")
+        TokenIntegrityGuard.ensureMasterDownloaded()
+
         println("==========================================================")
         println("MOBA TRADE SERVER // COMPLIANT QUANT ENGINE")
         println("==========================================================")
@@ -73,14 +89,21 @@ object MobaTradeServer {
         // Credentials are read from env vars first, falling back to defaults.
         Thread {
             try {
+                val clientId = System.getenv("ANGEL_CLIENT_ID") ?: AngelOneClient.DEFAULT_CLIENT_ID
+                val apiKey = System.getenv("ANGEL_API_KEY") ?: AngelOneClient.DEFAULT_API_KEY
                 val pin = System.getenv("ANGEL_PIN") ?: "3112"
                 val totpSecret = System.getenv("ANGEL_TOTP_SECRET") ?: AngelOneClient.DEFAULT_TOTP_SECRET
                 println("Server startup: attempting Angel One auto-login...")
-                val success = AngelOneClient.login(tradingPassword = pin, totpSecret = totpSecret)
+                val success = AngelOneClient.login(
+                    clientId = clientId,
+                    tradingPassword = pin,
+                    apiKey = apiKey,
+                    totpSecret = totpSecret
+                )
                 if (success) {
                     println("Server startup: Angel One login successful. brokerConnected = true")
                 } else {
-                    System.err.println("Server startup: Angel One login failed. Check ANGEL_PIN and ANGEL_TOTP_SECRET env vars.")
+                    System.err.println("Server startup: Angel One login failed. Check ANGEL_CLIENT_ID, ANGEL_API_KEY, ANGEL_PIN, and ANGEL_TOTP_SECRET env vars.")
                 }
             } catch (e: Exception) {
                 System.err.println("Server startup: login thread exception: ${e.message}")
@@ -240,6 +263,70 @@ object MobaTradeServer {
         }
     }
 
+    // 4. AutoBot Status Handler
+    class AutoBotStatusHandler : HttpHandler {
+        override fun handle(exchange: HttpExchange) {
+            if (exchange.requestMethod.uppercase() == "OPTIONS") {
+                exchange.sendResponseHeaders(204, -1)
+                return
+            }
+            val statusJson = JSONObject()
+            statusJson.put("isEnabled", AutoBotEngine.isEnabled)
+            statusJson.put("isSwingManageEnabled", AutoBotEngine.isSwingManageEnabled)
+            sendResponse(exchange, 200, statusJson.toString())
+        }
+    }
+
+    // 5. AutoBot Toggle Handler
+    class AutoBotToggleHandler : HttpHandler {
+        override fun handle(exchange: HttpExchange) {
+            if (exchange.requestMethod.uppercase() == "OPTIONS") {
+                exchange.sendResponseHeaders(204, -1)
+                return
+            }
+            if (exchange.requestMethod.uppercase() == "POST") {
+                try {
+                    val bodyStream = exchange.requestBody
+                    val bodyStr = bodyStream.bufferedReader().use { it.readText() }
+                    if (bodyStr.isNotEmpty()) {
+                        val reqJson = JSONObject(bodyStr)
+                        if (reqJson.has("isEnabled")) {
+                            AutoBotEngine.isEnabled = reqJson.getBoolean("isEnabled")
+                            println("Remote command received: AutoBot isEnabled = ${AutoBotEngine.isEnabled}")
+                        }
+                        if (reqJson.has("isSwingManageEnabled")) {
+                            AutoBotEngine.isSwingManageEnabled = reqJson.getBoolean("isSwingManageEnabled")
+                            println("Remote command received: AutoBot isSwingManageEnabled = ${AutoBotEngine.isSwingManageEnabled}")
+                        }
+                    }
+                    val statusJson = JSONObject()
+                    statusJson.put("isEnabled", AutoBotEngine.isEnabled)
+                    statusJson.put("isSwingManageEnabled", AutoBotEngine.isSwingManageEnabled)
+                    statusJson.put("message", "AutoBot status updated")
+                    sendResponse(exchange, 200, statusJson.toString())
+                } catch (e: Exception) {
+                    val err = JSONObject()
+                    err.put("error", "Failed to update AutoBot status")
+                    sendResponse(exchange, 400, err.toString())
+                }
+            } else {
+                sendResponse(exchange, 405, "Method Not Allowed")
+            }
+        }
+    }
+
+    // 6. EOD Learning Report Handler
+    class LearningReportHandler : HttpHandler {
+        override fun handle(exchange: HttpExchange) {
+            if (exchange.requestMethod.uppercase() == "OPTIONS") {
+                exchange.sendResponseHeaders(204, -1)
+                return
+            }
+            val reportJsonStr = LearnedWeights.getReport()
+            sendResponse(exchange, 200, reportJsonStr)
+        }
+    }
+
     private fun computeSignals(): JSONArray {
         // Dynamically build the list of stocks to scan from halal_stocks.json cache
         val activeStocks = ArrayList<Triple<String, String, Double>>()
@@ -255,7 +342,11 @@ object MobaTradeServer {
                     val obj = array.getJSONObject(i)
                     val symbol = obj.optString("symbol").uppercase()
                     val sector = obj.optString("sector", "IT").uppercase()
-                    val token = obj.optString("token")
+                    val rawToken = obj.optString("token")
+                    
+                    // Centralized source of truth:
+                    val token = TokenIntegrityGuard.verifyAndGetToken(symbol, rawToken) ?: rawToken
+
                     if (symbol.isNotEmpty() && token.isNotEmpty()) {
                         symbolToToken[symbol] = token
                         // Provide reasonable default start prices if falling back to synthetic
@@ -285,13 +376,13 @@ object MobaTradeServer {
                 Triple("HCLTECH", "IT", 1300.00)
             ))
             
-            symbolToToken.putAll(mapOf(
-                "TCS" to "11536",
-                "INFY" to "1594",
-                "WIPRO" to "3787",
-                "RELIANCE" to "2885",
-                "HCLTECH" to "26347"
-            ))
+            val fallbackSymbols = listOf("TCS", "INFY", "WIPRO", "RELIANCE", "HCLTECH")
+            for (sym in fallbackSymbols) {
+                val token = TokenIntegrityGuard.verifyAndGetToken(sym, null)
+                if (token != null) {
+                    symbolToToken[sym] = token
+                }
+            }
         }
 
         val signalsArray = JSONArray()
@@ -309,8 +400,8 @@ object MobaTradeServer {
                         interval = "ONE_HOUR",
                         limitDays = 15
                     )
-                    // Rate limit protection: sleep for 350ms to respect Angel One SmartAPI guidelines
-                    Thread.sleep(350)
+                    // Rate limit protection: sleep for 3000ms to respect Angel One SmartAPI guidelines
+                    Thread.sleep(3000)
                 } catch (e: Exception) {
                     System.err.println("BackgroundScanner: Failed to fetch real-world candles for $symbol: ${e.message}")
                 }
@@ -321,10 +412,12 @@ object MobaTradeServer {
                 println("BackgroundScanner: No real-world candles available for $symbol. Returning neutral 0 score to avoid fake trades.")
                 val item = JSONObject()
                 item.put("symbol", symbol)
+                item.put("token", token)
                 item.put("score", 0)
                 item.put("direction", "HOLD")
                 item.put("regime", "RANGING")
                 item.put("compliant", com.mobatrade.core.halal.ShariahFilter.isCompliantSymbol(symbol))
+                item.put("isSwingEligible", false)
                 item.put("triggers", JSONArray(listOf("FAILED_TO_FETCH_MARKET_DATA")))
                 item.put("price", String.format("₹%,.2f", startPrice))
                 signalsArray.put(item)
@@ -336,10 +429,12 @@ object MobaTradeServer {
 
             val item = JSONObject()
             item.put("symbol", scored.symbol)
+            item.put("token", token)
             item.put("score", scored.totalScore)
             item.put("direction", scored.recommendedDirection.name)
             item.put("regime", scored.marketRegime.name)
             item.put("compliant", scored.isShariahCompliant)
+            item.put("isSwingEligible", scored.isSwingEligible)
             
             val triggersArray = JSONArray()
             for (trigger in scored.triggers) {
