@@ -50,7 +50,8 @@ class RiskManager(
         symbol: String,
         score: Int,
         entryPrice: Double,
-        stopLoss: Double
+        stopLoss: Double,
+        availableCash: Double
     ): Order? {
         checkNewDay()
 
@@ -80,9 +81,10 @@ class RiskManager(
 
         // 5. Determine Capital Allocation based on Confluence Score
         val maxAlloc = when {
-            score >= 6 -> maxStandardAllocation // ₹20K
-            score >= 4 -> maxHalfAllocation     // ₹10K
-            else -> return null                  // Score below 4 = NO TRADE
+            score >= 6 -> Math.min(maxStandardAllocation, availableCash * 0.50) // Up to 50% of available cash, capped at 20K
+            score >= 4 -> Math.min(maxHalfAllocation, availableCash * 0.33)     // Up to 33% of available cash, capped at 10K
+            score >= 3 -> Math.min(maxHalfAllocation, availableCash * 0.20)     // Moderate setup: 20% of cash
+            else -> return null                  // Score below 3 = NO TRADE
         }
 
         // 6. Professional Risk-Based Position Sizing:

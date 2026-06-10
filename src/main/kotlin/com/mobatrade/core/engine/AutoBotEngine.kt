@@ -151,14 +151,15 @@ object AutoBotEngine {
             val priceStr = sig.optString("price", "₹0.00").replace("₹", "").replace(",", "")
             val price = priceStr.toDoubleOrNull() ?: 0.0
 
-            if (compliant && score >= 4 && price > 0.0) {
+            if (compliant && score >= 3 && price > 0.0) {
                 if (activeTickers.contains(symbol) || holdingTickers.contains(symbol)) continue
 
                 val order = riskManager.evaluateAndSizeTrade(
                     symbol = symbol,
                     score = score,
                     entryPrice = price,
-                    stopLoss = price * 0.98
+                    stopLoss = price * 0.98,
+                    availableCash = totalCapital
                 )
 
                 if (order != null) {

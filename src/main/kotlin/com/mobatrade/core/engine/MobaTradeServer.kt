@@ -413,12 +413,12 @@ object MobaTradeServer {
 
             if (AngelOneClient.isLoggedIn && token != null) {
                 try {
-                    println("BackgroundScanner: Fetching real-world hourly candles for $symbol ($token)...")
+                    println("BackgroundScanner: Fetching real-world 15-min candles for $symbol ($token)...")
                     candles = AngelOneClient.fetchHistoricalCandles(
                         symbolToken = token,
                         symbol = symbol,
-                        interval = "ONE_HOUR",
-                        limitDays = 15
+                        interval = "FIFTEEN_MINUTE",
+                        limitDays = 5
                     )
                     // Rate limit protection: sleep for 3000ms to respect Angel One SmartAPI guidelines
                     Thread.sleep(3000)
