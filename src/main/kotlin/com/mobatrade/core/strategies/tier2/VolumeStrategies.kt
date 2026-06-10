@@ -176,17 +176,9 @@ class VwapDevBands(
         val latestCandle = candles.last()
         val currentPrice = currentTick?.price ?: latestCandle.close
         
-        // 1. Dynamic Exit Condition: Price crossed back above or equal to VWAP
+        // If price is already above VWAP, no mean-reversion entry needed — skip
         if (currentPrice >= vwap) {
-            return Signal(
-                symbol = symbol,
-                direction = Direction.SELL,
-                score = 0,
-                strategyName = name,
-                triggerPrice = currentPrice,
-                timestamp = Instant.now(),
-                metadata = mapOf("reason" to "VWAP Recross Exit")
-            )
+            return null
         }
         
         // 2. Bollinger Band Width Volatility Gate:

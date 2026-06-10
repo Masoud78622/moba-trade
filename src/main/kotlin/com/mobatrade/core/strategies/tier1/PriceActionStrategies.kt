@@ -57,12 +57,11 @@ class OpeningRangeBreakout(
     }
 
     private fun findOpeningCandle(candles: List<Candle>): Candle? {
-        val zone = ZoneId.of("Asia/Kolkata") // Defaulting to Indian market (9:15 AM)
-        val today = Instant.now().atZone(zone).toLocalDate()
-        
-        return candles.firstOrNull { candle ->
+        val zone = ZoneId.of("Asia/Kolkata")
+        // Find the most recent 9:15 AM opening candle across any trading day in the data
+        // This works correctly during after-hours, weekends, and historical scans
+        return candles.lastOrNull { candle ->
             val dateTime = candle.timestamp.atZone(zone)
-            dateTime.toLocalDate() == today && 
             dateTime.toLocalTime() >= LocalTime.of(9, 15) &&
             dateTime.toLocalTime() <= LocalTime.of(9, 15).plusMinutes(timeframeMinutes.toLong())
         }

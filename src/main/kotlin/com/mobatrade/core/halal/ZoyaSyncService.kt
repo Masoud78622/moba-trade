@@ -154,22 +154,20 @@ object ZoyaSyncService {
             }
 
             val array = JSONArray()
-            // Map common symbols to real Angel One tokens if available, otherwise hash it dynamically
             for (stock in stocks) {
+                // Look up the real Angel One token from the live scrip master
+                val realToken = com.mobatrade.core.engine.TokenIntegrityGuard.verifyAndGetToken(stock.symbol, null)
+                // Skip stocks not found in the scrip master — a fake token will always block orders
+                if (realToken == null) {
+                    println("ZoyaSync: Skipping ${stock.symbol} — not found in NSE Scrip Master.")
+                    continue
+                }
                 val obj = JSONObject()
                 obj.put("symbol", stock.symbol)
                 obj.put("name", stock.name)
                 obj.put("exchange", stock.exchange)
                 obj.put("purificationRatio", stock.purificationRatio)
-                
-                // Generate a deterministic unique token code for Angel One
-                val token = when (stock.symbol.uppercase()) {
-                    "TCS" -> "11536"
-                    "INFY" -> "1594"
-                    "WIPRO" -> "3787"
-                    else -> (stock.symbol.hashCode() and 0xffff).toString()
-                }
-                obj.put("token", token)
+                obj.put("token", realToken)
                 array.put(obj)
             }
 

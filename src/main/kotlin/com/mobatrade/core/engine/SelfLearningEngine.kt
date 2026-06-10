@@ -43,7 +43,8 @@ object SelfLearningEngine {
             
             for (symbol in symbols) {
                 val token = TokenIntegrityGuard.verifyAndGetToken(symbol, null) ?: continue
-                val candles = AngelOneClient.fetchHistoricalCandles(symbol, token, "FIVE_MINUTE", 1)
+                // FIXED: symbolToken is first param, symbol is second
+                val candles = AngelOneClient.fetchHistoricalCandles(token, symbol, "FIVE_MINUTE", 1)
                 if (candles.isEmpty()) continue
 
                 val dailyLow = candles.minOf { it.low }

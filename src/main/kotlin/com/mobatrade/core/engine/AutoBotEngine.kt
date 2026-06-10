@@ -167,6 +167,18 @@ object AutoBotEngine {
                     val orderId = AngelOneClient.placeOrder(order, token, isRetry = false)
                     if (orderId != null) {
                         println("🤖 AUTO-BOT: ORDER SUCCESSFUL. ID: $orderId")
+                        // Register position in RiskManager so position limits and PnL tracking work
+                        riskManager.registerPosition(
+                            com.mobatrade.core.model.Position(
+                                symbol = symbol,
+                                entryPrice = price,
+                                quantity = order.quantity,
+                                direction = com.mobatrade.core.model.Direction.BUY,
+                                stopLoss = price * 0.98,
+                                target = price * 1.05,
+                                entryTime = java.time.Instant.now()
+                            )
+                        )
                         break // Place only one order per cycle
                     }
                 }
