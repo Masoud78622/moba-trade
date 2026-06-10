@@ -413,10 +413,8 @@ class AngelOneBrokerService implements BrokerService {
             debugPrint('🤖 MOBA RAW POSITION ITEM FROM API: $e');
             
             final String productType = e['producttype']?.toString().toUpperCase() ?? '';
-            if (productType == 'DELIVERY') {
-              // Skip delivery positions from active day trades (handled in Swing Holdings reconciliation)
-              continue;
-            }
+            // Include ALL product types — DELIVERY/CNC orders are placed by AutoBot and must be shown
+            // Previously this skipped DELIVERY, making the Positions screen blank for all AutoBot trades
 
             final double entry = double.tryParse(
               e['buyavgprice']?.toString() ?? 

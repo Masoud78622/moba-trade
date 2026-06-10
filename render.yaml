@@ -3,3 +3,4 @@ services:
     name: moba-trade-backend
     env: docker
     plan: free
+    healthCheckPath: /status

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/foundation.dart';
@@ -5,9 +6,24 @@ import 'secure_storage_service.dart';
 
 class LocalApiService {
   final HttpClient _client = HttpClient();
+  Timer? _keepaliveTimer;
 
   LocalApiService() {
-    _client.connectionTimeout = const Duration(seconds: 5); // Accommodate cloud API latency and cold starts
+    // 90 seconds: must survive Render free-plan cold start (30-60s wakeup time)
+    _client.connectionTimeout = const Duration(seconds: 90);
+    // Ping server every 10 minutes to prevent Render from sleeping during market hours
+    _keepaliveTimer = Timer.periodic(const Duration(minutes: 10), (_) async {
+      try {
+        final url = await _getServerUrl();
+        final req = await _client.headUrl(Uri.parse('$url/status'));
+        await req.close();
+      } catch (_) {} // Silent keepalive — never throw
+    });
+  }
+
+  void dispose() {
+    _keepaliveTimer?.cancel();
+    _client.close(force: true);
   }
 
   Future<String> _getServerUrl() async {

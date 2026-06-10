@@ -313,49 +313,51 @@ class _DashboardScreenState extends State<DashboardScreen> {
   void _triggerZoyaSync() async {
     setState(() {
       _isSyncing = true;
-      _syncStep = 'Connecting to Sandbox API...';
+      _syncStep = 'Connecting to Quant Server...';
     });
 
-    await Future.delayed(const Duration(milliseconds: 700));
-    setState(() {
-      _syncStep = 'Querying GraphQL Schema (limit: 100)...';
-    });
+    // Step 1: Check if the server is reachable
+    final online = await _localApiService.isServerOnline();
+    if (!online) {
+      setState(() {
+        _isSyncing = false;
+        _syncStep = '';
+      });
+      _showSystemNotification('⚠️ SYNC FAILED: Quant server is offline. Check server URL.');
+      return;
+    }
 
-    await Future.delayed(const Duration(milliseconds: 900));
-    setState(() {
-      _syncStep = 'Syncing page 2 (nextToken: "page_2")...';
-    });
+    setState(() { _syncStep = 'Triggering server-side stock universe refresh...'; });
 
-    await Future.delayed(const Duration(milliseconds: 800));
-    setState(() {
-      _syncStep = 'Validating 582 compliant symbols...';
-    });
+    // Step 2: Trigger the real backend scan (calls SelfLearningEngine + Zoya sync)
+    final triggered = await _localApiService.fetchLearningReport();
 
-    await Future.delayed(const Duration(milliseconds: 600));
-    setState(() {
-      _syncStep = 'Writing to c:\\moba trade\\halal_stocks.json...';
-    });
+    setState(() { _syncStep = 'Fetching updated stock count...'; });
 
-    await Future.delayed(const Duration(milliseconds: 500));
-    // Use IST (UTC+5:30) for all time displays to match market hours
+    // Step 3: Fetch the real stock count from the live server
+    final count = await _localApiService.fetchCompliantStockCount();
+    final sigs = await _localApiService.fetchLiveSignals();
+
     final nowIst = DateTime.now().toLocal();
-    final timeStr = "${nowIst.hour.toString().padLeft(2, '0')}:${nowIst.minute.toString().padLeft(2, '0')} IST";
+    final timeStr = '${nowIst.hour.toString().padLeft(2, '0')}:${nowIst.minute.toString().padLeft(2, '0')} IST';
+
     setState(() {
       _isSyncing = false;
       _isSynced = true;
-      _compliantStockCount = 582;
-      _lastSyncTime = '$timeStr (JUST NOW)';
+      _compliantStockCount = count ?? _compliantStockCount;
+      _lastSyncTime = '$timeStr (LIVE)';
+      if (sigs != null && sigs.isNotEmpty) _liveSignals = sigs;
     });
 
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          backgroundColor: Color(0xFF121215),
+        SnackBar(
+          backgroundColor: const Color(0xFF121215),
           content: Text(
-            'SYSTEM: Halal universe successfully synchronized and cached locally.',
-            style: TextStyle(fontFamily: 'Courier', color: Colors.white, fontSize: 12),
+            'SYSTEM: Halal universe refreshed. ${count ?? 0} compliant stocks loaded from server.',
+            style: const TextStyle(fontFamily: 'Courier', color: Colors.white, fontSize: 12),
           ),
-          duration: Duration(seconds: 2),
+          duration: const Duration(seconds: 3),
         ),
       );
     }
