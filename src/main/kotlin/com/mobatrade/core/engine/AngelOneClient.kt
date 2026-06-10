@@ -467,8 +467,7 @@ object AngelOneClient {
                         if (dataArray != null) {
                             for (i in 0 until dataArray.length()) {
                                 val item = dataArray.getJSONObject(i)
-                                val productType = item.optString("producttype", "").uppercase()
-                                if (productType == "DELIVERY") continue // Skip delivery, handled in swing holdings
+                                // Include all position types (DELIVERY/CNC and INTRADAY/MIS)
                                 results.add(item)
                             }
                         }

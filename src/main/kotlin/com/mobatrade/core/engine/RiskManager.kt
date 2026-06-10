@@ -6,11 +6,7 @@ import com.mobatrade.core.model.Position
 import java.time.LocalDate
 
 class RiskManager(
-    private val totalCapital: Double = 100000.0,
-    private val maxStandardAllocation: Double = 20000.0, // A/B setups: ₹20K
-    private val maxHalfAllocation: Double = 10000.0,     // C setups: ₹10K
-    private val maxSingleTradeRisk: Double = 1500.0,      // Max ₹1.5K loss per trade (1.5% of total capital)
-    private val maxDailyDrawdown: Double = 3000.0,        // Max ₹3K loss per day (3%)
+    private val maxDailyDrawdownPercent: Double = 3.0,  // Halt if daily loss exceeds 3% of capital
     private val maxConcurrentPositions: Int = 3
 ) {
     private val activePositions = HashMap<String, Position>()
@@ -38,11 +34,14 @@ class RiskManager(
     /**
      * Evaluates a trade proposal and applies risk filters.
      * Computes the exact share quantity using professional risk-based position sizing.
-     * 
+     * All limits are dynamic — calculated as a % of availableCash so expensive stocks
+     * like RELIANCE (₹2450) are never accidentally blocked by hardcoded rupee limits.
+     *
      * @param symbol The ticker symbol
      * @param score Confluence score (0-10)
      * @param entryPrice Proposed entry price
      * @param stopLoss Proposed stop loss price
+     * @param availableCash Real-time available margin from Angel One
      * @return Order if approved by risk controls, or null if rejected.
      */
     @Synchronized
@@ -55,8 +54,14 @@ class RiskManager(
     ): Order? {
         checkNewDay()
 
-        // 1. Drawdown Halt: Check if daily loss exceeds drawdown limit
-        if (dailyPnL <= -maxDailyDrawdown) {
+        if (availableCash <= 0.0) {
+            System.err.println("[RISK HALT] Available cash is zero or negative. Trading halted.")
+            return null
+        }
+
+        // 1. Drawdown Halt: Check if daily loss exceeds % drawdown limit
+        val maxDailyDrawdownAmt = availableCash * (maxDailyDrawdownPercent / 100.0)
+        if (dailyPnL <= -maxDailyDrawdownAmt) {
             System.err.println("[RISK HALT] Daily drawdown limit exceeded ($dailyPnL). Trading is halted.")
             return null
         }
@@ -79,41 +84,62 @@ class RiskManager(
             return null
         }
 
-        // 5. Determine Capital Allocation based on Confluence Score
-        val maxAlloc = when {
-            score >= 6 -> Math.min(maxStandardAllocation, availableCash * 0.50) // Up to 50% of available cash, capped at 20K
-            score >= 4 -> Math.min(maxHalfAllocation, availableCash * 0.33)     // Up to 33% of available cash, capped at 10K
-            score >= 3 -> Math.min(maxHalfAllocation, availableCash * 0.20)     // Moderate setup: 20% of cash
-            else -> return null                  // Score below 3 = NO TRADE
+        // 5. Determine Capital Allocation % based on Confluence Score
+        // All limits are dynamic % of availableCash — no hardcoded rupee caps
+        val allocFraction = when {
+            score >= 6 -> 0.30   // High confidence: deploy up to 30% of capital
+            score >= 4 -> 0.20   // Medium confidence: deploy up to 20% of capital
+            score >= 3 -> 0.10   // Low confidence: deploy up to 10% of capital
+            else -> return null  // Score below 3 = NO TRADE
+        }
+        val maxAlloc = availableCash * allocFraction
+
+        // 6. Risk-based position sizing: risk max 2% of capital per trade
+        val maxRiskAmt = availableCash * 0.02
+        val riskPerShare = entryPrice - stopLoss
+
+        // Quantity limited by: (a) max allocation, (b) max risk per trade
+        val capQty = (maxAlloc / entryPrice).toInt()
+        val riskQty = if (riskPerShare > 0) (maxRiskAmt / riskPerShare).toInt() else capQty
+        var targetQuantity = minOf(capQty, riskQty)
+
+        // Ensure at least 1 share if we can afford it
+        if (targetQuantity <= 0 && entryPrice <= availableCash) {
+            targetQuantity = 1
         }
 
-        // 6. Professional Risk-Based Position Sizing:
-        // Size = min( CapitalAlloc / EntryPrice, MaxRisk / RiskPerShare )
-        val riskPerShare = entryPrice - stopLoss
-        
-        val capQty = (maxAlloc / entryPrice).toInt()
-        val riskQty = (maxSingleTradeRisk / riskPerShare).toInt()
-        
-        val targetQuantity = Math.min(capQty, riskQty)
-
         if (targetQuantity <= 0) {
-            System.err.println("[RISK FILTER] Calculated trade quantity is zero. Skipping trade.")
+            System.err.println("[RISK FILTER] Calculated trade quantity is zero for $symbol @ ₹$entryPrice. Cash=₹$availableCash. Skipping.")
             return null
         }
 
         val totalCost = targetQuantity * entryPrice
-        val projectedLoss = targetQuantity * riskPerShare
-        
-        // 7. Double check allocation boundaries
-        if (totalCost > maxAlloc * 1.05) {
-            System.err.println("[RISK FILTER] Position cost ($totalCost) exceeds max allowed allocation. Adjusting...")
-            return null
+
+        // Safety check: never spend more than we have
+        if (totalCost > availableCash) {
+            val affordableQty = (availableCash / entryPrice).toInt()
+            if (affordableQty <= 0) {
+                System.err.println("[RISK FILTER] Cannot afford even 1 share of $symbol @ ₹$entryPrice. Cash=₹$availableCash.")
+                return null
+            }
+            // Use what we can afford
+            val projectedTarget2 = entryPrice + (riskPerShare * 2.0)
+            println("[RISK APPROVED] $symbol: Qty $affordableQty (affordability-capped), Entry ₹$entryPrice, Stop ₹$stopLoss, Target ₹$projectedTarget2, Cost ₹${affordableQty * entryPrice}")
+            return Order(
+                symbol = symbol,
+                quantity = affordableQty,
+                price = entryPrice,
+                direction = Direction.BUY,
+                orderType = "MARKET",
+                stopLoss = stopLoss,
+                target = projectedTarget2
+            )
         }
 
-        // Target target ratio (Reward) is typically 1:2 risk-to-reward ratio minimum
+        val projectedLoss = targetQuantity * riskPerShare
         val projectedTarget = entryPrice + (riskPerShare * 2.0)
 
-        println("[RISK APPROVED] $symbol: Quantity $targetQuantity, Entry $entryPrice, Stop $stopLoss, Target $projectedTarget, Total Cost: ₹$totalCost, Potential Risk: ₹$projectedLoss")
+        println("[RISK APPROVED] $symbol: Qty $targetQuantity, Entry ₹$entryPrice, Stop ₹$stopLoss, Target ₹$projectedTarget, Cost ₹$totalCost, Risk ₹$projectedLoss")
 
         return Order(
             symbol = symbol,
