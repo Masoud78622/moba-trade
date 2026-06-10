@@ -84,14 +84,14 @@ class ConfluenceScorer(
         // 2. Classify Market Regime
         val regime = regimeDetector.detectRegime(candles)
         
-        // Volatile and bearish regimes are unsafe for standard long-only setups
-        if (regime == MarketRegime.TRENDING_BEARISH || regime == MarketRegime.VOLATILE) {
+        // Strictly bearish trend is unsafe for long-only setups. Volatile is OK - mean reversion works.
+        if (regime == MarketRegime.TRENDING_BEARISH) {
             return ScoredTrade(
                 symbol = symbol,
                 totalScore = 0,
                 recommendedDirection = Direction.HOLD,
                 marketRegime = regime,
-                triggers = listOf("REGIME_UNSAFE_FOR_BUYING"),
+                triggers = listOf("REGIME_BEARISH_NO_LONG_ENTRY"),
                 isShariahCompliant = true,
                 isSwingEligible = false
             )

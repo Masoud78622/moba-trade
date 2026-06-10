@@ -41,14 +41,43 @@ object MobaTradeServer {
             println("Server initialized Shariah compliance filter with local defaults.")
         }
 
-        // Seed News Sentiment and Sector Rotation scores for high confluence signals
-        com.mobatrade.core.strategies.tier5.NewsSentiment.updateSentiment("TCS", 0.85)
-        com.mobatrade.core.strategies.tier5.NewsSentiment.updateSentiment("INFY", 0.82)
-        com.mobatrade.core.strategies.tier5.NewsSentiment.updateSentiment("WIPRO", 0.78)
-        com.mobatrade.core.strategies.tier5.NewsSentiment.updateSentiment("HCLTECH", 0.81)
+        // Seed positive news sentiment for ALL halal stocks by default (0.75 = mildly positive)
+        // This ensures NewsSentiment strategy contributes to scoring for every stock in the universe,
+        // not just the 4 IT stocks that were hardcoded before.
+        try {
+            val isWindows2 = System.getProperty("os.name").lowercase().contains("win")
+            val halalFile = if (isWindows2) java.io.File("c:\\moba trade\\halal_stocks.json") else java.io.File("halal_stocks.json")
+            if (halalFile.exists()) {
+                val halalArray = org.json.JSONArray(halalFile.readText())
+                for (i in 0 until halalArray.length()) {
+                    val sym = halalArray.getJSONObject(i).optString("symbol", "")
+                    if (sym.isNotEmpty()) {
+                        com.mobatrade.core.strategies.tier5.NewsSentiment.updateSentiment(sym, 0.75)
+                    }
+                }
+                println("Seeded positive news sentiment for ${halalArray.length()} halal stocks.")
+            }
+        } catch (e: Exception) {
+            System.err.println("Failed to seed news sentiment: ${e.message}")
+        }
 
+        // Seed sector rotation scores covering ALL sectors in our universe
         com.mobatrade.core.strategies.tier4.SectorRotation.updateSectorScores(
-            mapOf("IT" to 1.12, "PHARMA" to 1.08, "FMCG" to 1.02)
+            mapOf(
+                "IT" to 1.12,
+                "PHARMA" to 1.08,
+                "FMCG" to 1.06,
+                "ENERGY" to 1.07,
+                "METALS" to 1.05,
+                "AUTO" to 1.06,
+                "CEMENT" to 1.05,
+                "INDUSTRIAL" to 1.05,
+                "CONSUMER" to 1.05,
+                "UTILITIES" to 1.05,
+                "CAPITAL_GOODS" to 1.05,
+                "BANKING" to 1.05,
+                "INFRA" to 1.05
+            )
         )
 
         // Set up context handlers
