@@ -52,7 +52,7 @@ object AutoBotEngine {
         
         // 1. 3:15 PM Intraday Auto-Liquidator
         val nowIst = LocalTime.now(ZoneId.of("Asia/Kolkata"))
-        val isSquaringOffTime = nowIst.hour == 15 && nowIst.minute >= 15
+        val isSquaringOffTime = nowIst.hour > 15 || (nowIst.hour == 15 && nowIst.minute >= 15)
 
         if (isSquaringOffTime) {
             var liquidatedAny = false
