@@ -89,9 +89,13 @@ object TokenIntegrityGuard {
             val request = Request.Builder().url(SCRIP_MASTER_URL).build()
             httpClient.newCall(request).execute().use { response ->
                 if (response.isSuccessful && response.body != null) {
-                    val bytes = response.body!!.bytes()
-                    cacheFile.writeBytes(bytes)
-                    println("TokenIntegrityGuard: Downloaded ${bytes.size / 1024} KB successfully.")
+                    // Stream body directly to file to prevent loading the entire 35MB array in memory
+                    response.body!!.byteStream().use { input ->
+                        cacheFile.outputStream().use { output ->
+                            input.copyTo(output)
+                        }
+                    }
+                    println("TokenIntegrityGuard: Downloaded and saved successfully.")
                 } else {
                     System.err.println("TokenIntegrityGuard: Download failed with HTTP ${response.code}")
                 }
@@ -103,37 +107,64 @@ object TokenIntegrityGuard {
 
     private fun loadIntoMemory(cacheFile: File) {
         try {
-            println("TokenIntegrityGuard: Parsing Scrip Master JSON into memory...")
-            val content = cacheFile.readText(StandardCharsets.UTF_8)
-            val jsonArray = JSONArray(content)
-
+            println("TokenIntegrityGuard: Parsing Scrip Master JSON memory-efficiently...")
             symbolMap.clear()
             var count = 0
 
-            for (i in 0 until jsonArray.length()) {
-                val item = jsonArray.getJSONObject(i)
-                val exchSeg = item.optString("exch_seg")
-                
-                // We mainly care about NSE equities
-                if (exchSeg == "NSE") {
-                    val symbol = item.optString("symbol") // e.g., "MGL-EQ" or "MGL-BE"
-                    val token = item.optString("token")
-                    val name = item.optString("name")     // e.g., "MGL"
-                    
-                    if (name.isNotEmpty() && token.isNotEmpty() && symbol.isNotEmpty()) {
-                        // Store the mapping. If a stock is in -EQ, we prefer it.
-                        // If it moves to -BE, we'll store that.
-                        val existing = symbolMap[name]
-                        if (existing == null || symbol.endsWith("-EQ")) {
-                            symbolMap[name] = Pair(token, symbol)
-                            count++
+            cacheFile.bufferedReader(StandardCharsets.UTF_8).use { reader ->
+                val buffer = CharArray(65536)
+                val sb = StringBuilder()
+                var inObject = false
+                var readLen = reader.read(buffer)
+
+                while (readLen != -1) {
+                    for (i in 0 until readLen) {
+                        val ch = buffer[i]
+                        if (ch == '{') {
+                            sb.setLength(0)
+                            inObject = true
+                            sb.append(ch)
+                        } else if (ch == '}') {
+                            if (inObject) {
+                                sb.append(ch)
+                                val objStr = sb.toString()
+                                if (objStr.contains("\"exch_seg\":\"NSE\"")) {
+                                    try {
+                                        val item = JSONObject(objStr)
+                                        val symbol = item.optString("symbol")
+                                        val token = item.optString("token")
+                                        val name = item.optString("name")
+                                        
+                                        if (name.isNotEmpty() && token.isNotEmpty() && symbol.isNotEmpty()) {
+                                            val existing = symbolMap[name]
+                                            if (existing == null || symbol.endsWith("-EQ")) {
+                                                symbolMap[name] = Pair(token, symbol)
+                                                count++
+                                            }
+                                        }
+                                    } catch (e: Exception) {
+                                        // Ignore individual parsing errors
+                                    }
+                                }
+                                inObject = false
+                            }
+                        } else if (inObject) {
+                            sb.append(ch)
                         }
                     }
+                    readLen = reader.read(buffer)
                 }
             }
-            isLoaded = true
-            println("TokenIntegrityGuard: Loaded $count NSE instruments into memory.")
+
+            if (count > 0) {
+                isLoaded = true
+                println("TokenIntegrityGuard: Loaded $count NSE instruments into memory.")
+            } else {
+                isLoaded = false
+                System.err.println("TokenIntegrityGuard: Map is empty after parsing. Load failed.")
+            }
         } catch (e: Exception) {
+            isLoaded = false
             System.err.println("TokenIntegrityGuard: Failed to parse Scrip Master - ${e.message}")
         }
     }

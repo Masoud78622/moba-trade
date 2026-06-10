@@ -97,52 +97,51 @@ class ConfluenceEngineTest {
     @Test
     fun testRiskManagerPositionSizing() {
         val riskManager = RiskManager(
-            totalCapital = 100000.0,
-            maxStandardAllocation = 20000.0,
-            maxHalfAllocation = 10000.0,
-            maxSingleTradeRisk = 1500.0 // Max risk ₹1500 per trade
+            maxConcurrentPositions = 3
         )
 
         // Scenario A: Highly confident setup (Score = 8)
         // Entry Price = ₹3000, Stop Loss = ₹2900 (Risk per share = ₹100)
-        // Cap limit = 20,000 / 3000 = 6 shares
-        // Risk limit = 1500 / 100 = 15 shares
-        // Position size should be min(6, 15) = 6 shares
+        // Cap limit = 100,000 * 30% = 30,000 / 3000 = 10 shares
+        // Risk limit = 100,000 * 2% = 2,000 / 100 = 20 shares
+        // Position size should be min(10, 20) = 10 shares
+        // Let's pass availableCash = 100000.0
         val orderA = riskManager.evaluateAndSizeTrade(
             symbol = "TCS",
             score = 8,
             entryPrice = 3000.0,
-            stopLoss = 2900.0
+            stopLoss = 2900.0,
+            availableCash = 100000.0
         )
 
         assertNotNull(orderA)
-        assertEquals(6, orderA!!.quantity)
+        assertEquals(10, orderA!!.quantity)
         assertEquals(Direction.BUY, orderA.direction)
         assertEquals(2900.0, orderA.stopLoss)
         assertEquals(3200.0, orderA.target) // Target calculated at 1:2 R:R
 
         // Scenario B: Wider Stop Loss to test Risk-Based Sizing limit
         // Entry Price = ₹3000, Stop Loss = ₹2700 (Risk per share = ₹300)
-        // Cap limit = 20,000 / 3000 = 6 shares
-        // Risk limit = 1500 / 300 = 5 shares
-        // Position size should be min(6, 5) = 5 shares (limited by risk management!)
+        // Cap limit = 100,000 * 30% = 30,000 / 3000 = 10 shares
+        // Risk limit = 100,000 * 2% = 2,000 / 300 = 6 shares
+        // Position size should be min(10, 6) = 6 shares (limited by risk management!)
         val orderB = riskManager.evaluateAndSizeTrade(
             symbol = "INFY",
             score = 7,
             entryPrice = 3000.0,
-            stopLoss = 2700.0
+            stopLoss = 2700.0,
+            availableCash = 100000.0
         )
 
         assertNotNull(orderB)
-        assertEquals(5, orderB!!.quantity, "Position size should be restricted by risk-based limits")
+        assertEquals(6, orderB!!.quantity, "Position size should be restricted by risk-based limits")
     }
 
     @Test
     fun testRiskManagerDrawdownAndLimits() {
         val riskManager = RiskManager(
-            totalCapital = 100000.0,
-            maxConcurrentPositions = 2,
-            maxDailyDrawdown = 3000.0
+            maxDailyDrawdownPercent = 3.0,
+            maxConcurrentPositions = 2
         )
 
         // Register two active positions
@@ -151,7 +150,7 @@ class ConfluenceEngineTest {
         riskManager.registerPosition(com.mobatrade.core.model.Position("INFY", 1500.0, 10, Direction.BUY, 1450.0, 1600.0, entryTime))
 
         // Proposal for 3rd position should be rejected (max concurrent is 2)
-        val order3 = riskManager.evaluateAndSizeTrade("WIPRO", 8, 400.0, 390.0)
+        val order3 = riskManager.evaluateAndSizeTrade("WIPRO", 8, 400.0, 390.0, availableCash = 100000.0)
         assertNull(order3, "Should reject trade when concurrent positions limit is exceeded")
 
         // Close INFY with a massive loss to trigger drawdown limit
@@ -160,7 +159,7 @@ class ConfluenceEngineTest {
         assertEquals(-3000.0, loss)
 
         // Proposed trades should now be rejected due to daily drawdown halt
-        val orderAfterDrawdown = riskManager.evaluateAndSizeTrade("TCS", 8, 3000.0, 2950.0)
+        val orderAfterDrawdown = riskManager.evaluateAndSizeTrade("TCS", 8, 3000.0, 2950.0, availableCash = 100000.0)
         assertNull(orderAfterDrawdown, "Trading must be halted when daily drawdown threshold is breached")
     }
 
