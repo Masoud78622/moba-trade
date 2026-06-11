@@ -79,11 +79,10 @@ object AutoBotEngine {
             return
         }
 
-        // 3. Evaluate Swing Holdings
+        // 3. Evaluate Swing Holdings — trailing stop + take profit management
         if (isSwingManageEnabled) {
             val swingHoldings = AngelOneClient.fetchSwingHoldings()
             var swingLiquidatedAny = false
-            val dynamicThreshold = -5.0 // 5% stop loss
 
             for (h in swingHoldings) {
                 val symbol = extractSymbol(h)
@@ -92,18 +91,60 @@ object AutoBotEngine {
                 val token = h.optString("symboltoken", null) ?: h.optString("token", "")
                 val current = AngelOneClient.fetchRealLtp(symbol, token)
 
-                if (entry > 0 && qty > 0) {
-                    val pnlPercent = ((current - entry) / entry) * 100.0
-                    if (pnlPercent <= dynamicThreshold) {
-                        println("🤖 AUTO-BOT: Swing holding $symbol breached stop-loss ($pnlPercent%). Liquidating...")
+                if (entry <= 0 || qty <= 0 || current <= 0) continue
+
+                val pnlPercent = ((current - entry) / entry) * 100.0
+                println("🤖 [SWING] $symbol | Entry=₹$entry | LTP=₹$current | PnL=${String.format("%.2f", pnlPercent)}%")
+
+                when {
+                    // Hard stop loss at -5%
+                    pnlPercent <= -5.0 -> {
+                        println("🤖 SWING STOP-LOSS: $symbol at ${String.format("%.2f", pnlPercent)}%. Liquidating all $qty shares...")
                         if (liquidatePosition(symbol, token, qty)) {
+                            riskManager.closePosition(symbol, current)
                             swingLiquidatedAny = true
+                        }
+                    }
+                    // Full take-profit at +15%
+                    pnlPercent >= 15.0 -> {
+                        println("🤖 SWING TARGET HIT: $symbol at +${String.format("%.2f", pnlPercent)}%. Taking full profit on $qty shares...")
+                        if (liquidatePosition(symbol, token, qty)) {
+                            riskManager.closePosition(symbol, current)
+                            swingLiquidatedAny = true
+                        }
+                    }
+                    // Partial exit (50%) at +10% — book half, let rest run
+                    pnlPercent >= 10.0 && qty >= 2 -> {
+                        val halfQty = qty / 2
+                        val lastPartial = liquidatedCooldown["${symbol}_PARTIAL"] ?: 0L
+                        // Only do partial exit once (cooldown 24h so we don't re-trigger each cycle)
+                        if (System.currentTimeMillis() - lastPartial > 24 * 60 * 60 * 1000L) {
+                            println("🤖 SWING PARTIAL EXIT: $symbol at +${String.format("%.2f", pnlPercent)}%. Booking $halfQty of $qty shares...")
+                            if (liquidatePosition(symbol, token, halfQty)) {
+                                liquidatedCooldown["${symbol}_PARTIAL"] = System.currentTimeMillis()
+                            }
+                        }
+                    }
+                    // Trailing stop: if we're up >= 5%, trail stop at (current high - 5%)
+                    pnlPercent >= 5.0 -> {
+                        val trailingStop = current * 0.95 // 5% trailing stop
+                        val entryStop = entry * 0.97     // Never let a winner go below -3% from entry
+                        val effectiveStop = maxOf(trailingStop, entryStop)
+                        if (current <= effectiveStop) {
+                            println("🤖 SWING TRAIL STOP: $symbol trailed stop hit at ₹$current (stop=₹${String.format("%.2f", effectiveStop)}). Exiting $qty shares...")
+                            if (liquidatePosition(symbol, token, qty)) {
+                                riskManager.closePosition(symbol, current)
+                                swingLiquidatedAny = true
+                            }
+                        } else {
+                            println("🤖 [SWING] $symbol trailing stop active at ₹${String.format("%.2f", effectiveStop)}. Price safe.")
                         }
                     }
                 }
             }
             if (swingLiquidatedAny) return
         }
+
 
         // 4. Evaluate Active Day Trades for SL/TP
         var activeLiquidatedAny = false

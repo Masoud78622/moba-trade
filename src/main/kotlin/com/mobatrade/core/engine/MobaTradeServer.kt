@@ -112,9 +112,14 @@ object MobaTradeServer {
         // Start EOD Self-Learning Engine (daemon)
         SelfLearningEngine.start()
 
-        // Holdings Verification Module Initialization
-        println("Initializing Token Integrity Guard...")
-        TokenIntegrityGuard.ensureMasterDownloaded()
+        // CRITICAL FIX: Load Token Integrity Guard in a background thread.
+        // Previously this was synchronous in main() and blocked for 60-120s downloading 35MB,
+        // causing Render's health check to fail and the container to crash.
+        Thread {
+            println("[STARTUP] TokenIntegrityGuard: Starting background scrip master warmup...")
+            TokenIntegrityGuard.ensureMasterDownloaded()
+            println("[STARTUP] TokenIntegrityGuard: Scrip master warmup complete. isReady=${TokenIntegrityGuard.isReady()}")
+        }.also { it.isDaemon = true; it.name = "ScripMasterLoader" }.start()
 
         println("==========================================================")
         println("MOBA TRADE SERVER // COMPLIANT QUANT ENGINE")
@@ -259,6 +264,9 @@ object MobaTradeServer {
             statusJson.put("engine", "MobaTrade Core Scorer")
             statusJson.put("complianceDatabaseSize", ShariahFilter.size())
             statusJson.put("brokerConnected", AngelOneClient.isLoggedIn)
+            statusJson.put("scripMasterReady", TokenIntegrityGuard.isReady())
+            statusJson.put("autoBotEnabled", AutoBotEngine.isEnabled)
+            statusJson.put("swingManageEnabled", AutoBotEngine.isSwingManageEnabled)
             statusJson.put("serverTime", Instant.now().toString())
 
             sendResponse(exchange, 200, statusJson.toString())

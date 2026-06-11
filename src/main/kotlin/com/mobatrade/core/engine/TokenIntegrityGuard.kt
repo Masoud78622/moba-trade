@@ -30,13 +30,18 @@ object TokenIntegrityGuard {
     @Volatile
     private var isLoaded = false
 
+    @Volatile
+    private var isLoading = false
+
     /**
      * Ensures the daily symbol master is downloaded and loaded into memory.
-     * Should be called at startup.
+     * This is SAFE to call from a background thread — do NOT call from main() directly
+     * as the 35MB download will block Render's health check and cause a crash loop.
      */
     @Synchronized
     fun ensureMasterDownloaded() {
-        if (isLoaded) return
+        if (isLoaded || isLoading) return
+        isLoading = true
 
         val cacheFile = File(CACHE_PATH)
         val todayStr = DateTimeFormatter.ofPattern("yyyy-MM-dd")
@@ -68,6 +73,7 @@ object TokenIntegrityGuard {
         } else {
             System.err.println("TokenIntegrityGuard: Failed to load Scrip Master! File does not exist.")
         }
+        isLoading = false
     }
 
     /**
@@ -169,21 +175,40 @@ object TokenIntegrityGuard {
         }
     }
 
+    /** Returns true when the scrip master is fully loaded and ready for token lookups. */
+    fun isReady(): Boolean = isLoaded
+
     /**
      * Retrieves the authoritative token for a given base symbol (e.g., "MGL").
      * Returns the pair (Token, TradingSymbol) or null if not found.
      */
     fun getTokenInfoForSymbol(baseSymbol: String): Pair<String, String>? {
-        if (!isLoaded) ensureMasterDownloaded()
+        if (!isLoaded) return null // Return null gracefully during warmup — callers handle this
         return symbolMap[baseSymbol.uppercase()]
     }
 
     /**
      * Checks if a previously cached token matches the current live token from the exchange.
+     * During warmup (scrip master still loading), returns expectedToken as fallback so trades
+     * are not blocked while the background download is in progress.
      */
     fun verifyAndGetToken(baseSymbol: String, expectedToken: String?): String? {
+        // During warmup, fall back to the token from halal_stocks.json to avoid blocking trades
+        if (!isLoaded) {
+            if (!expectedToken.isNullOrEmpty()) {
+                return expectedToken // Use the token we already have from cache
+            }
+            println("TokenIntegrityGuard: Scrip Master still loading. No fallback token for $baseSymbol.")
+            return null
+        }
+
         val info = getTokenInfoForSymbol(baseSymbol)
         if (info == null) {
+            // If not found in scrip master but we have an expected token, use it as fallback
+            if (!expectedToken.isNullOrEmpty()) {
+                println("TokenIntegrityGuard: $baseSymbol not in scrip master. Using fallback token $expectedToken.")
+                return expectedToken
+            }
             System.err.println("TokenIntegrityGuard QA: Symbol $baseSymbol NOT FOUND in NSE Scrip Master!")
             return null
         }
