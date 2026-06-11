@@ -93,17 +93,8 @@ object MobaTradeServer {
             )
         )
 
-        // Set up context handlers
-        server.createContext("/", HomeHandler())
-        server.createContext("/status", StatusHandler())
-        server.createContext("/halal-stocks", HalalStocksHandler())
-        server.createContext("/signals", SignalsHandler())
-        server.createContext("/autobot/status", AutoBotStatusHandler())
-        server.createContext("/autobot/toggle", AutoBotToggleHandler())
-        server.createContext("/learning/report", LearningReportHandler())
-        server.createContext("/learning/trigger", LearningTriggerHandler())
-        server.createContext("/logs", LogsHandler())
-
+        // Set up context handlers using a single robust MainRouterHandler to prevent routing bugs
+        server.createContext("/", MainRouterHandler())
         server.executor = null // Creates a default executor
         
         // Start AutoBot Engine (dormant until toggled)
@@ -216,6 +207,49 @@ object MobaTradeServer {
         }
     }
 
+    // Main Router Handler to bypass HttpServer longest-prefix routing bugs and trailing slash issues
+    class MainRouterHandler : HttpHandler {
+        private val homeHandler = HomeHandler()
+        private val statusHandler = StatusHandler()
+        private val halalStocksHandler = HalalStocksHandler()
+        private val signalsHandler = SignalsHandler()
+        private val autoBotStatusHandler = AutoBotStatusHandler()
+        private val autoBotToggleHandler = AutoBotToggleHandler()
+        private val learningReportHandler = LearningReportHandler()
+        private val learningTriggerHandler = LearningTriggerHandler()
+        private val logsHandler = LogsHandler()
+
+        override fun handle(exchange: HttpExchange) {
+            // Options handler for CORS preflight
+            if (exchange.requestMethod.uppercase() == "OPTIONS") {
+                exchange.responseHeaders.add("Access-Control-Allow-Origin", "*")
+                exchange.responseHeaders.add("Access-Control-Allow-Methods", "GET, POST, OPTIONS, HEAD")
+                exchange.responseHeaders.add("Access-Control-Allow-Headers", "Content-Type, Authorization")
+                exchange.sendResponseHeaders(204, -1)
+                return
+            }
+
+            val path = exchange.requestURI.path.removeSuffix("/")
+            when (path) {
+                "" -> homeHandler.handle(exchange)
+                "/status" -> statusHandler.handle(exchange)
+                "/halal-stocks" -> halalStocksHandler.handle(exchange)
+                "/signals" -> signalsHandler.handle(exchange)
+                "/autobot/status" -> autoBotStatusHandler.handle(exchange)
+                "/autobot/toggle" -> autoBotToggleHandler.handle(exchange)
+                "/learning/report" -> learningReportHandler.handle(exchange)
+                "/learning/trigger" -> learningTriggerHandler.handle(exchange)
+                "/logs" -> logsHandler.handle(exchange)
+                else -> {
+                    val errJson = JSONObject()
+                    errJson.put("error", "Not Found")
+                    errJson.put("message", "The requested path '${exchange.requestURI.path}' was not found on this server.")
+                    sendResponse(exchange, 404, errJson.toString())
+                }
+            }
+        }
+    }
+
     // 0. Welcome / Home Handler
     class HomeHandler : HttpHandler {
         override fun handle(exchange: HttpExchange) {
@@ -230,7 +264,8 @@ object MobaTradeServer {
                 val welcomeJson = JSONObject()
                 welcomeJson.put("name", "MobaTrade Compliant Quant Engine")
                 welcomeJson.put("status", "ONLINE")
-                welcomeJson.put("version", "1.0.0")
+                welcomeJson.put("version", "1.0.1")
+                welcomeJson.put("router", "MAIN_ROUTER_V1")
                 welcomeJson.put("description", "High-performance Shariah-compliant quantitative strategy scorer API gateway.")
                 
                 val endpoints = JSONObject()
