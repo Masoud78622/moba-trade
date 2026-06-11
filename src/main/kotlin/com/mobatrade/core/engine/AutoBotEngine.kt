@@ -4,6 +4,7 @@ import org.json.JSONArray
 import org.json.JSONObject
 import java.time.LocalTime
 import java.time.ZoneId
+import java.io.File
 import java.util.concurrent.ConcurrentHashMap
 import com.mobatrade.core.model.Direction
 import com.mobatrade.core.model.Order
@@ -96,48 +97,60 @@ object AutoBotEngine {
                 val pnlPercent = ((current - entry) / entry) * 100.0
                 println("🤖 [SWING] $symbol | Entry=₹$entry | LTP=₹$current | PnL=${String.format("%.2f", pnlPercent)}%")
 
-                when {
-                    // Hard stop loss at -5%
-                    pnlPercent <= -5.0 -> {
-                        println("🤖 SWING STOP-LOSS: $symbol at ${String.format("%.2f", pnlPercent)}%. Liquidating all $qty shares...")
+                // Update peak tracker for trailing stop
+                val peak = SwingPeakTracker.updateAndGetPeak(symbol, entry, current)
+                val peakGainPercent = ((peak - entry) / entry) * 100.0
+
+                // 1. Hard stop loss at -5%
+                if (pnlPercent <= -5.0) {
+                    println("🤖 SWING STOP-LOSS: $symbol at ${String.format("%.2f", pnlPercent)}%. Liquidating all $qty shares...")
+                    if (liquidatePosition(symbol, token, qty)) {
+                        riskManager.closePosition(symbol, current)
+                        SwingPeakTracker.clear(symbol)
+                        swingLiquidatedAny = true
+                    }
+                    continue
+                }
+
+                // 2. Full take-profit at +15%
+                if (pnlPercent >= 15.0) {
+                    println("🤖 SWING TARGET HIT: $symbol at +${String.format("%.2f", pnlPercent)}%. Taking full profit on $qty shares...")
+                    if (liquidatePosition(symbol, token, qty)) {
+                        riskManager.closePosition(symbol, current)
+                        SwingPeakTracker.clear(symbol)
+                        swingLiquidatedAny = true
+                    }
+                    continue
+                }
+
+                // 3. Trailing stop check: if peak gain >= 5%, trailing stop is activated
+                if (peakGainPercent >= 5.0) {
+                    val trailingStop = peak * 0.95 // 5% trailing stop below peak
+                    val entryStop = entry * 0.97     // Never let a winner go below -3% from entry
+                    val effectiveStop = maxOf(trailingStop, entryStop)
+                    
+                    if (current <= effectiveStop) {
+                        println("🤖 SWING TRAIL STOP: $symbol trailed stop hit at ₹$current (peak=₹$peak, stop=₹${String.format("%.2f", effectiveStop)}). Exiting all $qty shares...")
                         if (liquidatePosition(symbol, token, qty)) {
                             riskManager.closePosition(symbol, current)
+                            SwingPeakTracker.clear(symbol)
                             swingLiquidatedAny = true
                         }
+                        continue
+                    } else {
+                        println("🤖 [SWING] $symbol trailing stop active. Peak=₹$peak | Stop=₹${String.format("%.2f", effectiveStop)} | Price safe.")
                     }
-                    // Full take-profit at +15%
-                    pnlPercent >= 15.0 -> {
-                        println("🤖 SWING TARGET HIT: $symbol at +${String.format("%.2f", pnlPercent)}%. Taking full profit on $qty shares...")
-                        if (liquidatePosition(symbol, token, qty)) {
-                            riskManager.closePosition(symbol, current)
-                            swingLiquidatedAny = true
-                        }
-                    }
-                    // Partial exit (50%) at +10% — book half, let rest run
-                    pnlPercent >= 10.0 && qty >= 2 -> {
-                        val halfQty = qty / 2
-                        val lastPartial = liquidatedCooldown["${symbol}_PARTIAL"] ?: 0L
-                        // Only do partial exit once (cooldown 24h so we don't re-trigger each cycle)
-                        if (System.currentTimeMillis() - lastPartial > 24 * 60 * 60 * 1000L) {
-                            println("🤖 SWING PARTIAL EXIT: $symbol at +${String.format("%.2f", pnlPercent)}%. Booking $halfQty of $qty shares...")
-                            if (liquidatePosition(symbol, token, halfQty)) {
-                                liquidatedCooldown["${symbol}_PARTIAL"] = System.currentTimeMillis()
-                            }
-                        }
-                    }
-                    // Trailing stop: if we're up >= 5%, trail stop at (current high - 5%)
-                    pnlPercent >= 5.0 -> {
-                        val trailingStop = current * 0.95 // 5% trailing stop
-                        val entryStop = entry * 0.97     // Never let a winner go below -3% from entry
-                        val effectiveStop = maxOf(trailingStop, entryStop)
-                        if (current <= effectiveStop) {
-                            println("🤖 SWING TRAIL STOP: $symbol trailed stop hit at ₹$current (stop=₹${String.format("%.2f", effectiveStop)}). Exiting $qty shares...")
-                            if (liquidatePosition(symbol, token, qty)) {
-                                riskManager.closePosition(symbol, current)
-                                swingLiquidatedAny = true
-                            }
-                        } else {
-                            println("🤖 [SWING] $symbol trailing stop active at ₹${String.format("%.2f", effectiveStop)}. Price safe.")
+                }
+
+                // 4. Partial exit (50%) at +10% — book half, let rest run
+                if (pnlPercent >= 10.0 && qty >= 2) {
+                    val halfQty = qty / 2
+                    val lastPartial = liquidatedCooldown["${symbol}_PARTIAL"] ?: 0L
+                    // Only do partial exit once (cooldown 24h so we don't re-trigger each cycle)
+                    if (System.currentTimeMillis() - lastPartial > 24 * 60 * 60 * 1000L) {
+                        println("🤖 SWING PARTIAL EXIT: $symbol at +${String.format("%.2f", pnlPercent)}%. Booking $halfQty of $qty shares...")
+                        if (liquidatePosition(symbol, token, halfQty)) {
+                            liquidatedCooldown["${symbol}_PARTIAL"] = System.currentTimeMillis()
                         }
                     }
                 }
@@ -283,5 +296,67 @@ object AutoBotEngine {
             return true
         }
         return false
+    }
+}
+
+object SwingPeakTracker {
+    private val isWindows = System.getProperty("os.name").lowercase().contains("win")
+    private val FILE_PATH = if (isWindows) "c:\\moba trade\\swing_peaks.json" else "swing_peaks.json"
+    
+    private val peaks = ConcurrentHashMap<String, Double>()
+
+    init {
+        load()
+    }
+
+    @Synchronized
+    fun load() {
+        try {
+            val file = File(FILE_PATH)
+            if (file.exists()) {
+                val content = file.readText()
+                if (content.isNotEmpty()) {
+                    val json = JSONObject(content)
+                    for (key in json.keys()) {
+                        peaks[key] = json.getDouble(key)
+                    }
+                }
+            }
+        } catch (e: java.lang.Exception) {
+            System.err.println("SwingPeakTracker: Failed to load peaks: ${e.message}")
+        }
+    }
+
+    @Synchronized
+    fun save() {
+        try {
+            val json = JSONObject()
+            for ((key, value) in peaks) {
+                json.put(key, value)
+            }
+            File(FILE_PATH).writeText(json.toString())
+        } catch (e: java.lang.Exception) {
+            System.err.println("SwingPeakTracker: Failed to save peaks: ${e.message}")
+        }
+    }
+
+    @Synchronized
+    fun updateAndGetPeak(symbol: String, entryPrice: Double, currentPrice: Double): Double {
+        val symbolKey = symbol.uppercase()
+        val currentPeak = peaks[symbolKey]
+        val newPeak = if (currentPeak == null) {
+            maxOf(entryPrice, currentPrice)
+        } else {
+            maxOf(currentPeak, currentPrice)
+        }
+        peaks[symbolKey] = newPeak
+        save()
+        return newPeak
+    }
+
+    @Synchronized
+    fun clear(symbol: String) {
+        peaks.remove(symbol.uppercase())
+        save()
     }
 }

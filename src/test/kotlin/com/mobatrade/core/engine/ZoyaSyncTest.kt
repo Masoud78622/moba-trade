@@ -114,14 +114,22 @@ class ZoyaSyncTest {
 
     @Test
     fun testFetchHistoricalCandlesUnauthenticated() {
-        // Ensure we are logged out
+        // Ensure we are logged out and auto-login fails by using an invalid client ID
         AngelOneClient.logout()
+        val originalClientId = AngelOneClient.activeClientId
+        AngelOneClient.login(clientId = "INVALID_CLIENT")
+        AngelOneClient.logout() // clear token set by login if any (though it would have failed)
         
-        val candles = AngelOneClient.fetchHistoricalCandles(
-            symbolToken = "11536",
-            symbol = "TCS"
-        )
-        assertNotNull(candles)
-        assertTrue(candles.isEmpty(), "Should return an empty list when unauthenticated")
+        try {
+            val candles = AngelOneClient.fetchHistoricalCandles(
+                symbolToken = "11536",
+                symbol = "TCS"
+            )
+            assertNotNull(candles)
+            assertTrue(candles.isEmpty(), "Should return an empty list when unauthenticated")
+        } finally {
+            // Restore correct client ID by logging back in (will use default credentials or env)
+            AngelOneClient.login(clientId = originalClientId)
+        }
     }
 }
