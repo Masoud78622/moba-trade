@@ -131,8 +131,11 @@ object BacktestEngine {
                     val capitalRiskAmount = currentCapital * (riskPerTradePercent / 100.0)
 
                     // Calculate safe position size (Strict long cash CNC, no leverage)
-                    var qty = if (riskPerShare > 0) (capitalRiskAmount / riskPerShare).toInt() else 1
                     val maxQtyByCapital = (currentCapital / entryPrice).toInt()
+                    if (maxQtyByCapital <= 0) {
+                        continue
+                    }
+                    var qty = if (riskPerShare > 0) (capitalRiskAmount / riskPerShare).toInt() else 1
                     qty = qty.coerceIn(1, maxQtyByCapital)
 
                     if (qty > 0) {

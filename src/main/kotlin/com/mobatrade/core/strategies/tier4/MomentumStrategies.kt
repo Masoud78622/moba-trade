@@ -253,7 +253,9 @@ class SectorRotation(
         }
         
         fun getSectorScore(sector: String): Double {
-            return sectorScores[sector] ?: 1.0
+            synchronized(sectorScores) {
+                return sectorScores[sector] ?: 1.0
+            }
         }
     }
 

@@ -154,7 +154,7 @@ object MobaTradeServer {
         Thread {
             while (true) {
                 try {
-                    if (AngelOneClient.isLoggedIn) {
+                    if (AngelOneClient.ensureAuthenticated()) {
                         val scanStart = System.currentTimeMillis()
                         logLine("BackgroundScanner: Starting scheduled scan of stock universe...")
                         val signalsArray = computeSignals()

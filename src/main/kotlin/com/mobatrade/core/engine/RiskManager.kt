@@ -153,6 +153,54 @@ class RiskManager(
     }
 
     /**
+     * Synchronizes the in-memory active positions map with the broker's active symbols.
+     * Preserves local properties (like `isSwing`) for existing positions, removes closed ones,
+     * and registers new ones with default values.
+     */
+    @Synchronized
+    fun syncState(brokerActiveSymbols: Set<String>, realDailyPnL: Double, getPositionDetails: (String) -> Pair<Double, Int>) {
+        checkNewDay()
+        
+        // 1. Remove positions no longer present in the broker
+        val iterator = activePositions.iterator()
+        while (iterator.hasNext()) {
+            val entry = iterator.next()
+            if (entry.key !in brokerActiveSymbols) {
+                iterator.remove()
+            }
+        }
+
+        // 2. Add or update active positions from the broker
+        for (symbol in brokerActiveSymbols) {
+            val (entryPrice, qty) = getPositionDetails(symbol)
+            val existing = activePositions[symbol]
+            if (existing == null) {
+                // Register new position
+                activePositions[symbol] = Position(
+                    symbol = symbol,
+                    entryPrice = entryPrice,
+                    quantity = qty,
+                    direction = Direction.BUY,
+                    stopLoss = entryPrice * 0.98,
+                    target = entryPrice * 1.05,
+                    entryTime = java.time.Instant.now(),
+                    isSwing = false // Default to false for untracked positions
+                )
+            } else {
+                // Update quantity or entry price if they changed (e.g. partial exit or averaging)
+                if (existing.quantity != qty || existing.entryPrice != entryPrice) {
+                    activePositions[symbol] = existing.copy(
+                        quantity = qty,
+                        entryPrice = entryPrice
+                    )
+                }
+            }
+        }
+
+        dailyPnL = realDailyPnL
+    }
+
+    /**
      * Registers an open position.
      */
     @Synchronized

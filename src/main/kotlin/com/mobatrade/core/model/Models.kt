@@ -56,7 +56,8 @@ data class Position(
     val direction: Direction,
     var stopLoss: Double,
     var target: Double,
-    val entryTime: Instant
+    val entryTime: Instant,
+    val isSwing: Boolean = false
 )
 
 data class TradeRecord(

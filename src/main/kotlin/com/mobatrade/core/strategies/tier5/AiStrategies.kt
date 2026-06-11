@@ -30,7 +30,9 @@ class NewsSentiment(
         }
 
         fun getSentiment(symbol: String): Double {
-            return sentimentScores[symbol.uppercase()] ?: 0.0
+            synchronized(sentimentScores) {
+                return sentimentScores[symbol.uppercase()] ?: 0.0
+            }
         }
     }
 

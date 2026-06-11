@@ -92,6 +92,11 @@ object MarketDataService {
             val closeIdx = headers.indexOfFirst { it == "CLOSE" }
             val volIdx = headers.indexOfFirst { it.contains("VOL") }
 
+            if (openIdx < 0 || highIdx < 0 || lowIdx < 0 || closeIdx < 0 || dateIdx < 0) {
+                System.err.println("CSV Header parse failed. Missing required columns.")
+                return emptyList()
+            }
+
             for (i in 1 until lines.size) {
                 val cols = lines[i].split(",").map { it.trim() }
                 if (cols.size < 5) continue

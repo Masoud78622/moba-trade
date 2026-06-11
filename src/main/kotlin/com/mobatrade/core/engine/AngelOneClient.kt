@@ -69,15 +69,21 @@ object AngelOneClient {
      * Angel One JWT tokens expire ~24 hours after issuance.
      * Called at the start of every authenticated request as a safety gate.
      */
+    @Synchronized
     private fun refreshSessionIfNeeded() {
         val now = System.currentTimeMillis()
         if (jwtToken == null || (now - lastLoginTimeMs) > TOKEN_REFRESH_INTERVAL_MS) {
             println("[SESSION] JWT expired or missing. Auto-refreshing Angel One session...")
+            val clientId = System.getenv("ANGEL_CLIENT_ID") ?: activeClientId
+            val apiKey = System.getenv("ANGEL_API_KEY") ?: activeApiKey
+            val pin = System.getenv("ANGEL_PIN") ?: "3112"
+            val totpSecret = System.getenv("ANGEL_TOTP_SECRET") ?: DEFAULT_TOTP_SECRET
+
             val success = login(
-                clientId = activeClientId,
-                tradingPassword = System.getenv("ANGEL_PIN") ?: "3112",
-                apiKey = activeApiKey,
-                totpSecret = System.getenv("ANGEL_TOTP_SECRET") ?: DEFAULT_TOTP_SECRET
+                clientId = clientId,
+                tradingPassword = pin,
+                apiKey = apiKey,
+                totpSecret = totpSecret
             )
             if (success) {
                 println("[SESSION] Auto-refresh successful.")
@@ -85,6 +91,12 @@ object AngelOneClient {
                 System.err.println("[SESSION] Auto-refresh FAILED. Trades will be blocked until login succeeds.")
             }
         }
+    }
+
+    @Synchronized
+    fun ensureAuthenticated(): Boolean {
+        refreshSessionIfNeeded()
+        return isLoggedIn
     }
 
     /**
@@ -129,11 +141,15 @@ object AngelOneClient {
             httpClient.newCall(request).execute().use { response ->
                 if (!response.isSuccessful) {
                     System.err.println("Angel One Login failed: HTTP ${response.code}")
+                    logout()
                     return false
                 }
 
                 val bodyStr = response.body?.string() ?: ""
-                if (bodyStr.isEmpty()) return false
+                if (bodyStr.isEmpty()) {
+                    logout()
+                    return false
+                }
 
                 val responseJson = JSONObject(bodyStr)
                 if (responseJson.optBoolean("status", false)) {
@@ -148,10 +164,12 @@ object AngelOneClient {
                     }
                 } else {
                     System.err.println("Angel One Auth API Error: ${responseJson.optString("message")}")
+                    logout()
                 }
             }
         } catch (e: Exception) {
             e.printStackTrace()
+            logout()
         }
         return false
     }
@@ -170,6 +188,7 @@ object AngelOneClient {
         apiKey: String = DEFAULT_API_KEY,
         isRetry: Boolean = false
     ): String? {
+        refreshSessionIfNeeded()
         // Token Integrity Guard QA Layer
         val verifiedToken = TokenIntegrityGuard.verifyAndGetToken(order.symbol, symbolToken)
         if (verifiedToken == null) {
@@ -518,6 +537,7 @@ object AngelOneClient {
      * Fetches active intraday positions.
      */
     fun fetchActivePositions(): List<JSONObject> {
+        refreshSessionIfNeeded()
         val token = jwtToken ?: return emptyList()
         val results = ArrayList<JSONObject>()
         try {
@@ -561,6 +581,7 @@ object AngelOneClient {
      * Fetches delivery swing holdings.
      */
     fun fetchSwingHoldings(): List<JSONObject> {
+        refreshSessionIfNeeded()
         val token = jwtToken ?: return emptyList()
         val results = ArrayList<JSONObject>()
         try {

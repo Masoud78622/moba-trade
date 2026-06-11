@@ -36,7 +36,7 @@ object SelfLearningEngine {
     }
 
     fun runAnalysis() {
-        if (!AngelOneClient.isLoggedIn) return
+        if (!AngelOneClient.ensureAuthenticated()) return
         try {
             val symbols = ShariahFilter.getAllCompliantSymbols()
             var missedTradesDetected = 0
@@ -70,7 +70,7 @@ object SelfLearningEngine {
                         }
                     }
                 }
-                Thread.sleep(200) // Rate limit
+                Thread.sleep(1000) // Rate limit (comply with Angel One 3-requests-per-second limit)
             }
             println("🧠 EOD Analysis Complete. Found $missedTradesDetected missed trades.")
         } catch (e: Exception) {

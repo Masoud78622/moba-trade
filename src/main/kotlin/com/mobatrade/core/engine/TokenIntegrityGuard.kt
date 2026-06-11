@@ -25,7 +25,7 @@ object TokenIntegrityGuard {
 
     // Base Symbol -> (Token, TradingSymbol)
     // E.g., "MGL" -> Pair("17534", "MGL-EQ") or Pair("17534", "MGL-BE")
-    private val symbolMap = HashMap<String, Pair<String, String>>()
+    private val symbolMap = java.util.concurrent.ConcurrentHashMap<String, Pair<String, String>>()
 
     @Volatile
     private var isLoaded = false
@@ -113,6 +113,7 @@ object TokenIntegrityGuard {
 
     private fun loadIntoMemory(cacheFile: File) {
         try {
+            isLoaded = false
             println("TokenIntegrityGuard: Parsing Scrip Master JSON memory-efficiently...")
             symbolMap.clear()
             var count = 0

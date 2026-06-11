@@ -95,6 +95,7 @@ object ShariahFilter {
      * Checks if a symbol is Shariah compliant.
      * O(1) performance.
      */
+    @Synchronized
     fun isCompliantSymbol(symbol: String): Boolean {
         return compliantSymbols.contains(symbol.uppercase())
     }
@@ -103,6 +104,7 @@ object ShariahFilter {
      * Checks if an Angel One token is Shariah compliant.
      * O(1) performance.
      */
+    @Synchronized
     fun isCompliantToken(token: String): Boolean {
         return compliantTokens.contains(token)
     }
@@ -110,11 +112,13 @@ object ShariahFilter {
     /**
      * Get the size of the current halal universe.
      */
+    @Synchronized
     fun size(): Int = compliantSymbols.size
     
     /**
      * Get all compliant symbols.
      */
+    @Synchronized
     fun getAllCompliantSymbols(): Set<String> {
         return compliantSymbols.toSet()
     }

@@ -27,7 +27,7 @@ object AutoBotEngine {
         botThread = Thread {
             while (true) {
                 try {
-                    if (isEnabled && AngelOneClient.isLoggedIn) {
+                    if (isEnabled && AngelOneClient.ensureAuthenticated()) {
                         runScanCycle()
                     }
                     Thread.sleep(30_000)
@@ -47,45 +47,77 @@ object AutoBotEngine {
     private fun runScanCycle() {
         val totalCapital = AngelOneClient.fetchMarginCapital()
         println("🤖 [SCAN CYCLE] isEnabled=$isEnabled | isLoggedIn=${AngelOneClient.isLoggedIn} | Capital=₹$totalCapital")
-        if (totalCapital <= 0) {
-            System.err.println("🤖 [SCAN CYCLE] Aborting: fetchMarginCapital returned 0. Is broker connected?")
-            return
-        }
-        val activePositionsJson = AngelOneClient.fetchActivePositions()
         
-        // 1. 3:15 PM Intraday Auto-Liquidator
+        val activePositionsJson = AngelOneClient.fetchActivePositions()
+        val realActivePositions = activePositionsJson.filter { extractQty(it) > 0 }
+        val realActiveSymbols = realActivePositions.map { extractSymbol(it).uppercase() }.toSet()
+
+        // 1. Calculate the daily PnL dynamically from the broker position book (survives container restarts)
+        var calculatedDailyPnL = 0.0
+        for (pos in activePositionsJson) {
+            val qty = extractQty(pos)
+            val entry = extractEntryPrice(pos)
+            val symbol = extractSymbol(pos)
+            val token = pos.optString("symboltoken", null) ?: pos.optString("token", "")
+            val realized = pos.optDouble("realised", 0.0)
+            
+            if (qty == 0) {
+                calculatedDailyPnL += realized
+            } else {
+                val current = AngelOneClient.fetchRealLtp(symbol, token)
+                if (current > 0 && entry > 0) {
+                    calculatedDailyPnL += realized + (current - entry) * qty
+                } else {
+                    val unrealized = pos.optDouble("unrealised", 0.0)
+                    calculatedDailyPnL += realized + unrealized
+                }
+            }
+        }
+
+        // 2. Synchronize RiskManager's active positions map and PnL with the broker
+        riskManager.syncState(
+            brokerActiveSymbols = realActiveSymbols,
+            realDailyPnL = calculatedDailyPnL,
+            getPositionDetails = { sym ->
+                val p = realActivePositions.find { extractSymbol(it).uppercase() == sym }
+                val entry = p?.let { extractEntryPrice(it) } ?: 0.0
+                val qty = p?.let { extractQty(it) } ?: 0
+                Pair(entry, qty)
+            }
+        )
+        
+        // 3. 3:15 PM Intraday Auto-Liquidator (skipping swing trades)
         val nowIst = LocalTime.now(ZoneId.of("Asia/Kolkata"))
         val isSquaringOffTime = nowIst.hour > 15 || (nowIst.hour == 15 && nowIst.minute >= 15)
 
         if (isSquaringOffTime) {
-            var liquidatedAny = false
-            for (pos in activePositionsJson) {
+            for (pos in realActivePositions) {
                 val symbol = extractSymbol(pos)
                 val qty = extractQty(pos)
                 val token = pos.optString("symboltoken", null) ?: pos.optString("token", "")
                 
-                if (qty > 0) {
+                val isSwingTrade = riskManager.getActivePositions().find { it.symbol == symbol }?.isSwing ?: false
+                
+                if (qty > 0 && !isSwingTrade) {
                     println("🤖 AUTO-BOT: 3:15 PM SQUARING OFF DAY TRADE: $symbol")
-                    if (liquidatePosition(symbol, token, qty)) {
-                        liquidatedAny = true
-                    }
+                    liquidatePosition(symbol, token, qty)
                 }
             }
-            if (liquidatedAny) return
         }
 
-        // 2. Drawdown Halt Check — use totalCapital as the basis, consistent with evaluateAndSizeTrade
-        if (riskManager.getDailyPnL() <= -(totalCapital * 0.03)) {
+        // 4. Drawdown Halt Check — use totalCapital as the basis, consistent with evaluateAndSizeTrade
+        val capitalBasis = if (totalCapital > 0) totalCapital else 10000.0
+        if (riskManager.getDailyPnL() <= -(capitalBasis * 0.03)) {
             System.err.println("🤖 AUTO-TRADING HALTED: Daily drawdown limit breached. DailyPnL=₹${riskManager.getDailyPnL()}")
             return
         }
 
-        // 3. Evaluate Swing Holdings — trailing stop + take profit management
+        // 5. Evaluate Swing Holdings — trailing stop + take profit management
         if (isSwingManageEnabled) {
             val swingHoldings = AngelOneClient.fetchSwingHoldings()
-            var swingLiquidatedAny = false
+            val realSwingHoldings = swingHoldings.filter { extractQty(it) > 0 }
 
-            for (h in swingHoldings) {
+            for (h in realSwingHoldings) {
                 val symbol = extractSymbol(h)
                 val entry = extractEntryPrice(h)
                 val qty = extractQty(h)
@@ -101,29 +133,27 @@ object AutoBotEngine {
                 val peak = SwingPeakTracker.updateAndGetPeak(symbol, entry, current)
                 val peakGainPercent = ((peak - entry) / entry) * 100.0
 
-                // 1. Hard stop loss at -5%
+                // A. Hard stop loss at -5%
                 if (pnlPercent <= -5.0) {
                     println("🤖 SWING STOP-LOSS: $symbol at ${String.format("%.2f", pnlPercent)}%. Liquidating all $qty shares...")
                     if (liquidatePosition(symbol, token, qty)) {
                         riskManager.closePosition(symbol, current)
                         SwingPeakTracker.clear(symbol)
-                        swingLiquidatedAny = true
                     }
                     continue
                 }
 
-                // 2. Full take-profit at +15%
+                // B. Full take-profit at +15%
                 if (pnlPercent >= 15.0) {
                     println("🤖 SWING TARGET HIT: $symbol at +${String.format("%.2f", pnlPercent)}%. Taking full profit on $qty shares...")
                     if (liquidatePosition(symbol, token, qty)) {
                         riskManager.closePosition(symbol, current)
                         SwingPeakTracker.clear(symbol)
-                        swingLiquidatedAny = true
                     }
                     continue
                 }
 
-                // 3. Trailing stop check: if peak gain >= 5%, trailing stop is activated
+                // C. Trailing stop check: if peak gain >= 5%, trailing stop is activated
                 if (peakGainPercent >= 5.0) {
                     val trailingStop = peak * 0.95 // 5% trailing stop below peak
                     val entryStop = entry * 0.97     // Never let a winner go below -3% from entry
@@ -134,7 +164,6 @@ object AutoBotEngine {
                         if (liquidatePosition(symbol, token, qty)) {
                             riskManager.closePosition(symbol, current)
                             SwingPeakTracker.clear(symbol)
-                            swingLiquidatedAny = true
                         }
                         continue
                     } else {
@@ -142,11 +171,10 @@ object AutoBotEngine {
                     }
                 }
 
-                // 4. Partial exit (50%) at +10% — book half, let rest run
+                // D. Partial exit (50%) at +10% — book half, let rest run
                 if (pnlPercent >= 10.0 && qty >= 2) {
                     val halfQty = qty / 2
                     val lastPartial = liquidatedCooldown["${symbol}_PARTIAL"] ?: 0L
-                    // Only do partial exit once (cooldown 24h so we don't re-trigger each cycle)
                     if (System.currentTimeMillis() - lastPartial > 24 * 60 * 60 * 1000L) {
                         println("🤖 SWING PARTIAL EXIT: $symbol at +${String.format("%.2f", pnlPercent)}%. Booking $halfQty of $qty shares...")
                         if (liquidatePosition(symbol, token, halfQty)) {
@@ -155,51 +183,52 @@ object AutoBotEngine {
                     }
                 }
             }
-            if (swingLiquidatedAny) return
         }
 
-
-        // 4. Evaluate Active Day Trades for SL/TP
-        var activeLiquidatedAny = false
-        for (pos in activePositionsJson) {
+        // 6. Evaluate Active Day Trades for SL/TP (skipping swing trades)
+        for (pos in realActivePositions) {
             val symbol = extractSymbol(pos)
             val entry = extractEntryPrice(pos)
             val qty = extractQty(pos)
             val token = pos.optString("symboltoken", null) ?: pos.optString("token", "")
+            
+            val isSwingTrade = riskManager.getActivePositions().find { it.symbol == symbol }?.isSwing ?: false
+            if (isSwingTrade) continue
+
             val current = AngelOneClient.fetchRealLtp(symbol, token)
 
-            if (qty > 0 && entry > 0) {
+            if (qty > 0 && entry > 0 && current > 0) {
                 val sl = entry * 0.98 // 2% SL
                 val target = entry * 1.05 // 5% Target
 
                 if (current <= sl) {
                     println("🤖 AUTO-BOT: Intraday position $symbol triggered SL. Liquidating...")
-                    if (liquidatePosition(symbol, token, qty)) {
-                        activeLiquidatedAny = true
-                    }
+                    liquidatePosition(symbol, token, qty)
                 } else if (current >= target) {
                     println("🤖 AUTO-BOT: Intraday position $symbol triggered Target. Liquidating...")
-                    if (liquidatePosition(symbol, token, qty)) {
-                        activeLiquidatedAny = true
-                    }
+                    liquidatePosition(symbol, token, qty)
                 }
             }
         }
-        if (activeLiquidatedAny) return
 
         // Do NOT buy new day trades if it's past 3:15 PM
         if (isSquaringOffTime) return
 
-        // 5. Evaluate Live Signals for Entry
-        val activeTickers = activePositionsJson.map { extractSymbol(it).uppercase() }.toSet()
+        // 7. Evaluate Live Signals for Entry
+        val activeTickers = realActiveSymbols
+        val swingHoldings = AngelOneClient.fetchSwingHoldings()
+        val holdingTickers = swingHoldings.filter { extractQty(it) > 0 }.map { extractSymbol(it).uppercase() }.toSet()
+
         println("🤖 [SCAN CYCLE] Active positions: ${activeTickers.size}/3 — $activeTickers")
         if (activeTickers.size >= 3) {
             println("🤖 [SCAN CYCLE] Skipping new entries: max 3 positions already held.")
             return // Max 3 positions
         }
-        
-        val swingHoldings = AngelOneClient.fetchSwingHoldings()
-        val holdingTickers = swingHoldings.map { extractSymbol(it).uppercase() }.toSet()
+
+        if (totalCapital <= 0) {
+            println("🤖 [SCAN CYCLE] Skipping new entries: available capital is ₹$totalCapital <= 0.")
+            return
+        }
 
         val liveSignalsArray = JSONArray(MobaTradeServer.getCachedSignalsJson())
         println("🤖 [SCAN CYCLE] Evaluating ${liveSignalsArray.length()} live signals from cache...")
@@ -212,8 +241,9 @@ object AutoBotEngine {
             val priceStr = sig.optString("price", "₹0.00").replace("₹", "").replace(",", "")
             val price = priceStr.toDoubleOrNull() ?: 0.0
             val regime = sig.optString("regime", "UNKNOWN")
+            val isSwingEligible = sig.optBoolean("isSwingEligible", false)
 
-            println("🤖 [SIGNAL] $symbol | score=$score | compliant=$compliant | price=₹$price | regime=$regime")
+            println("🤖 [SIGNAL] $symbol | score=$score | compliant=$compliant | price=₹$price | regime=$regime | isSwingEligible=$isSwingEligible")
 
             if (!compliant) { println("  └─ SKIP: Not Shariah-compliant."); continue }
             if (score < 3) { println("  └─ SKIP: Score $score < 3 threshold."); continue }
@@ -237,7 +267,6 @@ object AutoBotEngine {
                 val orderId = AngelOneClient.placeOrder(order, token, isRetry = false)
                 if (orderId != null) {
                     println("🤖 AUTO-BOT: ORDER SUCCESSFUL. ID: $orderId")
-                    // Register position in RiskManager so position limits and PnL tracking work
                     riskManager.registerPosition(
                         com.mobatrade.core.model.Position(
                             symbol = symbol,
@@ -246,7 +275,8 @@ object AutoBotEngine {
                             direction = com.mobatrade.core.model.Direction.BUY,
                             stopLoss = price * 0.98,
                             target = price * 1.05,
-                            entryTime = java.time.Instant.now()
+                            entryTime = java.time.Instant.now(),
+                            isSwing = isSwingEligible
                         )
                     )
                     break // Place only one order per cycle
@@ -340,12 +370,30 @@ object SwingPeakTracker {
         }
     }
 
+    private fun fetchHistoricalPeak(symbol: String, entryPrice: Double): Double {
+        try {
+            val token = TokenIntegrityGuard.verifyAndGetToken(symbol, null) ?: return entryPrice
+            val candles = AngelOneClient.fetchHistoricalCandles(token, symbol, "ONE_DAY", 15)
+            if (candles.isNotEmpty()) {
+                val maxHigh = candles.filter { it.high >= entryPrice }.map { it.high }.maxOrNull()
+                if (maxHigh != null) {
+                    println("SwingPeakTracker: Reconstructed historical peak for $symbol: ₹$maxHigh (Entry: ₹$entryPrice)")
+                    return maxHigh
+                }
+            }
+        } catch (e: Exception) {
+            System.err.println("SwingPeakTracker: Failed to fetch historical peak for $symbol: ${e.message}")
+        }
+        return entryPrice
+    }
+
     @Synchronized
     fun updateAndGetPeak(symbol: String, entryPrice: Double, currentPrice: Double): Double {
         val symbolKey = symbol.uppercase()
         val currentPeak = peaks[symbolKey]
         val newPeak = if (currentPeak == null) {
-            maxOf(entryPrice, currentPrice)
+            val histPeak = fetchHistoricalPeak(symbolKey, entryPrice)
+            maxOf(entryPrice, currentPrice, histPeak)
         } else {
             maxOf(currentPeak, currentPrice)
         }

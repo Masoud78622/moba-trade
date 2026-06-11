@@ -12,6 +12,7 @@ object LearnedWeights {
         load()
     }
 
+    @Synchronized
     fun load() {
         if (weightsFile.exists()) {
             try {
@@ -22,10 +23,12 @@ object LearnedWeights {
         }
     }
 
+    @Synchronized
     fun getBonus(strategyName: String): Int {
         return cache.optInt(strategyName, 0)
     }
 
+    @Synchronized
     fun addBonus(strategyName: String, amount: Int) {
         val current = getBonus(strategyName)
         val newBonus = (current + amount).coerceAtMost(2) // Max +2 cap
@@ -33,10 +36,12 @@ object LearnedWeights {
         save()
     }
 
+    @Synchronized
     private fun save() {
         weightsFile.writeText(cache.toString(4))
     }
     
+    @Synchronized
     fun getReport(): String {
         return cache.toString(4)
     }
