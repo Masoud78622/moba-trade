@@ -30,3 +30,8 @@ Thumbs.db
 scrip_master.json
 signals.json
 swing_peaks.json
+
+# Environment variables containing secrets
+.env
+.env.local
+.env.*
