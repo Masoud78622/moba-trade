@@ -302,6 +302,7 @@ object MobaTradeServer {
             statusJson.put("scripMasterReady", TokenIntegrityGuard.isReady())
             statusJson.put("autoBotEnabled", AutoBotEngine.isEnabled)
             statusJson.put("swingManageEnabled", AutoBotEngine.isSwingManageEnabled)
+            statusJson.put("cachedSignalsLength", cachedSignalsJson.length)
             statusJson.put("serverTime", Instant.now().toString())
 
             sendResponse(exchange, 200, statusJson.toString())
