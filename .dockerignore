@@ -1,0 +1,35 @@
+# Ignore everything by default
+**
+
+# Allow source code
+!src/
+!src/**
+!build.gradle.kts
+!settings.gradle.kts
+!gradle.properties
+!gradlew
+!gradlew.bat
+!gradle/
+!gradle/**
+!Dockerfile
+!render.yaml
+!halal_stocks.json
+
+# But always exclude large/runtime files even inside allowed dirs
+**/*.raw
+**/*.db
+**/*.log
+**/*.asc
+**/*.net
+**/*.op.raw
+scrip_master.json
+signals.json
+.gradle/
+.kotlin/
+.idea/
+build/
+app/
+backtest_reports/
+local.properties
+test_angel.kt
+_
