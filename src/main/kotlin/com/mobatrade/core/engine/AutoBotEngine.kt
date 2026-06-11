@@ -11,10 +11,10 @@ import com.mobatrade.core.model.Order
 
 object AutoBotEngine {
     @Volatile
-    var isEnabled: Boolean = false
+    var isEnabled: Boolean = true
 
     @Volatile
-    var isSwingManageEnabled: Boolean = false
+    var isSwingManageEnabled: Boolean = true
 
     private val riskManager = RiskManager()
     private var botThread: Thread? = null
