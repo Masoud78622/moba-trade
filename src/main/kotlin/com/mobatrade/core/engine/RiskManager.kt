@@ -7,7 +7,8 @@ import java.time.LocalDate
 
 class RiskManager(
     private val maxDailyDrawdownPercent: Double = 3.0,  // Halt if daily loss exceeds 3% of capital
-    private val maxConcurrentPositions: Int = 3
+    private val maxConcurrentPositions: Int = 3,
+    private val rewardToRiskRatio: Double = System.getenv("REWARD_TO_RISK_RATIO")?.toDoubleOrNull() ?: 2.0
 ) {
     private val activePositions = HashMap<String, Position>()
     private var dailyPnL = 0.0
@@ -123,7 +124,7 @@ class RiskManager(
                 return null
             }
             // Use what we can afford
-            val projectedTarget2 = entryPrice + (riskPerShare * 2.0)
+            val projectedTarget2 = entryPrice + (riskPerShare * rewardToRiskRatio)
             println("[RISK APPROVED] $symbol: Qty $affordableQty (affordability-capped), Entry ₹$entryPrice, Stop ₹$stopLoss, Target ₹$projectedTarget2, Cost ₹${affordableQty * entryPrice}")
             return Order(
                 symbol = symbol,
@@ -137,7 +138,7 @@ class RiskManager(
         }
 
         val projectedLoss = targetQuantity * riskPerShare
-        val projectedTarget = entryPrice + (riskPerShare * 2.0)
+        val projectedTarget = entryPrice + (riskPerShare * rewardToRiskRatio)
 
         println("[RISK APPROVED] $symbol: Qty $targetQuantity, Entry ₹$entryPrice, Stop ₹$stopLoss, Target ₹$projectedTarget, Cost ₹$totalCost, Risk ₹$projectedLoss")
 
@@ -182,7 +183,7 @@ class RiskManager(
                     quantity = qty,
                     direction = Direction.BUY,
                     stopLoss = entryPrice * 0.98,
-                    target = entryPrice * 1.05,
+                    target = entryPrice * (1.0 + (0.02 * rewardToRiskRatio)),
                     entryTime = java.time.Instant.now(),
                     isSwing = false // Default to false for untracked positions
                 )

@@ -16,7 +16,7 @@ object AutoBotEngine {
     @Volatile
     var isSwingManageEnabled: Boolean = true
 
-    private val riskManager = RiskManager()
+    val riskManager = RiskManager()
     private var botThread: Thread? = null
     
     // Prevents duplicate sell orders when the broker API response is lagging
@@ -192,14 +192,15 @@ object AutoBotEngine {
             val qty = extractQty(pos)
             val token = pos.optString("symboltoken", null) ?: pos.optString("token", "")
             
-            val isSwingTrade = riskManager.getActivePositions().find { it.symbol == symbol }?.isSwing ?: false
+            val activePos = riskManager.getActivePositions().find { it.symbol == symbol }
+            val isSwingTrade = activePos?.isSwing ?: false
             if (isSwingTrade) continue
 
             val current = AngelOneClient.fetchRealLtp(symbol, token)
 
             if (qty > 0 && entry > 0 && current > 0) {
-                val sl = entry * 0.98 // 2% SL
-                val target = entry * 1.05 // 5% Target
+                val sl = activePos?.stopLoss ?: (entry * 0.98)
+                val target = activePos?.target ?: (entry * 1.04)
 
                 if (current <= sl) {
                     println("🤖 AUTO-BOT: Intraday position $symbol triggered SL. Liquidating...")
