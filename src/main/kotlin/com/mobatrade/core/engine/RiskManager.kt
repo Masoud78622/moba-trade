@@ -8,7 +8,7 @@ import java.time.LocalDate
 class RiskManager(
     private val maxDailyDrawdownPercent: Double = 3.0,  // Halt if daily loss exceeds 3% of capital
     private val maxConcurrentPositions: Int = 3,
-    private val rewardToRiskRatio: Double = System.getenv("REWARD_TO_RISK_RATIO")?.toDoubleOrNull() ?: 2.0
+    private val rewardToRiskRatio: Double = EnvLoader.get("REWARD_TO_RISK_RATIO")?.toDoubleOrNull() ?: 2.0
 ) {
     private val activePositions = HashMap<String, Position>()
     private var dailyPnL = 0.0

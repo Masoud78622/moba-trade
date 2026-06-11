@@ -74,10 +74,10 @@ object AngelOneClient {
         val now = System.currentTimeMillis()
         if (jwtToken == null || (now - lastLoginTimeMs) > TOKEN_REFRESH_INTERVAL_MS) {
             println("[SESSION] JWT expired or missing. Auto-refreshing Angel One session...")
-            val clientId = System.getenv("ANGEL_CLIENT_ID") ?: activeClientId
-            val apiKey = System.getenv("ANGEL_API_KEY") ?: activeApiKey
-            val pin = System.getenv("ANGEL_PIN") ?: "3112"
-            val totpSecret = System.getenv("ANGEL_TOTP_SECRET") ?: DEFAULT_TOTP_SECRET
+            val clientId = EnvLoader.get("ANGEL_CLIENT_ID") ?: activeClientId
+            val apiKey = EnvLoader.get("ANGEL_API_KEY") ?: activeApiKey
+            val pin = EnvLoader.get("ANGEL_PIN") ?: "3112"
+            val totpSecret = EnvLoader.get("ANGEL_TOTP_SECRET") ?: DEFAULT_TOTP_SECRET
 
             val success = login(
                 clientId = clientId,
@@ -400,10 +400,10 @@ object AngelOneClient {
                                     errMsg.contains("expired", ignoreCase = true)) {
                                     System.err.println("[SESSION] Token rejected during candle fetch. Forcing re-login...")
                                     login(
-                                        clientId = activeClientId,
-                                        tradingPassword = System.getenv("ANGEL_PIN") ?: "3112",
-                                        apiKey = activeApiKey,
-                                        totpSecret = System.getenv("ANGEL_TOTP_SECRET") ?: DEFAULT_TOTP_SECRET
+                                        clientId = EnvLoader.get("ANGEL_CLIENT_ID") ?: activeClientId,
+                                        tradingPassword = EnvLoader.get("ANGEL_PIN") ?: "3112",
+                                        apiKey = EnvLoader.get("ANGEL_API_KEY") ?: activeApiKey,
+                                        totpSecret = EnvLoader.get("ANGEL_TOTP_SECRET") ?: DEFAULT_TOTP_SECRET
                                     )
                                     try { Thread.sleep(2000) } catch (ie: InterruptedException) {}
                                 } else {
@@ -421,10 +421,10 @@ object AngelOneClient {
                                 // Auth failure: re-login and retry
                                 System.err.println("[SESSION] Auth error on candle fetch (HTTP ${response.code}). Re-logging in...")
                                 login(
-                                    clientId = activeClientId,
-                                    tradingPassword = System.getenv("ANGEL_PIN") ?: "3112",
-                                    apiKey = activeApiKey,
-                                    totpSecret = System.getenv("ANGEL_TOTP_SECRET") ?: DEFAULT_TOTP_SECRET
+                                    clientId = EnvLoader.get("ANGEL_CLIENT_ID") ?: activeClientId,
+                                    tradingPassword = EnvLoader.get("ANGEL_PIN") ?: "3112",
+                                    apiKey = EnvLoader.get("ANGEL_API_KEY") ?: activeApiKey,
+                                    totpSecret = EnvLoader.get("ANGEL_TOTP_SECRET") ?: DEFAULT_TOTP_SECRET
                                 )
                                 try { Thread.sleep(3000) } catch (ie: InterruptedException) {}
                             } else {
