@@ -18,7 +18,20 @@ object MobaTradeServer {
     @Volatile
     private var cachedSignalsJson: String = "[]"
 
+    // Rolling in-memory log buffer for remote diagnostics via /logs endpoint
+    private val logBuffer = java.util.concurrent.LinkedBlockingDeque<String>(500)
+
     fun getCachedSignalsJson(): String = cachedSignalsJson
+
+    /** Appends a line to the rolling log buffer and also prints to stdout. */
+    private fun logLine(msg: String) {
+        println(msg)
+        val ts = java.time.LocalDateTime.now(java.time.ZoneId.of("Asia/Kolkata"))
+            .format(java.time.format.DateTimeFormatter.ofPattern("HH:mm:ss"))
+        // Keep buffer bounded — drop oldest when full
+        while (logBuffer.remainingCapacity() == 0) logBuffer.pollFirst()
+        logBuffer.addLast("[$ts] $msg")
+    }
 
     @JvmStatic
     fun main(args: Array<String>) {
@@ -89,6 +102,7 @@ object MobaTradeServer {
         server.createContext("/autobot/toggle", AutoBotToggleHandler())
         server.createContext("/learning/report", LearningReportHandler())
         server.createContext("/learning/trigger", LearningTriggerHandler())
+        server.createContext("/logs", LogsHandler())
 
         server.executor = null // Creates a default executor
         
@@ -145,13 +159,21 @@ object MobaTradeServer {
             while (true) {
                 try {
                     if (AngelOneClient.isLoggedIn) {
-                        println("BackgroundScanner: Starting scheduled scan of stock universe...")
+                        val scanStart = System.currentTimeMillis()
+                        logLine("BackgroundScanner: Starting scheduled scan of stock universe...")
                         val signalsArray = computeSignals()
                         cachedSignalsJson = signalsArray.toString()
-                        println("BackgroundScanner: Successfully updated signals cache with ${signalsArray.length()} items.")
-                        
-                        // Sleep 5 minutes between full scans
-                        Thread.sleep(5 * 60 * 1000)
+                        val elapsed = (System.currentTimeMillis() - scanStart) / 1000
+                        logLine("BackgroundScanner: Scan complete in ${elapsed}s. Updated signals cache with ${signalsArray.length()} items.")
+
+                        // Sleep at least 3 minutes between scans regardless of how long the scan took,
+                        // to give the API rate limits time to reset. If the scan itself took >5 min,
+                        // only sleep 3 min; otherwise sleep the remaining time up to 5 min total cycle.
+                        val minGapMs = 3 * 60 * 1000L
+                        val remainingMs = (5 * 60 * 1000L) - (System.currentTimeMillis() - scanStart)
+                        val sleepMs = if (remainingMs > minGapMs) remainingMs else minGapMs
+                        logLine("BackgroundScanner: Sleeping ${sleepMs / 1000}s before next scan.")
+                        Thread.sleep(sleepMs)
                     } else {
                         // Check again in 5 seconds if login has succeeded
                         Thread.sleep(5000)
@@ -373,6 +395,25 @@ object MobaTradeServer {
             statusJson.put("status", "STARTED")
             statusJson.put("message", "EOD Self-Learning Analysis started in background. Check server console for progress.")
             sendResponse(exchange, 200, statusJson.toString())
+        }
+    }
+
+    // 8. Live Logs Endpoint — returns last 200 log lines for remote diagnosis
+    class LogsHandler : HttpHandler {
+        override fun handle(exchange: HttpExchange) {
+            if (exchange.requestMethod.uppercase() == "OPTIONS") {
+                exchange.sendResponseHeaders(204, -1)
+                return
+            }
+            // Convert deque to a regular list first — deque.takeLast(n) takes no args in Kotlin
+            val allLines: List<String> = logBuffer.toList()
+            val lines = if (allLines.size > 200) allLines.subList(allLines.size - 200, allLines.size) else allLines
+            val arr = JSONArray()
+            for (line in lines) arr.put(line)
+            val response = JSONObject()
+            response.put("count", lines.size as Int)
+            response.put("lines", arr)
+            sendResponse(exchange, 200, response.toString())
         }
     }
 

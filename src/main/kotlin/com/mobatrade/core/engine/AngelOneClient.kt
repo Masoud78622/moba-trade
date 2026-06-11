@@ -27,9 +27,16 @@ object AngelOneClient {
     const val DEFAULT_CLIENT_ID = "AAAC764774"
 
     private val httpClient = OkHttpClient.Builder()
-        .connectTimeout(15, TimeUnit.SECONDS)
-        .readTimeout(15, TimeUnit.SECONDS)
+        .connectTimeout(20, TimeUnit.SECONDS)
+        .readTimeout(30, TimeUnit.SECONDS)
+        .writeTimeout(20, TimeUnit.SECONDS)
         .build()
+
+    // Timestamp of last successful login — used to auto-refresh expired JWT
+    @Volatile
+    private var lastLoginTimeMs: Long = 0L
+    // Angel One JWT tokens expire roughly every 24 hours; we refresh proactively after 20h
+    private const val TOKEN_REFRESH_INTERVAL_MS = 20 * 60 * 60 * 1000L // 20 hours
 
     private val mediaType = "application/json; charset=utf-8".toMediaTypeOrNull()
 
@@ -56,6 +63,29 @@ object AngelOneClient {
 
     val isLoggedIn: Boolean
         get() = jwtToken != null
+
+    /**
+     * Automatically re-logs in if the JWT token is older than 20 hours.
+     * Angel One JWT tokens expire ~24 hours after issuance.
+     * Called at the start of every authenticated request as a safety gate.
+     */
+    private fun refreshSessionIfNeeded() {
+        val now = System.currentTimeMillis()
+        if (jwtToken == null || (now - lastLoginTimeMs) > TOKEN_REFRESH_INTERVAL_MS) {
+            println("[SESSION] JWT expired or missing. Auto-refreshing Angel One session...")
+            val success = login(
+                clientId = activeClientId,
+                tradingPassword = System.getenv("ANGEL_PIN") ?: "3112",
+                apiKey = activeApiKey,
+                totpSecret = System.getenv("ANGEL_TOTP_SECRET") ?: DEFAULT_TOTP_SECRET
+            )
+            if (success) {
+                println("[SESSION] Auto-refresh successful.")
+            } else {
+                System.err.println("[SESSION] Auto-refresh FAILED. Trades will be blocked until login succeeds.")
+            }
+        }
+    }
 
     /**
      * Programmatically logs in to the Angel One SmartAPI using client credentials and TOTP.
@@ -112,6 +142,7 @@ object AngelOneClient {
                         jwtToken = data.optString("jwtToken", null)
                         refreshToken = data.optString("refreshToken", null)
                         feedToken = data.optString("feedToken", null)
+                        lastLoginTimeMs = System.currentTimeMillis()
                         println("Angel One session created successfully.")
                         return true
                     }
@@ -252,6 +283,9 @@ object AngelOneClient {
         limitDays: Int = 15,
         apiKey: String = DEFAULT_API_KEY
     ): List<Candle> {
+        // Auto-refresh session if JWT has expired
+        refreshSessionIfNeeded()
+
         val token = jwtToken
         if (token == null) {
             System.err.println("BLOCK: Angel One historical fetch failed. Session is not authenticated.")
@@ -296,7 +330,23 @@ object AngelOneClient {
             while (attempt < maxAttempts) {
                 attempt++
                 try {
-                    httpClient.newCall(request).execute().use { response ->
+                    // Build a fresh request each iteration — OkHttp body is single-use
+                    val freshToken = jwtToken ?: return emptyList()
+                    val retryRequest = Request.Builder()
+                        .url("$BASE_URL/rest/secure/angelbroking/historical/v1/getCandleData")
+                        .post(requestBody)
+                        .addHeader("Authorization", "Bearer $freshToken")
+                        .addHeader("Content-Type", "application/json")
+                        .addHeader("Accept", "application/json")
+                        .addHeader("X-PrivateKey", activeApiKey)
+                        .addHeader("X-UserType", "USER")
+                        .addHeader("X-SourceID", "WEB")
+                        .addHeader("X-ClientLocalIP", "192.168.1.100")
+                        .addHeader("X-ClientPublicIP", "106.193.147.98")
+                        .addHeader("X-MACAddress", "00-50-56-C0-00-08")
+                        .build()
+
+                    httpClient.newCall(retryRequest).execute().use { response ->
                         if (response.isSuccessful) {
                             val bodyStr = response.body?.string() ?: ""
                             if (bodyStr.isEmpty()) return emptyList()
@@ -323,8 +373,23 @@ object AngelOneClient {
                                 }
                                 return candles
                             } else {
-                                System.err.println("Angel One Historical API Error for $symbol: ${responseJson.optString("message")}")
-                                return emptyList()
+                                val errMsg = responseJson.optString("message", "")
+                                System.err.println("Angel One Historical API Error for $symbol: $errMsg")
+                                // If session expired (errorcode AB8050 or similar), force a refresh and retry
+                                if (errMsg.contains("Invalid Token", ignoreCase = true) ||
+                                    errMsg.contains("session", ignoreCase = true) ||
+                                    errMsg.contains("expired", ignoreCase = true)) {
+                                    System.err.println("[SESSION] Token rejected during candle fetch. Forcing re-login...")
+                                    login(
+                                        clientId = activeClientId,
+                                        tradingPassword = System.getenv("ANGEL_PIN") ?: "3112",
+                                        apiKey = activeApiKey,
+                                        totpSecret = System.getenv("ANGEL_TOTP_SECRET") ?: DEFAULT_TOTP_SECRET
+                                    )
+                                    try { Thread.sleep(2000) } catch (ie: InterruptedException) {}
+                                } else {
+                                    return emptyList()
+                                }
                             }
                         } else {
                             val errBody = response.body?.string() ?: ""
@@ -333,6 +398,16 @@ object AngelOneClient {
                                 println("Rate limit hit for $symbol! Sleeping 10 seconds to cool down before retry...")
                                 try { Thread.sleep(10000) } catch (e: InterruptedException) {}
                                 // Continue loop to retry
+                            } else if (response.code == 401 || response.code == 403) {
+                                // Auth failure: re-login and retry
+                                System.err.println("[SESSION] Auth error on candle fetch (HTTP ${response.code}). Re-logging in...")
+                                login(
+                                    clientId = activeClientId,
+                                    tradingPassword = System.getenv("ANGEL_PIN") ?: "3112",
+                                    apiKey = activeApiKey,
+                                    totpSecret = System.getenv("ANGEL_TOTP_SECRET") ?: DEFAULT_TOTP_SECRET
+                                )
+                                try { Thread.sleep(3000) } catch (ie: InterruptedException) {}
                             } else {
                                 return emptyList()
                             }
@@ -357,6 +432,7 @@ object AngelOneClient {
      * Fetches the available margin capital from getRMS.
      */
     fun fetchMarginCapital(): Double {
+        refreshSessionIfNeeded()
         val token = jwtToken ?: return 0.0
         try {
             val request = Request.Builder()
@@ -395,6 +471,7 @@ object AngelOneClient {
     }
 
     fun fetchRealLtp(symbol: String, tokenOverride: String? = null): Double {
+        refreshSessionIfNeeded()
         val token = jwtToken ?: return 0.0
         try {
             val effToken = tokenOverride ?: TokenIntegrityGuard.verifyAndGetToken(symbol, null) ?: return 0.0

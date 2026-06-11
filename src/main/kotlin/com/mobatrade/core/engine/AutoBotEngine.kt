@@ -45,9 +45,11 @@ object AutoBotEngine {
 
     private fun runScanCycle() {
         val totalCapital = AngelOneClient.fetchMarginCapital()
-        if (totalCapital <= 0) return
-
-        val splitCapital = totalCapital / 2.0
+        println("🤖 [SCAN CYCLE] isEnabled=$isEnabled | isLoggedIn=${AngelOneClient.isLoggedIn} | Capital=₹$totalCapital")
+        if (totalCapital <= 0) {
+            System.err.println("🤖 [SCAN CYCLE] Aborting: fetchMarginCapital returned 0. Is broker connected?")
+            return
+        }
         val activePositionsJson = AngelOneClient.fetchActivePositions()
         
         // 1. 3:15 PM Intraday Auto-Liquidator
@@ -71,9 +73,9 @@ object AutoBotEngine {
             if (liquidatedAny) return
         }
 
-        // 2. Drawdown Halt Check
-        if (riskManager.getDailyPnL() <= -(splitCapital * 0.03)) {
-            System.err.println("🤖 AUTO-TRADING HALTED: Daily drawdown limit breached.")
+        // 2. Drawdown Halt Check — use totalCapital as the basis, consistent with evaluateAndSizeTrade
+        if (riskManager.getDailyPnL() <= -(totalCapital * 0.03)) {
+            System.err.println("🤖 AUTO-TRADING HALTED: Daily drawdown limit breached. DailyPnL=₹${riskManager.getDailyPnL()}")
             return
         }
 
@@ -136,12 +138,17 @@ object AutoBotEngine {
 
         // 5. Evaluate Live Signals for Entry
         val activeTickers = activePositionsJson.map { extractSymbol(it).uppercase() }.toSet()
-        if (activeTickers.size >= 3) return // Max 3 positions
+        println("🤖 [SCAN CYCLE] Active positions: ${activeTickers.size}/3 — $activeTickers")
+        if (activeTickers.size >= 3) {
+            println("🤖 [SCAN CYCLE] Skipping new entries: max 3 positions already held.")
+            return // Max 3 positions
+        }
         
         val swingHoldings = AngelOneClient.fetchSwingHoldings()
         val holdingTickers = swingHoldings.map { extractSymbol(it).uppercase() }.toSet()
 
         val liveSignalsArray = JSONArray(MobaTradeServer.getCachedSignalsJson())
+        println("🤖 [SCAN CYCLE] Evaluating ${liveSignalsArray.length()} live signals from cache...")
         for (i in 0 until liveSignalsArray.length()) {
             val sig = liveSignalsArray.getJSONObject(i)
             val symbol = sig.optString("symbol", "").uppercase()
@@ -150,40 +157,51 @@ object AutoBotEngine {
             val compliant = sig.optBoolean("compliant", false)
             val priceStr = sig.optString("price", "₹0.00").replace("₹", "").replace(",", "")
             val price = priceStr.toDoubleOrNull() ?: 0.0
+            val regime = sig.optString("regime", "UNKNOWN")
 
-            if (compliant && score >= 3 && price > 0.0) {
-                if (activeTickers.contains(symbol) || holdingTickers.contains(symbol)) continue
+            println("🤖 [SIGNAL] $symbol | score=$score | compliant=$compliant | price=₹$price | regime=$regime")
 
-                val order = riskManager.evaluateAndSizeTrade(
-                    symbol = symbol,
-                    score = score,
-                    entryPrice = price,
-                    stopLoss = price * 0.98,
-                    availableCash = totalCapital
-                )
+            if (!compliant) { println("  └─ SKIP: Not Shariah-compliant."); continue }
+            if (score < 3) { println("  └─ SKIP: Score $score < 3 threshold."); continue }
+            if (price <= 0.0) { println("  └─ SKIP: Invalid price $price."); continue }
 
-                if (order != null) {
-                    println("🤖 AUTO-BOT: LIVE ORDER INITIATED — ${order.quantity} × $symbol @ ₹${price}")
-                    val orderId = AngelOneClient.placeOrder(order, token, isRetry = false)
-                    if (orderId != null) {
-                        println("🤖 AUTO-BOT: ORDER SUCCESSFUL. ID: $orderId")
-                        // Register position in RiskManager so position limits and PnL tracking work
-                        riskManager.registerPosition(
-                            com.mobatrade.core.model.Position(
-                                symbol = symbol,
-                                entryPrice = price,
-                                quantity = order.quantity,
-                                direction = com.mobatrade.core.model.Direction.BUY,
-                                stopLoss = price * 0.98,
-                                target = price * 1.05,
-                                entryTime = java.time.Instant.now()
-                            )
+            if (activeTickers.contains(symbol) || holdingTickers.contains(symbol)) {
+                println("  └─ SKIP: Already holding $symbol.")
+                continue
+            }
+
+            val order = riskManager.evaluateAndSizeTrade(
+                symbol = symbol,
+                score = score,
+                entryPrice = price,
+                stopLoss = price * 0.98,
+                availableCash = totalCapital
+            )
+
+            if (order != null) {
+                println("🤖 AUTO-BOT: LIVE ORDER INITIATED — ${order.quantity} × $symbol @ ₹${price}")
+                val orderId = AngelOneClient.placeOrder(order, token, isRetry = false)
+                if (orderId != null) {
+                    println("🤖 AUTO-BOT: ORDER SUCCESSFUL. ID: $orderId")
+                    // Register position in RiskManager so position limits and PnL tracking work
+                    riskManager.registerPosition(
+                        com.mobatrade.core.model.Position(
+                            symbol = symbol,
+                            entryPrice = price,
+                            quantity = order.quantity,
+                            direction = com.mobatrade.core.model.Direction.BUY,
+                            stopLoss = price * 0.98,
+                            target = price * 1.05,
+                            entryTime = java.time.Instant.now()
                         )
-                        break // Place only one order per cycle
-                    }
+                    )
+                    break // Place only one order per cycle
+                } else {
+                    System.err.println("  └─ ORDER REJECTED by broker for $symbol. Check AngelOneClient logs.")
                 }
             }
         }
+        println("🤖 [SCAN CYCLE] Complete.")
     }
 
     private fun extractSymbol(json: JSONObject): String {
