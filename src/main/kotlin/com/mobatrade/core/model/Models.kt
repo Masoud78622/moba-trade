@@ -57,8 +57,18 @@ data class Position(
     var stopLoss: Double,
     var target: Double,
     val entryTime: Instant,
-    val isSwing: Boolean = false
-)
+    val isSwing: Boolean = false,
+    var firstPartialDone: Boolean = false,
+    var secondPartialDone: Boolean = false,
+    var atr14: Double = 0.0,
+    var highestClose: Double = 0.0
+) {
+    init {
+        if (highestClose == 0.0) {
+            highestClose = entryPrice
+        }
+    }
+}
 
 data class TradeRecord(
     val id: String,

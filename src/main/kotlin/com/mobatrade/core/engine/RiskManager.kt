@@ -7,8 +7,10 @@ import java.time.LocalDate
 
 class RiskManager(
     private val maxDailyDrawdownPercent: Double = 3.0,  // Halt if daily loss exceeds 3% of capital
-    private val maxConcurrentPositions: Int = 3,
-    private val rewardToRiskRatio: Double = EnvLoader.get("REWARD_TO_RISK_RATIO")?.toDoubleOrNull() ?: 2.0
+    private val maxConcurrentPositions: Int = 2,
+    private val rewardToRiskRatio: Double = EnvLoader.get("REWARD_TO_RISK_RATIO")?.toDoubleOrNull() ?: 2.0,
+    private val riskPercent: Double = 1.0,
+    private val maxAllocationPercent: Double = 25.0
 ) {
     private val activePositions = HashMap<String, Position>()
     private var dailyPnL = 0.0
@@ -50,8 +52,9 @@ class RiskManager(
         symbol: String,
         score: Int,
         entryPrice: Double,
-        stopLoss: Double,
-        availableCash: Double
+        atr14: Double,
+        availableCash: Double,
+        fallbackStopLoss: Double? = null
     ): Order? {
         checkNewDay()
 
@@ -79,29 +82,30 @@ class RiskManager(
             return null
         }
 
-        // 4. Validate Stop Loss input
-        if (stopLoss >= entryPrice || stopLoss <= 0.0) {
-            System.err.println("[RISK FILTER] Invalid stop loss ($stopLoss) relative to entry price ($entryPrice).")
+        // 4. Calculate Risk-based Position Sizing using ATR (total capital risk based on riskPercent)
+        val riskRupees = availableCash * (riskPercent / 100.0)
+        
+        // Stop distance is 1.5 * ATR, with fallback support for unit tests
+        val stopDistance = if (atr14 > 0.0) {
+            atr14 * 1.5
+        } else if (fallbackStopLoss != null && fallbackStopLoss < entryPrice && fallbackStopLoss > 0.0) {
+            entryPrice - fallbackStopLoss
+        } else {
+            entryPrice * 0.02 // default to 2% stop distance
+        }
+
+        val calculatedStopLoss = entryPrice - stopDistance
+        if (calculatedStopLoss >= entryPrice || calculatedStopLoss <= 0.0) {
+            System.err.println("[RISK FILTER] Invalid calculated stop loss ($calculatedStopLoss) relative to entry price ($entryPrice).")
             return null
         }
 
-        // 5. Determine Capital Allocation % based on Confluence Score
-        // All limits are dynamic % of availableCash — no hardcoded rupee caps
-        val allocFraction = when {
-            score >= 6 -> 0.30   // High confidence: deploy up to 30% of capital
-            score >= 4 -> 0.20   // Medium confidence: deploy up to 20% of capital
-            score >= 3 -> 0.10   // Low confidence: deploy up to 10% of capital
-            else -> return null  // Score below 3 = NO TRADE
-        }
-        val maxAlloc = availableCash * allocFraction
+        // Hard cap: deploy max Allocation percent of capital per position
+        val maxAlloc = availableCash * (maxAllocationPercent / 100.0)
 
-        // 6. Risk-based position sizing: risk max 2% of capital per trade
-        val maxRiskAmt = availableCash * 0.02
-        val riskPerShare = entryPrice - stopLoss
-
-        // Quantity limited by: (a) max allocation, (b) max risk per trade
+        // Quantity limited by: (a) max allocation, (b) 1% capital risk size
         val capQty = (maxAlloc / entryPrice).toInt()
-        val riskQty = if (riskPerShare > 0) (maxRiskAmt / riskPerShare).toInt() else capQty
+        val riskQty = (riskRupees / stopDistance).toInt()
         var targetQuantity = minOf(capQty, riskQty)
 
         // Ensure at least 1 share if we can afford it
@@ -124,23 +128,23 @@ class RiskManager(
                 return null
             }
             // Use what we can afford
-            val projectedTarget2 = entryPrice + (riskPerShare * rewardToRiskRatio)
-            println("[RISK APPROVED] $symbol: Qty $affordableQty (affordability-capped), Entry ₹$entryPrice, Stop ₹$stopLoss, Target ₹$projectedTarget2, Cost ₹${affordableQty * entryPrice}")
+            val projectedTarget2 = entryPrice + (stopDistance * rewardToRiskRatio)
+            println("[RISK APPROVED] $symbol: Qty $affordableQty (affordability-capped), Entry ₹$entryPrice, Stop ₹$calculatedStopLoss, Target ₹$projectedTarget2, Cost ₹${affordableQty * entryPrice}")
             return Order(
                 symbol = symbol,
                 quantity = affordableQty,
                 price = entryPrice,
                 direction = Direction.BUY,
                 orderType = "MARKET",
-                stopLoss = stopLoss,
+                stopLoss = calculatedStopLoss,
                 target = projectedTarget2
             )
         }
 
-        val projectedLoss = targetQuantity * riskPerShare
-        val projectedTarget = entryPrice + (riskPerShare * rewardToRiskRatio)
+        val projectedLoss = targetQuantity * stopDistance
+        val projectedTarget = entryPrice + (stopDistance * rewardToRiskRatio)
 
-        println("[RISK APPROVED] $symbol: Qty $targetQuantity, Entry ₹$entryPrice, Stop ₹$stopLoss, Target ₹$projectedTarget, Cost ₹$totalCost, Risk ₹$projectedLoss")
+        println("[RISK APPROVED] $symbol: Qty $targetQuantity, Entry ₹$entryPrice, Stop ₹$calculatedStopLoss, Target ₹$projectedTarget, Cost ₹$totalCost, Risk ₹$projectedLoss")
 
         return Order(
             symbol = symbol,
@@ -148,7 +152,7 @@ class RiskManager(
             price = entryPrice,
             direction = Direction.BUY,
             orderType = "MARKET",
-            stopLoss = stopLoss,
+            stopLoss = calculatedStopLoss,
             target = projectedTarget
         )
     }

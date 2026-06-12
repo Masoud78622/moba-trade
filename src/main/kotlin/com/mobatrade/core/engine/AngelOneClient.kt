@@ -57,6 +57,9 @@ object AngelOneClient {
     var activeClientId: String = DEFAULT_CLIENT_ID
         private set
 
+    @Volatile
+    var autoRefreshEnabled: Boolean = true
+
     val isLoggedIn: Boolean
         get() = jwtToken != null
 
@@ -71,6 +74,7 @@ object AngelOneClient {
      */
     @Synchronized
     private fun refreshSessionIfNeeded() {
+        if (!autoRefreshEnabled) return
         val now = System.currentTimeMillis()
         if (jwtToken == null || (now - lastLoginTimeMs) > TOKEN_REFRESH_INTERVAL_MS) {
             println("[SESSION] JWT expired or missing. Auto-refreshing Angel One session...")

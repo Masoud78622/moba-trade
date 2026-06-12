@@ -120,6 +120,7 @@ class ZoyaSyncTest {
         AngelOneClient.login(clientId = "INVALID_CLIENT")
         AngelOneClient.logout() // clear token set by login if any (though it would have failed)
         
+        AngelOneClient.autoRefreshEnabled = false
         try {
             val candles = AngelOneClient.fetchHistoricalCandles(
                 symbolToken = "11536",
@@ -128,6 +129,7 @@ class ZoyaSyncTest {
             assertNotNull(candles)
             assertTrue(candles.isEmpty(), "Should return an empty list when unauthenticated")
         } finally {
+            AngelOneClient.autoRefreshEnabled = true
             // Restore correct client ID by logging back in (will use default credentials or env)
             AngelOneClient.login(clientId = originalClientId)
         }

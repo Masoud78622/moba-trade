@@ -8,6 +8,7 @@ import java.io.File
 import java.util.concurrent.ConcurrentHashMap
 import com.mobatrade.core.model.Direction
 import com.mobatrade.core.model.Order
+import com.mobatrade.core.model.Candle
 
 object AutoBotEngine {
     @Volatile
@@ -185,7 +186,7 @@ object AutoBotEngine {
             }
         }
 
-        // 6. Evaluate Active Day Trades for SL/TP (skipping swing trades)
+        // 6. Evaluate Active Day Trades for SL/TP and Partial Exits
         for (pos in realActivePositions) {
             val symbol = extractSymbol(pos)
             val entry = extractEntryPrice(pos)
@@ -198,16 +199,68 @@ object AutoBotEngine {
 
             val current = AngelOneClient.fetchRealLtp(symbol, token)
 
-            if (qty > 0 && entry > 0 && current > 0) {
-                val sl = activePos?.stopLoss ?: (entry * 0.98)
-                val target = activePos?.target ?: (entry * 1.04)
+            if (qty > 0 && entry > 0 && current > 0 && activePos != null) {
+                // Update highest close
+                if (current > activePos.highestClose) {
+                    activePos.highestClose = current
+                }
 
-                if (current <= sl) {
-                    println("🤖 AUTO-BOT: Intraday position $symbol triggered SL. Liquidating...")
-                    liquidatePosition(symbol, token, qty)
-                } else if (current >= target) {
-                    println("🤖 AUTO-BOT: Intraday position $symbol triggered Target. Liquidating...")
-                    liquidatePosition(symbol, token, qty)
+                val R = activePos.entryPrice - activePos.stopLoss // initial risk per share
+                
+                // If stop distance R is tiny/invalid, fallback to default 2%
+                val effectiveR = if (R > 0) R else (activePos.entryPrice * 0.02)
+                
+                val target1_5 = activePos.entryPrice + (1.5 * effectiveR)
+                val target2_5 = activePos.entryPrice + (2.5 * effectiveR)
+
+                when {
+                    // A. Hard stop loss or Trailing stop for remaining 20%
+                    current <= activePos.stopLoss -> {
+                        println("🤖 AUTO-BOT: Day trade $symbol hit Stop Loss at ₹$current. Liquidating all remaining $qty shares...")
+                        if (liquidatePosition(symbol, token, qty)) {
+                            riskManager.closePosition(symbol, current)
+                        }
+                    }
+
+                    // B. First partial exit at 1.5R: sell 40% of position and move SL to breakeven
+                    current >= target1_5 && !activePos.firstPartialDone && qty >= 2 -> {
+                        val sellQty = Math.max(1, (qty * 0.40).toInt())
+                        println("🤖 AUTO-BOT: Day trade $symbol reached 1.5R (₹$target1_5). Booking 40% profit (selling $sellQty shares) and moving SL to breakeven...")
+                        if (liquidatePosition(symbol, token, sellQty)) {
+                            activePos.firstPartialDone = true
+                            activePos.stopLoss = activePos.entryPrice // Breakeven
+                            riskManager.registerPosition(activePos)
+                        }
+                    }
+
+                    // C. Second partial exit at 2.5R: sell 40% more
+                    current >= target2_5 && !activePos.secondPartialDone && activePos.firstPartialDone && qty >= 2 -> {
+                        val sellQty = Math.max(1, (qty * 0.40).toInt())
+                        println("🤖 AUTO-BOT: Day trade $symbol reached 2.5R (₹$target2_5). Booking another 40% profit (selling $sellQty shares)...")
+                        if (liquidatePosition(symbol, token, sellQty)) {
+                            activePos.secondPartialDone = true
+                            riskManager.registerPosition(activePos)
+                        }
+                    }
+
+                    // D. Trailing stop check for the remaining 20%
+                    activePos.firstPartialDone && activePos.atr14 > 0.0 -> {
+                        val trailSL = activePos.highestClose - activePos.atr14
+                        if (current <= trailSL) {
+                            println("🤖 AUTO-BOT: Day trade $symbol hit trailing SL at ₹$current (highest close = ₹${activePos.highestClose}, ATR = ₹${activePos.atr14}, stop = ₹$trailSL). Liquidating remaining $qty shares...")
+                            if (liquidatePosition(symbol, token, qty)) {
+                                riskManager.closePosition(symbol, current)
+                            }
+                        }
+                    }
+
+                    // E. Hard target exit if first/second partial was not possible (qty too small)
+                    current >= activePos.target && qty < 2 -> {
+                        println("🤖 AUTO-BOT: Day trade $symbol reached target ₹${activePos.target} (qty 1). Liquidating...")
+                        if (liquidatePosition(symbol, token, qty)) {
+                            riskManager.closePosition(symbol, current)
+                        }
+                    }
                 }
             }
         }
@@ -220,14 +273,27 @@ object AutoBotEngine {
         val swingHoldings = AngelOneClient.fetchSwingHoldings()
         val holdingTickers = swingHoldings.filter { extractQty(it) > 0 }.map { extractSymbol(it).uppercase() }.toSet()
 
-        println("🤖 [SCAN CYCLE] Active positions: ${activeTickers.size}/3 — $activeTickers")
-        if (activeTickers.size >= 3) {
-            println("🤖 [SCAN CYCLE] Skipping new entries: max 3 positions already held.")
-            return // Max 3 positions
+        println("🤖 [SCAN CYCLE] Active positions: ${activeTickers.size}/2 — $activeTickers")
+        if (activeTickers.size >= 2) {
+            println("🤖 [SCAN CYCLE] Skipping new entries: max 2 positions already held.")
+            return // Max 2 positions
         }
 
         if (totalCapital <= 0) {
             println("🤖 [SCAN CYCLE] Skipping new entries: available capital is ₹$totalCapital <= 0.")
+            return
+        }
+
+        // Check Nifty 50 Trend Regime Gate (Priority 1)
+        val isNiftyBullish = checkNiftyRegime()
+        if (!isNiftyBullish) {
+            println("🤖 [SCAN CYCLE] Skipping new entries: Nifty 50 is Ranging/Bearish.")
+            return
+        }
+
+        // Check Intraday Session Gates (9:45-11:30 and 14:00-15:00) (Layer 6)
+        if (!isEntryWindowOpen()) {
+            println("🤖 [SCAN CYCLE] Skipping new entries: Outside primary entry windows.")
             return
         }
 
@@ -247,7 +313,9 @@ object AutoBotEngine {
             println("🤖 [SIGNAL] $symbol | score=$score | compliant=$compliant | price=₹$price | regime=$regime | isSwingEligible=$isSwingEligible")
 
             if (!compliant) { println("  └─ SKIP: Not Shariah-compliant."); continue }
-            if (score < 3) { println("  └─ SKIP: Score $score < 3 threshold."); continue }
+            
+            // Raise score threshold to >= 4 (Priority 2)
+            if (score < 4) { println("  └─ SKIP: Score $score < 4 threshold."); continue }
             if (price <= 0.0) { println("  └─ SKIP: Invalid price $price."); continue }
 
             if (activeTickers.contains(symbol) || holdingTickers.contains(symbol)) {
@@ -255,11 +323,42 @@ object AutoBotEngine {
                 continue
             }
 
+            // Fetch 15-minute candles to run breakout and ATR confirmation (Priority 2)
+            println("  └─ SCAN: Fetching 15m candles for $symbol to verify breakout confirmation...")
+            val candles = AngelOneClient.fetchHistoricalCandles(token, symbol, "FIFTEEN_MINUTE", 30)
+            if (candles.isEmpty()) {
+                println("  └─ SKIP: Failed to fetch candles for confirmation.")
+                continue
+            }
+
+            val lastCandle = candles.last()
+            val prevSwingHigh = findPreviousSwingHigh(candles)
+            
+            // A. Price breakout confirmation: Close must exceed previous swing high
+            val priceConfirmed = lastCandle.close > prevSwingHigh
+            
+            // B. Volume confirmation: volume > 1.5x average
+            val avgVolume20 = if (candles.size >= 2) candles.dropLast(1).takeLast(20).map { it.volume.toDouble() }.average() else 0.0
+            val volumeConfirmed = avgVolume20 > 0.0 && lastCandle.volume > 1.5 * avgVolume20
+            
+            // C. Strong candle body confirmation (>60% range)
+            val bodyRange = Math.abs(lastCandle.close - lastCandle.open)
+            val totalRange = lastCandle.high - lastCandle.low
+            val bodyConfirmed = totalRange > 0.0 && (bodyRange / totalRange) >= 0.60
+
+            println("  └─ CONFIRMATION: PriceConfirmed=$priceConfirmed (Close=${lastCandle.close} vs SwingHigh=$prevSwingHigh) | VolumeConfirmed=$volumeConfirmed (Vol=${lastCandle.volume} vs 1.5xAvg=${(1.5 * avgVolume20).toInt()}) | BodyConfirmed=$bodyConfirmed (${String.format("%.1f", (bodyRange/totalRange)*100)}% body)")
+
+            if (!priceConfirmed || !volumeConfirmed || !bodyConfirmed) {
+                println("  └─ SKIP: Entry breakout confirmation failed.")
+                continue
+            }
+
+            val atr14 = calculateATR14(candles)
             val order = riskManager.evaluateAndSizeTrade(
                 symbol = symbol,
                 score = score,
                 entryPrice = price,
-                stopLoss = price * 0.98,
+                atr14 = atr14,
                 availableCash = totalCapital
             )
 
@@ -274,10 +373,11 @@ object AutoBotEngine {
                             entryPrice = price,
                             quantity = order.quantity,
                             direction = com.mobatrade.core.model.Direction.BUY,
-                            stopLoss = price * 0.98,
-                            target = price * 1.05,
+                            stopLoss = order.stopLoss ?: (price - (atr14 * 1.5)),
+                            target = order.target ?: (price + (atr14 * 1.5 * 2.0)),
                             entryTime = java.time.Instant.now(),
-                            isSwing = isSwingEligible
+                            isSwing = isSwingEligible,
+                            atr14 = atr14
                         )
                     )
                     break // Place only one order per cycle
@@ -327,6 +427,88 @@ object AutoBotEngine {
             return true
         }
         return false
+    }
+
+    private fun checkNiftyRegime(): Boolean {
+        if (!AngelOneClient.isLoggedIn) return false
+        try {
+            println("🤖 [SCAN CYCLE] Fetching Nifty 50 index candles to evaluate market regime...")
+            val candles = AngelOneClient.fetchHistoricalCandles(
+                symbolToken = "99926000",
+                symbol = "Nifty 50",
+                interval = "FIFTEEN_MINUTE",
+                limitDays = 5
+            )
+            if (candles.isEmpty()) {
+                println("⚠️ [SCAN CYCLE] Could not fetch Nifty 50 index data. Defaulting to allowing entries.")
+                return true
+            }
+            val closePrices = candles.map { it.close }
+            val ema20 = com.mobatrade.core.strategies.tier4.TechIndicators.calculateEma(closePrices, 20)
+            val ema50 = com.mobatrade.core.strategies.tier4.TechIndicators.calculateEma(closePrices, 50)
+            
+            if (ema20.isEmpty() || ema50.isEmpty()) return true
+            
+            val lastEma20 = ema20.last()
+            val lastEma50 = ema50.last()
+            val lastCandle = candles.last()
+            val isBullish = lastEma20 > lastEma50 && lastCandle.close > lastCandle.open
+            
+            println("🤖 [SCAN CYCLE] Nifty 50 EMA20 = ${String.format("%.2f", lastEma20)} | EMA50 = ${String.format("%.2f", lastEma50)} | Close > Open = ${lastCandle.close > lastCandle.open} | Bullish = $isBullish")
+            return isBullish
+        } catch (e: Exception) {
+            System.err.println("Error checking Nifty regime: ${e.message}")
+        }
+        return true
+    }
+
+    private fun isEntryWindowOpen(): Boolean {
+        val now = LocalTime.now(ZoneId.of("Asia/Kolkata"))
+        val morningStart = LocalTime.of(9, 45)
+        val morningEnd = LocalTime.of(11, 30)
+        val afternoonStart = LocalTime.of(14, 0)
+        val afternoonEnd = LocalTime.of(15, 0)
+        
+        val inMorning = now.isAfter(morningStart) && now.isBefore(morningEnd)
+        val inAfternoon = now.isAfter(afternoonStart) && now.isBefore(afternoonEnd)
+        
+        return inMorning || inAfternoon
+    }
+
+    private fun findPreviousSwingHigh(candles: List<Candle>): Double {
+        val period = 2
+        for (i in candles.size - 4 downTo period) {
+            val currentHigh = candles[i].high
+            var isSwingHigh = true
+            for (j in 1..period) {
+                if (candles[i - j].high >= currentHigh || candles[i + j].high > currentHigh) {
+                    isSwingHigh = false
+                    break
+                }
+            }
+            if (isSwingHigh) {
+                return currentHigh
+            }
+        }
+        return candles.dropLast(1).maxOfOrNull { it.close } ?: 0.0
+    }
+
+    private fun calculateATR14(candles: List<Candle>): Double {
+        if (candles.size < 15) return 0.0
+        val trList = ArrayList<Double>()
+        for (i in 1 until candles.size) {
+            val curr = candles[i]
+            val prev = candles[i - 1]
+            val hl = curr.high - curr.low
+            val hcp = Math.abs(curr.high - prev.close)
+            val lcp = Math.abs(curr.low - prev.close)
+            trList.add(maxOf(hl, hcp, lcp))
+        }
+        var atr = trList.take(14).average()
+        for (i in 14 until trList.size) {
+            atr = (atr * 13 + trList[i]) / 14.0
+        }
+        return atr
     }
 }
 

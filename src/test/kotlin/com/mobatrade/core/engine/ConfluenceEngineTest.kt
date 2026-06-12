@@ -97,7 +97,9 @@ class ConfluenceEngineTest {
     @Test
     fun testRiskManagerPositionSizing() {
         val riskManager = RiskManager(
-            maxConcurrentPositions = 3
+            maxConcurrentPositions = 3,
+            riskPercent = 2.0,
+            maxAllocationPercent = 30.0
         )
 
         // Scenario A: Highly confident setup (Score = 8)
@@ -110,8 +112,9 @@ class ConfluenceEngineTest {
             symbol = "TCS",
             score = 8,
             entryPrice = 3000.0,
-            stopLoss = 2900.0,
-            availableCash = 100000.0
+            atr14 = 0.0,
+            availableCash = 100000.0,
+            fallbackStopLoss = 2900.0
         )
 
         assertNotNull(orderA)
@@ -129,8 +132,9 @@ class ConfluenceEngineTest {
             symbol = "INFY",
             score = 7,
             entryPrice = 3000.0,
-            stopLoss = 2700.0,
-            availableCash = 100000.0
+            atr14 = 0.0,
+            availableCash = 100000.0,
+            fallbackStopLoss = 2700.0
         )
 
         assertNotNull(orderB)
@@ -150,7 +154,7 @@ class ConfluenceEngineTest {
         riskManager.registerPosition(com.mobatrade.core.model.Position("INFY", 1500.0, 10, Direction.BUY, 1450.0, 1600.0, entryTime))
 
         // Proposal for 3rd position should be rejected (max concurrent is 2)
-        val order3 = riskManager.evaluateAndSizeTrade("WIPRO", 8, 400.0, 390.0, availableCash = 100000.0)
+        val order3 = riskManager.evaluateAndSizeTrade("WIPRO", 8, 400.0, 0.0, 100000.0, 390.0)
         assertNull(order3, "Should reject trade when concurrent positions limit is exceeded")
 
         // Close INFY with a massive loss to trigger drawdown limit
@@ -159,7 +163,7 @@ class ConfluenceEngineTest {
         assertEquals(-3000.0, loss)
 
         // Proposed trades should now be rejected due to daily drawdown halt
-        val orderAfterDrawdown = riskManager.evaluateAndSizeTrade("TCS", 8, 3000.0, 2950.0, availableCash = 100000.0)
+        val orderAfterDrawdown = riskManager.evaluateAndSizeTrade("TCS", 8, 3000.0, 0.0, 100000.0, 2950.0)
         assertNull(orderAfterDrawdown, "Trading must be halted when daily drawdown threshold is breached")
     }
 

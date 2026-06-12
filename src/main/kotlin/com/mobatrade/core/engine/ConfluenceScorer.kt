@@ -31,24 +31,15 @@ class ConfluenceScorer(
 ) {
     private val strategies = ArrayList<Strategy>()
     private val regimeDetector = RegimeDetector()
+    private val adxFilter = AdxFilter(symbol)
+    private val sectorRotation = SectorRotation(symbol, sectorName)
 
     init {
-        // Initialize all 16 strategy components for this symbol
-        strategies.add(OpeningRangeBreakout(symbol))
+        // Initialize only the 4 core scored strategy components
         strategies.add(DarvasBox(symbol))
         strategies.add(SupportResistanceFlip(symbol))
-        strategies.add(VolumeProfile(symbol))
-        strategies.add(VwapDevBands(symbol))
-        strategies.add(ObvDivergence(symbol))
-        strategies.add(OrderBlocks(symbol))
         strategies.add(BreakOfStructure(symbol))
-        strategies.add(FairValueGap(symbol))
-        strategies.add(LiquiditySweep(symbol))
-        strategies.add(EmaCrossover(symbol))
-        strategies.add(AdxFilter(symbol))
-        strategies.add(SectorRotation(symbol, sectorName))
-        strategies.add(NewsSentiment(symbol))
-        strategies.add(PatternRecognition(symbol))
+        strategies.add(VwapDevBands(symbol))
     }
 
     data class ScoredTrade(
@@ -62,8 +53,8 @@ class ConfluenceScorer(
     )
 
     /**
-     * Scores the asset from 0 to 10 by evaluating all active strategies.
-     * Integrates Market Regime filter to adjust strategy weights.
+     * Scores the asset from 0 to 5 by evaluating clean strategy signals.
+     * Enforces trend and strength gates (EMA50 and ADX > 25).
      * Enforces an absolute Shariah filter.
      */
     fun scoreTrade(candles: List<Candle>, currentTick: Tick? = null): ScoredTrade {
@@ -84,7 +75,7 @@ class ConfluenceScorer(
         // 2. Classify Market Regime
         val regime = regimeDetector.detectRegime(candles)
         
-        // Strictly bearish trend is unsafe for long-only setups. Volatile is OK - mean reversion works.
+        // Strictly bearish trend is unsafe for long-only setups.
         if (regime == MarketRegime.TRENDING_BEARISH) {
             return ScoredTrade(
                 symbol = symbol,
@@ -97,62 +88,83 @@ class ConfluenceScorer(
             )
         }
 
-        var totalScore = 0
+        // --- MANDATORY GATES ---
+        
+        // Gate A: Trend Gate (Price close must be above EMA 50 of 15m candles)
+        val closePrices = candles.map { it.close }
+        val ema50 = com.mobatrade.core.strategies.tier4.TechIndicators.calculateEma(closePrices, 50)
+        val isTrendGatePassed = ema50.isNotEmpty() && candles.last().close > ema50.last()
+        if (!isTrendGatePassed) {
+            return ScoredTrade(
+                symbol = symbol,
+                totalScore = 0,
+                recommendedDirection = Direction.HOLD,
+                marketRegime = regime,
+                triggers = listOf("FAILED_MANDATORY_TREND_GATE_EMA50"),
+                isShariahCompliant = true,
+                isSwingEligible = false
+            )
+        }
+
+        // Gate B: Trend Strength Gate (ADX > 25)
+        val adxSignal = adxFilter.evaluate(candles, currentTick)
+        if (adxSignal == null || adxSignal.direction != Direction.BUY) {
+            return ScoredTrade(
+                symbol = symbol,
+                totalScore = 0,
+                recommendedDirection = Direction.HOLD,
+                marketRegime = regime,
+                triggers = listOf("FAILED_MANDATORY_TREND_STRENGTH_GATE_ADX"),
+                isShariahCompliant = true,
+                isSwingEligible = false
+            )
+        }
+
+        var totalScore = 0.0
         val triggers = ArrayList<String>()
         var structuralTriggerFound = false
 
-        // 3. Evaluate each strategy and sum weighted scores
+        // --- SCORED SIGNALS ---
+
+        // 1. Evaluate Core Strategies (1 point each)
         for (strategy in strategies) {
             val signal = strategy.evaluate(candles, currentTick)
             if (signal != null && signal.direction == Direction.BUY) {
-                var weight = signal.score
-                
-                // Track structural swing indicators
-                if (strategy is BreakOfStructure || strategy is DarvasBox || strategy is OrderBlocks || strategy is SectorRotation) {
+                totalScore += 1.0
+                triggers.add("${strategy.name} (+1.0)")
+                if (strategy is BreakOfStructure || strategy is DarvasBox) {
                     structuralTriggerFound = true
                 }
-                
-                // Regime-Based Score Adaptation
-                when (regime) {
-                    MarketRegime.TRENDING_BULLISH -> {
-                        // Double weight for trend-following and momentum strategies
-                        if (strategy is OpeningRangeBreakout || strategy is DarvasBox || 
-                            strategy is EmaCrossover || strategy is BreakOfStructure || 
-                            strategy is AdxFilter) {
-                            weight += 1
-                        }
-                    }
-                    MarketRegime.RANGING -> {
-                        // Double weight for mean-reversion, volume, and supply/demand zones
-                        if (strategy is VolumeProfile || strategy is VwapDevBands || 
-                            strategy is OrderBlocks || strategy is LiquiditySweep || 
-                            strategy is SupportResistanceFlip || strategy is FairValueGap) {
-                            weight += 1
-                        }
-                    }
-                    else -> {}
-                }
-                
-                // Add dynamically learned EOD bonus
-                val learnedBonus = LearnedWeights.getBonus(strategy.name)
-                weight += learnedBonus
-                
-                totalScore += weight
-                val triggerString = if (learnedBonus > 0) "${strategy.name} (+$weight) [AI+${learnedBonus}]" else "${strategy.name} (+$weight)"
-                triggers.add(triggerString)
             }
         }
 
-        // Cap score at 10
-        val finalScore = totalScore.coerceIn(0, 10)
-        val finalDirection = if (finalScore >= 4) Direction.BUY else Direction.HOLD
+        // 2. Volume Breakout Signal (1 point)
+        val lastCandle = candles.last()
+        val avgVolume20 = if (candles.size >= 2) candles.dropLast(1).takeLast(20).map { it.volume.toDouble() }.average() else 0.0
+        val isVolumeBreakout = avgVolume20 > 0 && lastCandle.volume > 1.5 * avgVolume20
+        if (isVolumeBreakout) {
+            totalScore += 1.0
+            triggers.add("Volume Breakout (+1.0)")
+        }
+
+        // 3. Sector Rotation Bonus (+0.5 point)
+        val sectorSignal = sectorRotation.evaluate(candles, currentTick)
+        if (sectorSignal != null && sectorSignal.direction == Direction.BUY) {
+            totalScore += 0.5
+            triggers.add("Sector Outperformance (+0.5)")
+        }
+
+        // Final Score rounding and evaluation (Capped at 5)
+        val roundedScore = Math.round(totalScore).toInt().coerceIn(0, 5)
+        // BUY if score >= 3
+        val finalDirection = if (roundedScore >= 3) Direction.BUY else Direction.HOLD
         
-        // Swing Eligibility: High conviction + Structural support
-        val swingEligible = structuralTriggerFound && finalScore >= 8 && regime == MarketRegime.TRENDING_BULLISH
+        // Swing Eligibility: High conviction (score >= 4) + Structural breakout + trending bullish
+        val swingEligible = structuralTriggerFound && roundedScore >= 4 && regime == MarketRegime.TRENDING_BULLISH
 
         return ScoredTrade(
             symbol = symbol,
-            totalScore = finalScore,
+            totalScore = roundedScore,
             recommendedDirection = finalDirection,
             marketRegime = regime,
             triggers = triggers,
