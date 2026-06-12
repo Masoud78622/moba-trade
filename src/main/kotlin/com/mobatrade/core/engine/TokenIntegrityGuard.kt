@@ -18,10 +18,7 @@ object TokenIntegrityGuard {
     private val isWindows = System.getProperty("os.name").lowercase().contains("win")
     private val CACHE_PATH = if (isWindows) "c:\\moba trade\\scrip_master.json" else "scrip_master.json"
 
-    private val httpClient = OkHttpClient.Builder()
-        .connectTimeout(30, TimeUnit.SECONDS)
-        .readTimeout(60, TimeUnit.SECONDS)
-        .build()
+    private val httpClient = HttpClientFactory.createClient(30, 60, 30)
 
     // Base Symbol -> (Token, TradingSymbol)
     // E.g., "MGL" -> Pair("17534", "MGL-EQ") or Pair("17534", "MGL-BE")

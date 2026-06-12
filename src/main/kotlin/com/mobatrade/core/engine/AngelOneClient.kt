@@ -26,11 +26,7 @@ object AngelOneClient {
     private const val DEFAULT_SECRET = DEFAULT_TOTP_SECRET
     const val DEFAULT_CLIENT_ID = "AAAC764774"
 
-    private val httpClient = OkHttpClient.Builder()
-        .connectTimeout(20, TimeUnit.SECONDS)
-        .readTimeout(30, TimeUnit.SECONDS)
-        .writeTimeout(20, TimeUnit.SECONDS)
-        .build()
+    private val httpClient = HttpClientFactory.createClient(20, 30, 20)
 
     // Timestamp of last successful login — used to auto-refresh expired JWT
     @Volatile

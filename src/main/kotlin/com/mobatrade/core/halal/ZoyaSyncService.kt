@@ -1,5 +1,6 @@
 package com.mobatrade.core.halal
 
+import com.mobatrade.core.engine.HttpClientFactory
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import okhttp3.OkHttpClient
 import okhttp3.Request
@@ -13,10 +14,7 @@ object ZoyaSyncService {
     private const val ZOYA_ENDPOINT = "https://sandbox-api.zoya.finance/graphql"
     private const val DEFAULT_API_KEY = "sandbox-4a7b2ac0-4490-4e2b-9933-3e2dcc78a354"
     
-    private val httpClient = OkHttpClient.Builder()
-        .connectTimeout(15, TimeUnit.SECONDS)
-        .readTimeout(15, TimeUnit.SECONDS)
-        .build()
+    private val httpClient = HttpClientFactory.createClient(15, 15, 15)
 
     data class CompliantStock(
         val symbol: String,
