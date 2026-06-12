@@ -60,6 +60,10 @@ object AngelOneClient {
     val isLoggedIn: Boolean
         get() = jwtToken != null
 
+    private val historicalLock = Any()
+    @Volatile
+    private var lastHistoricalCallTimeMs = 0L
+
     /**
      * Automatically re-logs in if the JWT token is older than 20 hours.
      * Angel One JWT tokens expire ~24 hours after issuance.
@@ -298,6 +302,16 @@ object AngelOneClient {
         limitDays: Int = 15,
         apiKey: String = DEFAULT_API_KEY
     ): List<Candle> {
+        synchronized(historicalLock) {
+            val now = System.currentTimeMillis()
+            val elapsed = now - lastHistoricalCallTimeMs
+            val minInterval = 2000L
+            if (elapsed < minInterval) {
+                try { Thread.sleep(minInterval - elapsed) } catch (e: InterruptedException) {}
+            }
+            lastHistoricalCallTimeMs = System.currentTimeMillis()
+        }
+
         // Auto-refresh session if JWT has expired
         refreshSessionIfNeeded()
 
