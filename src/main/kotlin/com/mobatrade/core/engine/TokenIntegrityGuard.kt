@@ -17,6 +17,7 @@ object TokenIntegrityGuard {
     // Store cache in project root
     private val isWindows = System.getProperty("os.name").lowercase().contains("win")
     private val CACHE_PATH = if (isWindows) "c:\\moba trade\\scrip_master.json" else "scrip_master.json"
+    private val TMP_CACHE_PATH = if (isWindows) "c:\\moba trade\\scrip_master.tmp" else "scrip_master.tmp"
 
     private val httpClient = HttpClientFactory.createClient(30, 60, 30)
 
@@ -62,13 +63,55 @@ object TokenIntegrityGuard {
         }
 
         if (needsDownload) {
-            downloadMasterFile(cacheFile)
+            val tempFile = File(TMP_CACHE_PATH)
+            // Ensure any stale temp file is deleted before download
+            if (tempFile.exists()) tempFile.delete()
+
+            if (downloadMasterFile(tempFile)) {
+                val parsed = parseFileToMap(tempFile)
+                if (parsed != null && parsed.isNotEmpty()) {
+                    symbolMap.clear()
+                    symbolMap.putAll(parsed)
+                    isLoaded = true
+                    
+                    // Atomically replace the final cache file
+                    val finalFile = File(CACHE_PATH)
+                    finalFile.delete()
+                    if (!tempFile.renameTo(finalFile)) {
+                        try {
+                            tempFile.inputStream().use { input ->
+                                finalFile.outputStream().use { output ->
+                                    input.copyTo(output)
+                                }
+                            }
+                            tempFile.delete()
+                        } catch (e: Exception) {
+                            System.err.println("TokenIntegrityGuard: Failed to copy temp file to cache path: ${e.message}")
+                        }
+                    }
+                    println("TokenIntegrityGuard: Atomically updated scrip master cache to today's data.")
+                } else {
+                    System.err.println("TokenIntegrityGuard: Downloaded temp file failed parsing/validation. Discarding.")
+                    tempFile.delete()
+                }
+            } else {
+                if (tempFile.exists()) tempFile.delete()
+            }
         }
 
-        if (cacheFile.exists()) {
-            loadIntoMemory(cacheFile)
-        } else {
-            System.err.println("TokenIntegrityGuard: Failed to load Scrip Master! File does not exist.")
+        // Revert to existing cache file if we could not load a fresh download
+        if (!isLoaded && cacheFile.exists()) {
+            println("TokenIntegrityGuard: Attempting to load from existing scrip master cache...")
+            val parsed = parseFileToMap(cacheFile)
+            if (parsed != null && parsed.isNotEmpty()) {
+                symbolMap.clear()
+                symbolMap.putAll(parsed)
+                isLoaded = true
+            }
+        }
+
+        if (!isLoaded) {
+            System.err.println("TokenIntegrityGuard: Failed to load Scrip Master!")
         }
         isLoading = false
     }
@@ -79,14 +122,41 @@ object TokenIntegrityGuard {
     @Synchronized
     fun forceRefresh() {
         println("TokenIntegrityGuard: Force refreshing Scrip Master...")
-        val cacheFile = File(CACHE_PATH)
-        downloadMasterFile(cacheFile)
-        if (cacheFile.exists()) {
-            loadIntoMemory(cacheFile)
+        val tempFile = File(TMP_CACHE_PATH)
+        if (tempFile.exists()) tempFile.delete()
+
+        if (downloadMasterFile(tempFile)) {
+            val parsed = parseFileToMap(tempFile)
+            if (parsed != null && parsed.isNotEmpty()) {
+                symbolMap.clear()
+                symbolMap.putAll(parsed)
+                isLoaded = true
+                
+                val finalFile = File(CACHE_PATH)
+                finalFile.delete()
+                if (!tempFile.renameTo(finalFile)) {
+                    try {
+                        tempFile.inputStream().use { input ->
+                            finalFile.outputStream().use { output ->
+                                input.copyTo(output)
+                            }
+                        }
+                        tempFile.delete()
+                    } catch (e: Exception) {
+                        System.err.println("TokenIntegrityGuard: Failed to copy temp file: ${e.message}")
+                    }
+                }
+                println("TokenIntegrityGuard: Force refresh complete. Loaded ${symbolMap.size} instruments.")
+            } else {
+                System.err.println("TokenIntegrityGuard: Downloaded force-refresh file failed parsing. Discarded.")
+                tempFile.delete()
+            }
+        } else {
+            if (tempFile.exists()) tempFile.delete()
         }
     }
 
-    private fun downloadMasterFile(cacheFile: File) {
+    private fun downloadMasterFile(targetFile: File): Boolean {
         println("TokenIntegrityGuard: Downloading latest Angel One Scrip Master (this may take a moment)...")
         try {
             val request = Request.Builder().url(SCRIP_MASTER_URL).build()
@@ -94,11 +164,12 @@ object TokenIntegrityGuard {
                 if (response.isSuccessful && response.body != null) {
                     // Stream body directly to file to prevent loading the entire 35MB array in memory
                     response.body!!.byteStream().use { input ->
-                        cacheFile.outputStream().use { output ->
+                        targetFile.outputStream().use { output ->
                             input.copyTo(output)
                         }
                     }
                     println("TokenIntegrityGuard: Downloaded and saved successfully.")
+                    return true
                 } else {
                     System.err.println("TokenIntegrityGuard: Download failed with HTTP ${response.code}")
                 }
@@ -106,16 +177,16 @@ object TokenIntegrityGuard {
         } catch (e: Exception) {
             System.err.println("TokenIntegrityGuard: Exception during download - ${e.message}")
         }
+        return false
     }
 
-    private fun loadIntoMemory(cacheFile: File) {
+    private fun parseFileToMap(file: File): java.util.concurrent.ConcurrentHashMap<String, Pair<String, String>>? {
+        val tempMap = java.util.concurrent.ConcurrentHashMap<String, Pair<String, String>>()
         try {
-            isLoaded = false
             println("TokenIntegrityGuard: Parsing Scrip Master JSON memory-efficiently...")
-            symbolMap.clear()
             var count = 0
 
-            cacheFile.bufferedReader(StandardCharsets.UTF_8).use { reader ->
+            file.bufferedReader(StandardCharsets.UTF_8).use { reader ->
                 val buffer = CharArray(65536)
                 val sb = StringBuilder()
                 var inObject = false
@@ -140,9 +211,9 @@ object TokenIntegrityGuard {
                                         val name = item.optString("name")
                                         
                                         if (name.isNotEmpty() && token.isNotEmpty() && symbol.isNotEmpty()) {
-                                            val existing = symbolMap[name]
+                                            val existing = tempMap[name]
                                             if (existing == null || symbol.endsWith("-EQ")) {
-                                                symbolMap[name] = Pair(token, symbol)
+                                                tempMap[name] = Pair(token, symbol)
                                                 count++
                                             }
                                         }
@@ -161,17 +232,14 @@ object TokenIntegrityGuard {
             }
 
             if (count > 0) {
-                isLoaded = true
-                println("TokenIntegrityGuard: Loaded $count NSE instruments into memory.")
-            } else {
-                isLoaded = false
-                System.err.println("TokenIntegrityGuard: Map is empty after parsing. Load failed.")
+                return tempMap
             }
         } catch (e: Exception) {
-            isLoaded = false
             System.err.println("TokenIntegrityGuard: Failed to parse Scrip Master - ${e.message}")
         }
+        return null
     }
+
 
     /** Returns true when the scrip master is fully loaded and ready for token lookups. */
     fun isReady(): Boolean = isLoaded
