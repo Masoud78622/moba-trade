@@ -13,6 +13,9 @@ import java.io.OutputStream
 import java.net.InetSocketAddress
 import java.nio.charset.StandardCharsets
 import java.time.Instant
+import java.time.LocalDate
+import java.time.ZoneId
+import java.time.ZonedDateTime
 
 object MobaTradeServer {
     @Volatile
@@ -142,6 +145,7 @@ object MobaTradeServer {
                 )
                 if (success) {
                     println("Server startup: Angel One login successful. brokerConnected = true")
+                    WatchlistAuditor.runDailyAudit(force = false)
                 } else {
                     System.err.println("Server startup: Angel One login failed. Check ANGEL_CLIENT_ID, ANGEL_API_KEY, ANGEL_PIN, and ANGEL_TOTP_SECRET env vars.")
                 }
@@ -152,9 +156,21 @@ object MobaTradeServer {
 
         // Start background scanner thread to update signals cache without blocking HTTP endpoints
         Thread {
+            var lastDailyAuditDate = LocalDate.now(ZoneId.of("Asia/Kolkata")).minusDays(1)
             while (true) {
                 try {
                     if (AngelOneClient.ensureAuthenticated()) {
+                        // Check if we need to run the daily morning audit (at or after 9:00 AM IST on a new day)
+                        val nowIst = java.time.ZonedDateTime.now(ZoneId.of("Asia/Kolkata"))
+                        val today = nowIst.toLocalDate()
+                        if (today != lastDailyAuditDate && nowIst.hour >= 9) {
+                            println("BackgroundScanner: It is past 9:00 AM IST on a new day ($today). Triggering daily watchlist audit refresh...")
+                            val auditStarted = WatchlistAuditor.runDailyAudit(force = true)
+                            if (auditStarted) {
+                                lastDailyAuditDate = today
+                            }
+                        }
+
                         val scanStart = System.currentTimeMillis()
                         logLine("BackgroundScanner: Starting scheduled scan of stock universe...")
                         val signalsArray = computeSignals()
@@ -468,7 +484,10 @@ object MobaTradeServer {
 
         try {
             val isWindows = System.getProperty("os.name").lowercase().contains("win")
-            val cacheFile = if (isWindows) File("c:\\moba trade\\halal_stocks.json") else File("halal_stocks.json")
+            var cacheFile = if (isWindows) File("c:\\moba trade\\watchlist_intraday.json") else File("watchlist_intraday.json")
+            if (!cacheFile.exists() || cacheFile.length() <= 2) {
+                cacheFile = if (isWindows) File("c:\\moba trade\\halal_stocks.json") else File("halal_stocks.json")
+            }
             if (cacheFile.exists()) {
                 val content = cacheFile.readText(StandardCharsets.UTF_8)
                 val array = JSONArray(content)
