@@ -43,8 +43,9 @@ object WatchlistAuditor {
                 .atZone(ZoneId.of("Asia/Kolkata"))
                 .toLocalDate()
             val today = LocalDate.now(ZoneId.of("Asia/Kolkata"))
-            if (lastModified == today) {
-                println("🤖 [WATCHLIST AUDIT] Intraday watchlist is already fresh for today ($today). Skipping audit.")
+            val lastSaturday = getMostRecentSaturday(today)
+            if (!lastModified.isBefore(lastSaturday)) {
+                println("🤖 [WATCHLIST AUDIT] Watchlist is already fresh since last Saturday ($lastSaturday). Skipping audit.")
                 return false
             }
         }
@@ -52,7 +53,7 @@ object WatchlistAuditor {
         isAuditRunning = true
         Thread {
             try {
-                println("🤖 [WATCHLIST AUDIT] Starting daily watchlist audit on all halal stocks...")
+                println("🤖 [WATCHLIST AUDIT] Starting weekly watchlist audit on all halal stocks...")
                 val halalFile = File(HALAL_FILE_PATH)
                 if (!halalFile.exists()) {
                     System.err.println("🤖 [WATCHLIST AUDIT] Halal stocks file does not exist at $HALAL_FILE_PATH")
@@ -62,7 +63,7 @@ object WatchlistAuditor {
 
                 val content = halalFile.readText(StandardCharsets.UTF_8)
                 val allStocksArray = JSONArray(content)
-                val matchedStocks = JSONArray()
+                val matchedStocksList = ArrayList<Pair<JSONObject, Double>>()
 
                 for (i in 0 until allStocksArray.length()) {
                     val stockObj = allStocksArray.getJSONObject(i)
@@ -133,10 +134,17 @@ object WatchlistAuditor {
                     val atrRatio = if (price > 0) atr14 / price else 0.0
                     if (auditPassed) {
                         println("✅ [WATCHLIST AUDIT] $symbol PASSED audit! Price=₹$price, Vol=${avgDailyVolume.toInt()}, Value=₹${avgDailyValueTraded.toInt()}, ATR/Price=${String.format("%.3f", atrRatio)}")
-                        matchedStocks.put(stockObj)
+                        matchedStocksList.add(Pair(stockObj, avgDailyValueTraded))
                     } else {
                         println("❌ [WATCHLIST AUDIT] $symbol FAILED audit.")
                     }
+                }
+
+                // Sort by average daily value traded descending, and take at most 15 stocks
+                val top15Stocks = matchedStocksList.sortedByDescending { it.second }.take(15)
+                val matchedStocks = JSONArray()
+                for (item in top15Stocks) {
+                    matchedStocks.put(item.first)
                 }
 
                 // Write shortlist
@@ -196,5 +204,18 @@ object WatchlistAuditor {
         val matchesRange = price > week52Low * 1.20 && price > week52High * 0.85
 
         return matchesLiquidity && matchesPrice && matchesTrend && matchesVolatility && matchesRange
+    }
+
+    fun getMostRecentSaturday(date: LocalDate): LocalDate {
+        val daysToSubtract = when (date.dayOfWeek) {
+            java.time.DayOfWeek.MONDAY -> 2L
+            java.time.DayOfWeek.TUESDAY -> 3L
+            java.time.DayOfWeek.WEDNESDAY -> 4L
+            java.time.DayOfWeek.THURSDAY -> 5L
+            java.time.DayOfWeek.FRIDAY -> 6L
+            java.time.DayOfWeek.SATURDAY -> 0L
+            java.time.DayOfWeek.SUNDAY -> 1L
+        }
+        return date.minusDays(daysToSubtract)
     }
 }

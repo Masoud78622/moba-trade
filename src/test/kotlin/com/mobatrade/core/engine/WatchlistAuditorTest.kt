@@ -141,4 +141,18 @@ class WatchlistAuditorTest {
 
         assertFalse(passed, "Stock extended too far below its 52W high should fail the audit")
     }
+
+    @Test
+    fun testGetMostRecentSaturday() {
+        val sat = java.time.LocalDate.of(2026, 6, 13) // Saturday
+        val sun = java.time.LocalDate.of(2026, 6, 14) // Sunday
+        val mon = java.time.LocalDate.of(2026, 6, 15) // Monday
+        val wed = java.time.LocalDate.of(2026, 6, 17) // Wednesday
+
+        assertEquals(sat, WatchlistAuditor.getMostRecentSaturday(sat))
+        assertEquals(sat, WatchlistAuditor.getMostRecentSaturday(sun))
+        assertEquals(sat, WatchlistAuditor.getMostRecentSaturday(mon))
+        assertEquals(sat, WatchlistAuditor.getMostRecentSaturday(wed))
+    }
 }
+

@@ -156,18 +156,18 @@ object MobaTradeServer {
 
         // Start background scanner thread to update signals cache without blocking HTTP endpoints
         Thread {
-            var lastDailyAuditDate = LocalDate.now(ZoneId.of("Asia/Kolkata")).minusDays(1)
+            var lastWeeklyAuditDate = LocalDate.now(ZoneId.of("Asia/Kolkata")).minusDays(7)
             while (true) {
                 try {
                     if (AngelOneClient.ensureAuthenticated()) {
-                        // Check if we need to run the daily morning audit (at or after 9:00 AM IST on a new day)
+                        // Check if we need to run the weekly audit (at or after 9:00 AM IST on Saturday)
                         val nowIst = java.time.ZonedDateTime.now(ZoneId.of("Asia/Kolkata"))
                         val today = nowIst.toLocalDate()
-                        if (today != lastDailyAuditDate && nowIst.hour >= 9) {
-                            println("BackgroundScanner: It is past 9:00 AM IST on a new day ($today). Triggering daily watchlist audit refresh...")
+                        if (nowIst.dayOfWeek == java.time.DayOfWeek.SATURDAY && nowIst.hour >= 9 && today != lastWeeklyAuditDate) {
+                            println("BackgroundScanner: Saturday morning check. Triggering weekly watchlist audit refresh...")
                             val auditStarted = WatchlistAuditor.runDailyAudit(force = true)
                             if (auditStarted) {
-                                lastDailyAuditDate = today
+                                lastWeeklyAuditDate = today
                             }
                         }
 
