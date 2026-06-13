@@ -314,8 +314,8 @@ object AutoBotEngine {
 
             if (!compliant) { println("  └─ SKIP: Not Shariah-compliant."); continue }
             
-            // Raise score threshold to >= 4 (Priority 2)
-            if (score < 4) { println("  └─ SKIP: Score $score < 4 threshold."); continue }
+            // Entry threshold: score >= 3 (at least 3 confluence factors must align)
+            if (score < 3) { println("  └─ SKIP: Score $score < 3 threshold."); continue }
             if (price <= 0.0) { println("  └─ SKIP: Invalid price $price."); continue }
 
             if (activeTickers.contains(symbol) || holdingTickers.contains(symbol)) {
@@ -348,8 +348,10 @@ object AutoBotEngine {
 
             println("  └─ CONFIRMATION: PriceConfirmed=$priceConfirmed (Close=${lastCandle.close} vs SwingHigh=$prevSwingHigh) | VolumeConfirmed=$volumeConfirmed (Vol=${lastCandle.volume} vs 1.5xAvg=${(1.5 * avgVolume20).toInt()}) | BodyConfirmed=$bodyConfirmed (${String.format("%.1f", (bodyRange/totalRange)*100)}% body)")
 
-            if (!priceConfirmed || !volumeConfirmed || !bodyConfirmed) {
-                println("  └─ SKIP: Entry breakout confirmation failed.")
+            // Require at least 2 of the 3 breakout conditions (any 2-of-3)
+            val confirmationsHit = listOf(priceConfirmed, volumeConfirmed, bodyConfirmed).count { it }
+            if (confirmationsHit < 2) {
+                println("  └─ SKIP: Entry breakout confirmation failed ($confirmationsHit/3 conditions met, need 2).")
                 continue
             }
 
@@ -464,9 +466,11 @@ object AutoBotEngine {
 
     private fun isEntryWindowOpen(): Boolean {
         val now = LocalTime.now(ZoneId.of("Asia/Kolkata"))
-        val morningStart = LocalTime.of(9, 45)
-        val morningEnd = LocalTime.of(11, 30)
-        val afternoonStart = LocalTime.of(14, 0)
+        // Morning window: 9:30 AM - 12:00 PM (avoids opening 15 min spike, captures full morning trend)
+        val morningStart = LocalTime.of(9, 30)
+        val morningEnd = LocalTime.of(12, 0)
+        // Afternoon window: 1:30 PM - 3:00 PM (post-lunch momentum, stops before square-off)
+        val afternoonStart = LocalTime.of(13, 30)
         val afternoonEnd = LocalTime.of(15, 0)
         
         val inMorning = now.isAfter(morningStart) && now.isBefore(morningEnd)
