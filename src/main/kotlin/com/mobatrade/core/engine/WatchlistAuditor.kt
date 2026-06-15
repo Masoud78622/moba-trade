@@ -140,10 +140,10 @@ object WatchlistAuditor {
                     }
                 }
 
-                // Sort by average daily value traded descending, and take at most 15 stocks
-                val top15Stocks = matchedStocksList.sortedByDescending { it.second }.take(15)
+                // Sort by average daily value traded descending, and take at most 17 stocks
+                val top17Stocks = matchedStocksList.sortedByDescending { it.second }.take(17)
                 val matchedStocks = JSONArray()
-                for (item in top15Stocks) {
+                for (item in top17Stocks) {
                     matchedStocks.put(item.first)
                 }
 
