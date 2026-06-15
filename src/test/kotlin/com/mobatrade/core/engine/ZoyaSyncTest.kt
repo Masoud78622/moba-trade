@@ -95,6 +95,12 @@ class ZoyaSyncTest {
         val shortResult = AngelOneClient.placeOrder(shortOrder, "11536")
         
         assertNull(shortResult, "Short-selling order must be blocked by Shariah rules")
+
+        // 4. Non-Compliant SELL Order (Liquidation) - Should NOT be blocked by Shariah guard (proceeds to auth check)
+        val sellNonCompliantOrder = Order("RELIANCE", 10, 2400.0, Direction.SELL, "MARKET")
+        val sellNonCompliantResult = AngelOneClient.placeOrder(sellNonCompliantOrder, "99999")
+        
+        assertNull(sellNonCompliantResult, "Order should fail because the session is not authenticated, not due to Shariah blocking")
     }
 
     @Test

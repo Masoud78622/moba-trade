@@ -200,8 +200,8 @@ object AngelOneClient {
             return null
         }
 
-        // Shariah Guard: Double-check that this token is compliant
-        if (!ShariahFilter.isCompliantToken(verifiedToken) && !ShariahFilter.isCompliantSymbol(order.symbol)) {
+        // Shariah Guard: Double-check that this token is compliant (ONLY for BUY orders)
+        if (order.direction == Direction.BUY && !ShariahFilter.isCompliantToken(verifiedToken) && !ShariahFilter.isCompliantSymbol(order.symbol)) {
             System.err.println("BLOCK: Order for ${order.symbol} (${verifiedToken}) blocked. Asset is NOT Shariah-compliant!")
             return null
         }
