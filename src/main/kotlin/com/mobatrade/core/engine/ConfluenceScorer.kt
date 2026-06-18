@@ -29,18 +29,15 @@ class ConfluenceScorer(
     val symbol: String,
     val sectorName: String
 ) {
-    private val strategies = ArrayList<Strategy>()
     private val regimeDetector = RegimeDetector()
     private val adxFilter = AdxFilter(symbol)
     private val sectorRotation = SectorRotation(symbol, sectorName)
-
-    init {
-        // Initialize only the 4 core scored strategy components
-        strategies.add(DarvasBox(symbol))
-        strategies.add(SupportResistanceFlip(symbol))
-        strategies.add(BreakOfStructure(symbol))
-        strategies.add(VwapDevBands(symbol))
-    }
+    
+    // Independent Factor Analyzers
+    private val darvasBox = DarvasBox(symbol)
+    private val breakOfStructure = BreakOfStructure(symbol)
+    private val vwapDevBands = VwapDevBands(symbol)
+    private val patternRecognition = PatternRecognition(symbol)
 
     data class ScoredTrade(
         val symbol: String,
@@ -126,19 +123,33 @@ class ConfluenceScorer(
 
         // --- SCORED SIGNALS ---
 
-        // 1. Evaluate Core Strategies (1 point each)
-        for (strategy in strategies) {
-            val signal = strategy.evaluate(candles, currentTick)
-            if (signal != null && signal.direction == Direction.BUY) {
-                totalScore += 1.0
-                triggers.add("${strategy.name} (+1.0)")
-                if (strategy is BreakOfStructure || strategy is DarvasBox) {
-                    structuralTriggerFound = true
-                }
-            }
+        // 1. Structure Factor: Darvas Box OR Break of Structure
+        val darvasSignal = darvasBox.evaluate(candles, currentTick)
+        val bosSignal = breakOfStructure.evaluate(candles, currentTick)
+        
+        if ((darvasSignal != null && darvasSignal.direction == Direction.BUY) || 
+            (bosSignal != null && bosSignal.direction == Direction.BUY)) {
+            totalScore += 1.0
+            val triggerName = if (darvasSignal != null && darvasSignal.direction == Direction.BUY) "Darvas" else "BOS"
+            triggers.add("Structural Breakout [$triggerName] (+1.0)")
+            structuralTriggerFound = true
         }
 
-        // 2. Volume Breakout Signal (1 point)
+        // 2. Pattern Factor: Bullish Flag OR Double Bottom
+        val patternSignal = patternRecognition.evaluate(candles, currentTick)
+        if (patternSignal != null && patternSignal.direction == Direction.BUY) {
+            totalScore += 1.0
+            triggers.add("${patternSignal.strategyName} (+1.0)")
+        }
+
+        // 3. Momentum Factor: VWAP Deviation Bands
+        val vwapSignal = vwapDevBands.evaluate(candles, currentTick)
+        if (vwapSignal != null && vwapSignal.direction == Direction.BUY) {
+            totalScore += 1.0
+            triggers.add("${vwapDevBands.name} (+1.0)")
+        }
+
+        // 4. Volume Breakout Signal (1 point)
         val lastCandle = candles.last()
         val avgVolume20 = if (candles.size >= 2) candles.dropLast(1).takeLast(20).map { it.volume.toDouble() }.average() else 0.0
         val isVolumeBreakout = avgVolume20 > 0 && lastCandle.volume > 1.5 * avgVolume20
@@ -147,7 +158,7 @@ class ConfluenceScorer(
             triggers.add("Volume Breakout (+1.0)")
         }
 
-        // 3. Sector Rotation Bonus (+0.5 point)
+        // 5. Sector Rotation Bonus (+0.5 point)
         val sectorSignal = sectorRotation.evaluate(candles, currentTick)
         if (sectorSignal != null && sectorSignal.direction == Direction.BUY) {
             totalScore += 0.5
