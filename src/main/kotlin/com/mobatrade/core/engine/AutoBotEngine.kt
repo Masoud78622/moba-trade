@@ -463,9 +463,9 @@ object AutoBotEngine {
             val lastEma20 = ema20.last()
             val lastEma50 = ema50.last()
             val lastCandle = candles.last()
-            val isBullish = lastEma20 > lastEma50 && lastCandle.close > lastCandle.open
+            val isBullish = lastEma20 > lastEma50
             
-            println("🤖 [SCAN CYCLE] Nifty 50 EMA20 = ${String.format("%.2f", lastEma20)} | EMA50 = ${String.format("%.2f", lastEma50)} | Close > Open = ${lastCandle.close > lastCandle.open} | Bullish = $isBullish")
+            println("🤖 [SCAN CYCLE] Nifty 50 EMA20 = ${String.format("%.2f", lastEma20)} | EMA50 = ${String.format("%.2f", lastEma50)} | Bullish = $isBullish")
             return isBullish
         } catch (e: Exception) {
             System.err.println("Error checking Nifty regime: ${e.message}")
