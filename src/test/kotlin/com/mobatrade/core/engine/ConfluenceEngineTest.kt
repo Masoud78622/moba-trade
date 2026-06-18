@@ -205,10 +205,13 @@ class ConfluenceEngineTest {
             totpSecret = "K336YHYAV6NN5H2DYMPBBZ55NM"
         )
         assertTrue(loginSuccess, "Login must succeed to run real candles test")
-        val candles = AngelOneClient.fetchHistoricalCandles(
-            symbolToken = "11536",
-            symbol = "TCS"
-        )
+        val fetchResult = kotlinx.coroutines.runBlocking {
+            AngelOneClient.fetchHistoricalCandles(
+                symbolToken = "11536",
+                symbol = "TCS"
+            )
+        }
+        val candles = if (fetchResult is com.mobatrade.core.model.FetchResult.Success) fetchResult.data else emptyList()
         assertFalse(candles.isEmpty(), "Candles must not be empty")
         
         val scorer = ConfluenceScorer("TCS", "IT")

@@ -79,28 +79,28 @@ class ZoyaSyncTest {
 
         // 1. Compliant Order - Should Proceed to API Authentication block (fails login since we use default mock credentials in unit environment)
         val halalOrder = Order("TCS", 5, 3100.0, Direction.BUY, "MARKET")
-        val halalResult = AngelOneClient.placeOrder(halalOrder, "11536")
+        val halalResult = kotlinx.coroutines.runBlocking { AngelOneClient.placeOrder(halalOrder, "11536") }
         
-        // Since we're not logged in, it should return null but the log must show it passed the Shariah compliance check.
-        assertNull(halalResult, "Order should fail because the session is not authenticated, not due to Shariah blocking")
+        // Since we're not logged in, it should return Failure but the log must show it passed the Shariah compliance check.
+        assertTrue(halalResult is com.mobatrade.core.model.OrderResult.Failure, "Order should fail because the session is not authenticated, not due to Shariah blocking")
 
         // 2. Non-Compliant Order - Should be BLOCKED immediately at Shariah guard
         val haramOrder = Order("RELIANCE", 10, 2400.0, Direction.BUY, "MARKET")
-        val haramResult = AngelOneClient.placeOrder(haramOrder, "99999")
+        val haramResult = kotlinx.coroutines.runBlocking { AngelOneClient.placeOrder(haramOrder, "99999") }
         
-        assertNull(haramResult, "Non-compliant order must be blocked and return null immediately")
+        assertTrue(haramResult is com.mobatrade.core.model.OrderResult.Failure, "Non-compliant order must be blocked and return Failure immediately")
         
         // 3. Short Selling Order - Should be BLOCKED immediately
         val shortOrder = Order("TCS", -5, 3100.0, Direction.SELL, "MARKET")
-        val shortResult = AngelOneClient.placeOrder(shortOrder, "11536")
+        val shortResult = kotlinx.coroutines.runBlocking { AngelOneClient.placeOrder(shortOrder, "11536") }
         
-        assertNull(shortResult, "Short-selling order must be blocked by Shariah rules")
+        assertTrue(shortResult is com.mobatrade.core.model.OrderResult.Failure, "Short-selling order must be blocked by Shariah rules")
 
         // 4. Non-Compliant SELL Order (Liquidation) - Should NOT be blocked by Shariah guard (proceeds to auth check)
         val sellNonCompliantOrder = Order("RELIANCE", 10, 2400.0, Direction.SELL, "MARKET")
-        val sellNonCompliantResult = AngelOneClient.placeOrder(sellNonCompliantOrder, "99999")
+        val sellNonCompliantResult = kotlinx.coroutines.runBlocking { AngelOneClient.placeOrder(sellNonCompliantOrder, "99999") }
         
-        assertNull(sellNonCompliantResult, "Order should fail because the session is not authenticated, not due to Shariah blocking")
+        assertTrue(sellNonCompliantResult is com.mobatrade.core.model.OrderResult.Failure, "Order should fail because the session is not authenticated, not due to Shariah blocking")
     }
 
     @Test
@@ -128,10 +128,13 @@ class ZoyaSyncTest {
         
         AngelOneClient.autoRefreshEnabled = false
         try {
-            val candles = AngelOneClient.fetchHistoricalCandles(
-                symbolToken = "11536",
-                symbol = "TCS"
-            )
+            val fetchResult = kotlinx.coroutines.runBlocking {
+                AngelOneClient.fetchHistoricalCandles(
+                    symbolToken = "11536",
+                    symbol = "TCS"
+                )
+            }
+            val candles = if (fetchResult is com.mobatrade.core.model.FetchResult.Success) fetchResult.data else emptyList()
             assertNotNull(candles)
             assertTrue(candles.isEmpty(), "Should return an empty list when unauthenticated")
         } finally {
@@ -172,7 +175,8 @@ class ZoyaSyncTest {
             println("=== SCORING LIVE STOCKS FOR STRONG SIGNALS ===")
             for ((symbol, sector, _) in activeStocks) {
                 val token = symbolToToken[symbol] ?: continue
-                val candles = AngelOneClient.fetchHistoricalCandles(token, symbol, "FIFTEEN_MINUTE", 5)
+                val fetchResult = kotlinx.coroutines.runBlocking { AngelOneClient.fetchHistoricalCandles(token, symbol, "FIFTEEN_MINUTE", 5) }
+                val candles = if (fetchResult is com.mobatrade.core.model.FetchResult.Success) fetchResult.data else emptyList()
                 if (candles.isEmpty()) {
                     println("$symbol: Failed to fetch candles")
                     continue
