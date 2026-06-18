@@ -247,6 +247,7 @@ object AngelOneClient {
         }
 
         repeat(maxRetries) { attempt ->
+            var rateLimited = false
             try {
                 val requestBodyJson = JSONObject()
                 requestBodyJson.put("variety", "NORMAL")
@@ -295,6 +296,8 @@ object AngelOneClient {
                             if (errBody.contains("Invalid Token", ignoreCase = true) || errBody.contains("expired", ignoreCase = true)) {
                                 System.err.println("[SESSION] Order API returned auth error. Forcing re-login...")
                                 login()
+                            } else if (errBody.contains("exceeding access rate", ignoreCase = true)) {
+                                rateLimited = true
                             }
                         }
                         return@use
@@ -356,6 +359,13 @@ object AngelOneClient {
                 System.err.println("IO Error placing order for ${order.symbol}")
             } catch (e: Exception) {
                 e.printStackTrace()
+            }
+            
+            if (rateLimited) {
+                System.err.println("Rate limit hit on order placement. Cooling down for 2s...")
+                kotlinx.coroutines.delay(2000L)
+            } else if (attempt < maxRetries - 1) {
+                kotlinx.coroutines.delay(500L) // Normal retry backoff
             }
         }
         return com.mobatrade.core.model.OrderResult.Failure("Max retries exceeded")
