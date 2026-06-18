@@ -140,4 +140,56 @@ class ZoyaSyncTest {
             AngelOneClient.login(clientId = originalClientId)
         }
     }
+
+    @Test
+    fun testPrintCurrentStrongSignals() {
+        val originalClientId = AngelOneClient.activeClientId
+        val success = AngelOneClient.login()
+        if (!success) {
+            println("FAILED TO LOGIN TO ANGEL ONE")
+            return
+        }
+        try {
+            var cacheFile = File("c:\\moba trade\\watchlist_intraday.json")
+            if (!cacheFile.exists() || cacheFile.length() <= 2) {
+                cacheFile = File("c:\\moba trade\\halal_stocks.json")
+            }
+            val content = cacheFile.readText(java.nio.charset.StandardCharsets.UTF_8)
+            val array = org.json.JSONArray(content)
+            val activeStocks = ArrayList<Triple<String, String, Double>>()
+            val symbolToToken = mutableMapOf<String, String>()
+            for (i in 0 until array.length()) {
+                val obj = array.getJSONObject(i)
+                val symbol = obj.optString("symbol").uppercase()
+                val sector = obj.optString("sector", "IT").uppercase()
+                val token = obj.optString("token", "")
+                if (symbol.isNotEmpty() && token.isNotEmpty()) {
+                    activeStocks.add(Triple(symbol, sector, 100.0))
+                    symbolToToken[symbol] = token
+                }
+            }
+
+            println("=== SCORING LIVE STOCKS FOR STRONG SIGNALS ===")
+            for ((symbol, sector, _) in activeStocks) {
+                val token = symbolToToken[symbol] ?: continue
+                val candles = AngelOneClient.fetchHistoricalCandles(token, symbol, "FIFTEEN_MINUTE", 5)
+                if (candles.isEmpty()) {
+                    println("$symbol: Failed to fetch candles")
+                    continue
+                }
+                val scorer = ConfluenceScorer(symbol, sector)
+                val scored = scorer.scoreTrade(candles)
+                if (scored.totalScore >= 3) {
+                    println("🔥 STRONG SIGNAL: $symbol | Score = ${scored.totalScore} | Direction = ${scored.recommendedDirection} | Regime = ${scored.marketRegime} | SwingEligible = ${scored.isSwingEligible}")
+                } else {
+                    println("ℹ️ $symbol: Score = ${scored.totalScore} (Below threshold)")
+                }
+                // Sleep to avoid rate limiting
+                try { Thread.sleep(500) } catch (e: InterruptedException) {}
+            }
+        } finally {
+            // Restore correct client ID
+            AngelOneClient.login(clientId = originalClientId)
+        }
+    }
 }

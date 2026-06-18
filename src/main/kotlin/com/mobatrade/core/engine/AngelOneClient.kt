@@ -27,6 +27,11 @@ object AngelOneClient {
     const val DEFAULT_CLIENT_ID = "AAAC764774"
 
     private val httpClient = HttpClientFactory.createClient(20, 30, 20)
+    private val historicalHttpClient = httpClient.newBuilder()
+        .connectTimeout(30, TimeUnit.SECONDS)
+        .readTimeout(60, TimeUnit.SECONDS)
+        .writeTimeout(60, TimeUnit.SECONDS)
+        .build()
 
     // Timestamp of last successful login — used to auto-refresh expired JWT
     @Volatile
@@ -273,8 +278,29 @@ object AngelOneClient {
                     return orderId
                 } else {
                     val errMsg = responseJson.optString("message")
-                    System.err.println("Angel One Order API Error: $errMsg")
+                    val errCode = responseJson.optString("errorcode")
+                    System.err.println("Angel One Order API Error: $errMsg (Code: $errCode)")
                     
+                    // GSM/ASM or Cautionary fallback: retry as LIMIT at LTP
+                    val isCautionaryOrGsm = errCode == "AB4036" || 
+                        errMsg.contains("cautionary", ignoreCase = true) ||
+                        errMsg.contains("GSM", ignoreCase = true) ||
+                        errMsg.contains("ASM", ignoreCase = true) ||
+                        errMsg.contains("circuit", ignoreCase = true)
+
+                    if (isCautionaryOrGsm && !isRetry) {
+                        System.err.println("⚠️ GSM/ASM/Cautionary listing detected for ${order.symbol}. Retrying as LIMIT order at LTP.")
+                        val ltp = fetchRealLtp(order.symbol, verifiedToken)
+                        if (ltp > 0.0) {
+                            val roundedLtp = Math.round(ltp * 20.0) / 20.0
+                            println("🤖 Fetched LTP for fallback limit order: ₹$roundedLtp")
+                            val limitOrder = order.copy(orderType = "LIMIT", price = roundedLtp)
+                            return placeOrder(limitOrder, verifiedToken, apiKey, true)
+                        } else {
+                            System.err.println("❌ Failed to fetch LTP for cautionary/GSM stock fallback.")
+                        }
+                    }
+
                     // Self-Healing Logic for AB1019 Mismatch
                     if (errMsg.contains("AB1019") && !isRetry) {
                         System.err.println("AB1019 Detected for ${order.symbol}. Refreshing Scrip Master and retrying...")
@@ -379,7 +405,7 @@ object AngelOneClient {
                         .addHeader("X-MACAddress", "00-50-56-C0-00-08")
                         .build()
 
-                    httpClient.newCall(retryRequest).execute().use { response ->
+                    historicalHttpClient.newCall(retryRequest).execute().use { response ->
                         if (response.isSuccessful) {
                             val bodyStr = response.body?.string() ?: ""
                             if (bodyStr.isEmpty()) return emptyList()
