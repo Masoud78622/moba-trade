@@ -557,12 +557,12 @@ object MobaTradeServer {
 
             if (AngelOneClient.isLoggedIn && token != null) {
                 try {
-                    println("BackgroundScanner: Fetching real-world 15-min candles for $symbol ($token)...")
+                    println("BackgroundScanner: Fetching real-world 5-min candles for $symbol ($token)...")
                     val fetchResult = kotlinx.coroutines.runBlocking {
                         AngelOneClient.fetchHistoricalCandles(
                             symbolToken = token,
                             symbol = symbol,
-                            interval = "FIFTEEN_MINUTE",
+                            interval = "FIVE_MINUTE",
                             limitDays = TradingConstants.CANDLE_HISTORY_DAYS_INTRADAY_SCORING
                         )
                     }

@@ -417,28 +417,29 @@ object AutoBotEngine {
                 AngelOneClient.fetchHistoricalCandles(
                     symbolToken = "99926000",
                     symbol = "Nifty 50",
-                    interval = "FIFTEEN_MINUTE",
-                    limitDays = TradingConstants.CANDLE_HISTORY_DAYS_INTRADAY_SCORING
+                    interval = "FIVE_MINUTE",
+                    limitDays = 2
                 )
             }
             val candles = if (fetchResult is com.mobatrade.core.model.FetchResult.Success) fetchResult.data else emptyList()
             if (candles.isEmpty()) {
-                println("⚠️ [SCAN CYCLE] Could not fetch Nifty 50 index data. Defaulting to block entries (fail closed).")
+                println("⚠️ [SCAN CYCLE] Could not fetch Nifty 50 data. Defaulting to block entries (fail closed).")
                 return false
             }
-            val closePrices = candles.map { it.close }
-            val ema20 = com.mobatrade.core.strategies.tier4.TechIndicators.calculateEma(closePrices, 20)
-            val ema50 = com.mobatrade.core.strategies.tier4.TechIndicators.calculateEma(closePrices, 50)
-            
-            if (ema20.isEmpty() || ema50.isEmpty()) return false
-            
-            val lastEma20 = ema20.last()
-            val lastEma50 = ema50.last()
-            val lastCandle = candles.last()
-            val isBullish = lastEma20 > lastEma50
-            
-            println("🤖 [SCAN CYCLE] Nifty 50 EMA20 = ${String.format("%.2f", lastEma20)} | EMA50 = ${String.format("%.2f", lastEma50)} | Bullish = $isBullish")
-            return isBullish
+
+            // Real-time VWAP check: is Nifty trading above its intraday VWAP?
+            // VWAP = sum(price * volume) / sum(volume) — only use today's candles
+            val todayCandles = candles.takeLast(78) // max 78 x 5m candles in a trading day
+            val totalVolume = todayCandles.sumOf { it.volume.toDouble() }
+            val vwap = if (totalVolume > 0) {
+                todayCandles.sumOf { ((it.high + it.low + it.close) / 3.0) * it.volume } / totalVolume
+            } else 0.0
+
+            val lastClose = candles.last().close
+            val isAboveVwap = vwap > 0 && lastClose > vwap
+
+            println("🤖 [SCAN CYCLE] Nifty 50 LTP = ₹${String.format("%.2f", lastClose)} | VWAP = ₹${String.format("%.2f", vwap)} | Above VWAP = $isAboveVwap")
+            return isAboveVwap
         } catch (e: Exception) {
             System.err.println("Error checking Nifty regime: ${e.message}")
         }

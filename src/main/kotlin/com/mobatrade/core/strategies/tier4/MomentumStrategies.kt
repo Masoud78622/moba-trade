@@ -206,9 +206,11 @@ class AdxFilter(
         val latestCandle = candles.last()
         val currentPrice = currentTick?.price ?: latestCandle.close
         
-        // Bullish crossover (+DI crossing -DI from below) + Strong Trend (ADX > 25)
+        // Bullish crossover (+DI crossing -DI from below) + Trend Presence (ADX > 18)
+        // Note: 18 is used instead of 25 because on 5m candles ADX is naturally lower
+        // and a genuine intraday move can be underway at ADX 18-24 before it strengthens.
         val crossover = prevPlusDI <= prevMinusDI && currPlusDI > currMinusDI
-        val strongTrend = currAdx > 25.0
+        val strongTrend = currAdx > 18.0
         
         if (crossover && strongTrend) {
             return Signal(
