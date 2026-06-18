@@ -29,7 +29,11 @@ object AutoBotEngine {
             while (true) {
                 try {
                     if (isEnabled && AngelOneClient.ensureAuthenticated()) {
-                        runScanCycle()
+                        if (TokenIntegrityGuard.isReady()) {
+                            runScanCycle()
+                        } else {
+                            println("🤖 [AUTO-BOT] Waiting for Scrip Master to finish loading...")
+                        }
                     }
                     Thread.sleep(30_000)
                 } catch (e: InterruptedException) {

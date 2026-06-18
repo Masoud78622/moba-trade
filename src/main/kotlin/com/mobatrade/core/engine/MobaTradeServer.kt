@@ -160,6 +160,12 @@ object MobaTradeServer {
             while (true) {
                 try {
                     if (AngelOneClient.ensureAuthenticated()) {
+                        if (!TokenIntegrityGuard.isReady()) {
+                            logLine("BackgroundScanner: Waiting for Scrip Master to finish loading...")
+                            Thread.sleep(10000)
+                            continue
+                        }
+
                         // Check if we need to run the weekly audit (at or after 9:00 AM IST on Saturday)
                         val nowIst = java.time.ZonedDateTime.now(ZoneId.of("Asia/Kolkata"))
                         val today = nowIst.toLocalDate()
