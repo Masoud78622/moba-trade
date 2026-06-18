@@ -209,10 +209,7 @@ object AutoBotEngine {
                     activePos.highestClose = current
                 }
 
-                val R = activePos.entryPrice - activePos.stopLoss // initial risk per share
-                
-                // If stop distance R is tiny/invalid, fallback to default 2%
-                val effectiveR = if (R > 0) R else (activePos.entryPrice * 0.02)
+                val effectiveR = if (activePos.initialRiskPerShare > 0) activePos.initialRiskPerShare else (activePos.entryPrice * 0.02)
                 
                 val target1_5 = activePos.entryPrice + (1.5 * effectiveR)
                 val target2_5 = activePos.entryPrice + (2.5 * effectiveR)
@@ -288,23 +285,22 @@ object AutoBotEngine {
             return
         }
 
-        // Check Nifty 50 Trend Regime Gate (Priority 1)
-        val isNiftyBullish = checkNiftyRegime()
-        if (!isNiftyBullish) {
-            println("🤖 [SCAN CYCLE] Skipping new entries: Nifty 50 is Ranging/Bearish.")
-            return
-        }
-
-        // Check Intraday Session Gates (9:45-11:30 and 14:00-15:00) (Layer 6)
+        // Check Intraday Session Gates (9:45-11:30 and 14:00-15:00)
         if (!isEntryWindowOpen()) {
             println("🤖 [SCAN CYCLE] Skipping new entries: Outside primary entry windows.")
             return
         }
 
-        val liveSignalsArray = JSONArray(MobaTradeServer.getCachedSignalsJson())
-        println("🤖 [SCAN CYCLE] Evaluating ${liveSignalsArray.length()} live signals from cache...")
-        for (i in 0 until liveSignalsArray.length()) {
-            val sig = liveSignalsArray.getJSONObject(i)
+        val rawSignalsArray = JSONArray(MobaTradeServer.getCachedSignalsJson())
+        val liveSignalsList = mutableListOf<JSONObject>()
+        for (i in 0 until rawSignalsArray.length()) {
+            liveSignalsList.add(rawSignalsArray.getJSONObject(i))
+        }
+        // Score-Based Prioritization: sort signals by conviction before evaluating
+        liveSignalsList.sortByDescending { it.optInt("score", 0) }
+
+        println("🤖 [SCAN CYCLE] Evaluating ${liveSignalsList.size} live signals from cache (sorted by score)...")
+        for (sig in liveSignalsList) {
             val symbol = sig.optString("symbol", "").uppercase()
             val token = sig.optString("token", "")
             val score = sig.optInt("score", 0)
@@ -327,44 +323,8 @@ object AutoBotEngine {
                 continue
             }
 
-            // Fetch 15-minute candles to run breakout and ATR confirmation (Priority 2)
-            println("  └─ SCAN: Fetching 15m candles for $symbol to verify breakout confirmation...")
-            val fetchResult = kotlinx.coroutines.runBlocking { AngelOneClient.fetchHistoricalCandles(token, symbol, "FIFTEEN_MINUTE", TradingConstants.CANDLE_HISTORY_DAYS_BREAKOUT_CONFIRM) }
-            if (fetchResult !is com.mobatrade.core.model.FetchResult.Success) {
-                println("  └─ SKIP: Failed to fetch candles for confirmation. Reason: ${(fetchResult as com.mobatrade.core.model.FetchResult.Failure).reason}")
-                continue
-            }
-            val candles = fetchResult.data
-            if (candles.isEmpty()) {
-                println("  └─ SKIP: Fetched candles list is empty.")
-                continue
-            }
-
-            val lastCandle = candles.last()
-            val prevSwingHigh = findPreviousSwingHigh(candles)
+            val atr14 = sig.optDouble("atr14", 0.0)
             
-            // A. Price breakout confirmation: Close must exceed previous swing high
-            val priceConfirmed = lastCandle.close > prevSwingHigh
-            
-            // B. Volume confirmation: volume > 1.5x average
-            val avgVolume20 = if (candles.size >= 2) candles.dropLast(1).takeLast(20).map { it.volume.toDouble() }.average() else 0.0
-            val volumeConfirmed = avgVolume20 > 0.0 && lastCandle.volume > 1.5 * avgVolume20
-            
-            // C. Strong candle body confirmation (>60% range)
-            val bodyRange = Math.abs(lastCandle.close - lastCandle.open)
-            val totalRange = lastCandle.high - lastCandle.low
-            val bodyConfirmed = totalRange > 0.0 && (bodyRange / totalRange) >= 0.60
-
-            println("  └─ CONFIRMATION: PriceConfirmed=$priceConfirmed (Close=${lastCandle.close} vs SwingHigh=$prevSwingHigh) | VolumeConfirmed=$volumeConfirmed (Vol=${lastCandle.volume} vs 1.5xAvg=${(1.5 * avgVolume20).toInt()}) | BodyConfirmed=$bodyConfirmed (${String.format("%.1f", (bodyRange/totalRange)*100)}% body)")
-
-            // Require at least 2 of the 3 breakout conditions (any 2-of-3)
-            val confirmationsHit = listOf(priceConfirmed, volumeConfirmed, bodyConfirmed).count { it }
-            if (confirmationsHit < 2) {
-                println("  └─ SKIP: Entry breakout confirmation failed ($confirmationsHit/3 conditions met, need 2).")
-                continue
-            }
-
-            val atr14 = calculateATR14(candles)
             val order = riskManager.evaluateAndSizeTrade(
                 symbol = symbol,
                 score = score,
@@ -389,7 +349,8 @@ object AutoBotEngine {
                             target = order.target ?: (price + (atr14 * 1.5 * 2.0)),
                             entryTime = java.time.Instant.now(),
                             isSwing = isSwingEligible,
-                            atr14 = atr14
+                            atr14 = atr14,
+                            initialRiskPerShare = price - (order.stopLoss ?: (price - (atr14 * 1.5)))
                         )
                     )
                     break // Place only one order per cycle

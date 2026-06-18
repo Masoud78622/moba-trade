@@ -61,7 +61,8 @@ data class Position(
     var firstPartialDone: Boolean = false,
     var secondPartialDone: Boolean = false,
     var atr14: Double = 0.0,
-    var highestClose: Double = 0.0
+    var highestClose: Double = 0.0,
+    var initialRiskPerShare: Double = 0.0
 ) {
     init {
         if (highestClose == 0.0) {

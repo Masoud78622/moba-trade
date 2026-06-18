@@ -46,7 +46,8 @@ class ConfluenceScorer(
         val marketRegime: MarketRegime,
         val triggers: List<String>,
         val isShariahCompliant: Boolean,
-        val isSwingEligible: Boolean
+        val isSwingEligible: Boolean,
+        val atr14: Double
     )
 
     /**
@@ -65,7 +66,8 @@ class ConfluenceScorer(
                 marketRegime = MarketRegime.RANGING,
                 triggers = listOf("NON_SHARIAH_COMPLIANT"),
                 isShariahCompliant = false,
-                isSwingEligible = false
+                isSwingEligible = false,
+                atr14 = 0.0
             )
         }
 
@@ -81,9 +83,25 @@ class ConfluenceScorer(
                 marketRegime = regime,
                 triggers = listOf("REGIME_BEARISH_NO_LONG_ENTRY"),
                 isShariahCompliant = true,
-                isSwingEligible = false
+                isSwingEligible = false,
+                atr14 = 0.0
             )
         }
+
+        // Calculate ATR for the scored trade
+        val atr14 = if (candles.size >= 14) {
+            val last15 = candles.takeLast(15)
+            var trSum = 0.0
+            for (i in 1 until last15.size) {
+                val current = last15[i]
+                val prev = last15[i - 1]
+                val hl = current.high - current.low
+                val hc = Math.abs(current.high - prev.close)
+                val lc = Math.abs(current.low - prev.close)
+                trSum += maxOf(hl, hc, lc)
+            }
+            trSum / 14.0
+        } else 0.0
 
         // --- MANDATORY GATES ---
         
@@ -99,21 +117,8 @@ class ConfluenceScorer(
                 marketRegime = regime,
                 triggers = listOf("FAILED_MANDATORY_TREND_GATE_EMA50"),
                 isShariahCompliant = true,
-                isSwingEligible = false
-            )
-        }
-
-        // Gate B: Trend Strength Gate (ADX > 25)
-        val adxSignal = adxFilter.evaluate(candles, currentTick)
-        if (adxSignal == null || adxSignal.direction != Direction.BUY) {
-            return ScoredTrade(
-                symbol = symbol,
-                totalScore = 0,
-                recommendedDirection = Direction.HOLD,
-                marketRegime = regime,
-                triggers = listOf("FAILED_MANDATORY_TREND_STRENGTH_GATE_ADX"),
-                isShariahCompliant = true,
-                isSwingEligible = false
+                isSwingEligible = false,
+                atr14 = atr14
             )
         }
 
@@ -123,7 +128,14 @@ class ConfluenceScorer(
 
         // --- SCORED SIGNALS ---
 
-        // 1. Structure Factor: Darvas Box OR Break of Structure
+        // 1. Trend Strength Factor: ADX > 25
+        val adxSignal = adxFilter.evaluate(candles, currentTick)
+        if (adxSignal != null && adxSignal.direction == Direction.BUY) {
+            totalScore += 1.0
+            triggers.add("Trend Strength [ADX>25] (+1.0)")
+        }
+
+        // 2. Structure Factor: Darvas Box OR Break of Structure
         val darvasSignal = darvasBox.evaluate(candles, currentTick)
         val bosSignal = breakOfStructure.evaluate(candles, currentTick)
         
@@ -180,7 +192,8 @@ class ConfluenceScorer(
             marketRegime = regime,
             triggers = triggers,
             isShariahCompliant = true,
-            isSwingEligible = swingEligible
+            isSwingEligible = swingEligible,
+            atr14 = atr14
         )
     }
 }

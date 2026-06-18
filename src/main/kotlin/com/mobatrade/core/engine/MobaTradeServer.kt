@@ -585,6 +585,7 @@ object MobaTradeServer {
                 item.put("regime", "RANGING")
                 item.put("compliant", com.mobatrade.core.halal.ShariahFilter.isCompliantSymbol(symbol))
                 item.put("isSwingEligible", false)
+                item.put("atr14", 0.0)
                 item.put("triggers", JSONArray(listOf("FAILED_TO_FETCH_MARKET_DATA")))
                 item.put("price", String.format("₹%,.2f", startPrice))
                 signalsArray.put(item)
@@ -602,6 +603,7 @@ object MobaTradeServer {
             item.put("regime", scored.marketRegime.name)
             item.put("compliant", scored.isShariahCompliant)
             item.put("isSwingEligible", scored.isSwingEligible)
+            item.put("atr14", scored.atr14)
             
             val triggersArray = JSONArray()
             for (trigger in scored.triggers) {

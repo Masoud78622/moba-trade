@@ -106,12 +106,7 @@ class RiskManager(
         // Quantity limited by: (a) max allocation, (b) 1% capital risk size
         val capQty = (maxAlloc / entryPrice).toInt()
         val riskQty = (riskRupees / stopDistance).toInt()
-        var targetQuantity = minOf(capQty, riskQty)
-
-        // Ensure at least 1 share if we can afford it
-        if (targetQuantity <= 0 && entryPrice <= availableCash) {
-            targetQuantity = 1
-        }
+        val targetQuantity = minOf(capQty, riskQty)
 
         if (targetQuantity <= 0) {
             System.err.println("[RISK FILTER] Calculated trade quantity is zero for $symbol @ ₹$entryPrice. Cash=₹$availableCash. Skipping.")
@@ -189,7 +184,8 @@ class RiskManager(
                     stopLoss = entryPrice * 0.98,
                     target = entryPrice * (1.0 + (0.02 * rewardToRiskRatio)),
                     entryTime = java.time.Instant.now(),
-                    isSwing = false // Default to false for untracked positions
+                    isSwing = false, // Default to false for untracked positions
+                    initialRiskPerShare = entryPrice * 0.02
                 )
             } else {
                 // Update quantity or entry price if they changed (e.g. partial exit or averaging)
