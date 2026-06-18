@@ -291,6 +291,13 @@ object AutoBotEngine {
             return
         }
 
+        // Nifty 50 Regime Gate: only go long when the broad market is not in a confirmed downtrend
+        val isNiftyBullish = checkNiftyRegime()
+        if (!isNiftyBullish) {
+            println("🤖 [SCAN CYCLE] Skipping new entries: Nifty 50 is Ranging/Bearish.")
+            return
+        }
+
         val rawSignalsArray = JSONArray(MobaTradeServer.getCachedSignalsJson())
         val liveSignalsList = mutableListOf<JSONObject>()
         for (i in 0 until rawSignalsArray.length()) {

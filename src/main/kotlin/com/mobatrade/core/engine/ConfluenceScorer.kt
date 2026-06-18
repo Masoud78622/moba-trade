@@ -122,20 +122,28 @@ class ConfluenceScorer(
             )
         }
 
+        // Gate B: Trend Strength Gate (ADX > 25) — hard rejection, not a bonus
+        val adxSignal = adxFilter.evaluate(candles, currentTick)
+        if (adxSignal == null || adxSignal.direction != Direction.BUY) {
+            return ScoredTrade(
+                symbol = symbol,
+                totalScore = 0,
+                recommendedDirection = Direction.HOLD,
+                marketRegime = regime,
+                triggers = listOf("FAILED_MANDATORY_TREND_STRENGTH_GATE_ADX"),
+                isShariahCompliant = true,
+                isSwingEligible = false,
+                atr14 = atr14
+            )
+        }
+
         var totalScore = 0.0
         val triggers = ArrayList<String>()
         var structuralTriggerFound = false
 
         // --- SCORED SIGNALS ---
 
-        // 1. Trend Strength Factor: ADX > 25
-        val adxSignal = adxFilter.evaluate(candles, currentTick)
-        if (adxSignal != null && adxSignal.direction == Direction.BUY) {
-            totalScore += 1.0
-            triggers.add("Trend Strength [ADX>25] (+1.0)")
-        }
-
-        // 2. Structure Factor: Darvas Box OR Break of Structure
+        // 1. Structure Factor: Darvas Box OR Break of Structure
         val darvasSignal = darvasBox.evaluate(candles, currentTick)
         val bosSignal = breakOfStructure.evaluate(candles, currentTick)
         
