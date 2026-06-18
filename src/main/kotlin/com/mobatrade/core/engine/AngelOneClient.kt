@@ -154,35 +154,48 @@ object AngelOneClient {
                 .addHeader("X-MACAddress", "00-50-56-C0-00-08")
                 .build()
 
-            httpClient.newCall(request).execute().use { response ->
-                if (!response.isSuccessful) {
-                    System.err.println("Angel One Login failed: HTTP ${response.code}")
-                    logout()
-                    return false
-                }
+            var lastException: Exception? = null
+            repeat(3) { attempt ->
+                try {
+                    httpClient.newCall(request).execute().use { response ->
+                        if (!response.isSuccessful) {
+                            System.err.println("Angel One Login failed: HTTP ${response.code}")
+                            logout()
+                            return false
+                        }
 
-                val bodyStr = response.body?.string() ?: ""
-                if (bodyStr.isEmpty()) {
-                    logout()
-                    return false
-                }
+                        val bodyStr = response.body?.string() ?: ""
+                        if (bodyStr.isEmpty()) {
+                            logout()
+                            return false
+                        }
 
-                val responseJson = JSONObject(bodyStr)
-                if (responseJson.optBoolean("status", false)) {
-                    val data = responseJson.optJSONObject("data")
-                    if (data != null) {
-                        jwtToken = data.optString("jwtToken", null)
-                        refreshToken = data.optString("refreshToken", null)
-                        feedToken = data.optString("feedToken", null)
-                        lastLoginTimeMs = System.currentTimeMillis()
-                        println("Angel One session created successfully.")
-                        return true
+                        val responseJson = JSONObject(bodyStr)
+                        if (responseJson.optBoolean("status", false)) {
+                            val data = responseJson.optJSONObject("data")
+                            if (data != null) {
+                                jwtToken = data.optString("jwtToken", null)
+                                refreshToken = data.optString("refreshToken", null)
+                                feedToken = data.optString("feedToken", null)
+                                lastLoginTimeMs = System.currentTimeMillis()
+                                println("Angel One session created successfully.")
+                                return true
+                            }
+                        } else {
+                            System.err.println("Angel One Auth API Error: ${responseJson.optString("message")}")
+                            logout()
+                        }
                     }
-                } else {
-                    System.err.println("Angel One Auth API Error: ${responseJson.optString("message")}")
-                    logout()
+                } catch (e: Exception) {
+                    lastException = e
+                    System.err.println("Angel One Login attempt ${attempt + 1} failed with network error: ${e.message}")
+                    try { Thread.sleep(1000L * (attempt + 1)) } catch (ie: InterruptedException) {}
                 }
             }
+            
+            System.err.println("Angel One Login failed after 3 attempts. Last error: ${lastException?.message}")
+            logout()
+            return false
         } catch (e: Exception) {
             e.printStackTrace()
             logout()
