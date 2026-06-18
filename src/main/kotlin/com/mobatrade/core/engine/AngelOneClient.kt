@@ -5,6 +5,11 @@ import com.mobatrade.core.halal.ShariahFilter
 import com.mobatrade.core.model.Direction
 import com.mobatrade.core.model.Order
 import com.mobatrade.core.model.Candle
+import com.mobatrade.core.model.FetchResult
+import com.mobatrade.core.model.OrderResult
+import kotlinx.coroutines.delay
+import java.net.SocketTimeoutException
+import java.io.IOException
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import okhttp3.OkHttpClient
 import okhttp3.Request
@@ -25,6 +30,8 @@ object AngelOneClient {
     const val DEFAULT_TOTP_SECRET = "K336YHYAV6NN5H2DYMPBBZ55NM"
     private const val DEFAULT_SECRET = DEFAULT_TOTP_SECRET
     const val DEFAULT_CLIENT_ID = "AAAC764774"
+
+    private val historicalDataLimiter = RateLimiter(maxRequestsPerSecond = 3)
 
     private val httpClient = HttpClientFactory.createClient(20, 30, 20)
     private val historicalHttpClient = httpClient.newBuilder()
@@ -191,128 +198,137 @@ object AngelOneClient {
      * @param symbolToken Official scrip token mapped for this symbol.
      * @return String? Containing the placed orderId, or null if the order failed or was blocked.
      */
-    fun placeOrder(
+    suspend fun placeOrder(
         order: Order,
         symbolToken: String,
         apiKey: String = DEFAULT_API_KEY,
-        isRetry: Boolean = false
-    ): String? {
+        maxRetries: Int = 2
+    ): com.mobatrade.core.model.OrderResult {
         refreshSessionIfNeeded()
         // Token Integrity Guard QA Layer
         val verifiedToken = TokenIntegrityGuard.verifyAndGetToken(order.symbol, symbolToken)
         if (verifiedToken == null) {
             System.err.println("BLOCK: Order for ${order.symbol} blocked. Token integrity failed (Symbol not found in Scrip Master).")
-            return null
+            return com.mobatrade.core.model.OrderResult.Failure("Token integrity failed")
         }
 
         // Shariah Guard: Double-check that this token is compliant (ONLY for BUY orders)
         if (order.direction == Direction.BUY && !ShariahFilter.isCompliantToken(verifiedToken) && !ShariahFilter.isCompliantSymbol(order.symbol)) {
             System.err.println("BLOCK: Order for ${order.symbol} (${verifiedToken}) blocked. Asset is NOT Shariah-compliant!")
-            return null
+            return com.mobatrade.core.model.OrderResult.Failure("Not Shariah-compliant")
         }
 
         // Shariah Constraints: Long-only, delivery-only, no leverage
         if (order.direction == Direction.SELL && order.quantity < 0) {
             System.err.println("BLOCK: Short selling is strictly prohibited under Shariah guidelines.")
-            return null
+            return com.mobatrade.core.model.OrderResult.Failure("Short selling prohibited")
         }
 
         val token = jwtToken
         if (token == null) {
             System.err.println("BLOCK: Angel One order failed. Session is not authenticated.")
-            return null
+            return com.mobatrade.core.model.OrderResult.Failure("Session is not authenticated")
         }
 
-        try {
-            val requestBodyJson = JSONObject()
-            requestBodyJson.put("variety", "NORMAL")
-            
-            // Map our symbol representation using the Token Integrity Guard's exact trading symbol
-            val info = TokenIntegrityGuard.getTokenInfoForSymbol(order.symbol)
-            val tradingSymbol = info?.second ?: if (order.symbol.contains("-EQ")) order.symbol else "${order.symbol}-EQ"
-            requestBodyJson.put("tradingsymbol", tradingSymbol)
-            requestBodyJson.put("symboltoken", verifiedToken)
-            requestBodyJson.put("transactiontype", order.direction.name)
-            requestBodyJson.put("exchange", "NSE")
-            requestBodyJson.put("ordertype", order.orderType.uppercase())
-            
-            // Strictly Shariah-compliant cash delivery: "DELIVERY" (CNC)
-            requestBodyJson.put("producttype", "DELIVERY")
-            requestBodyJson.put("duration", "DAY")
-            
-            // For market orders, the price is set to "0" per SmartAPI specs
-            val orderPrice = if (order.orderType.uppercase() == "MARKET") "0" else order.price.toString()
-            requestBodyJson.put("price", orderPrice)
-            requestBodyJson.put("quantity", order.quantity.toString())
+        repeat(maxRetries) { attempt ->
+            try {
+                val requestBodyJson = JSONObject()
+                requestBodyJson.put("variety", "NORMAL")
+                
+                // Map our symbol representation using the Token Integrity Guard's exact trading symbol
+                val info = TokenIntegrityGuard.getTokenInfoForSymbol(order.symbol)
+                val tradingSymbol = info?.second ?: if (order.symbol.contains("-EQ")) order.symbol else "${order.symbol}-EQ"
+                requestBodyJson.put("tradingsymbol", tradingSymbol)
+                requestBodyJson.put("symboltoken", verifiedToken)
+                requestBodyJson.put("transactiontype", order.direction.name)
+                requestBodyJson.put("exchange", "NSE")
+                requestBodyJson.put("ordertype", order.orderType.uppercase())
+                
+                // Strictly Shariah-compliant cash delivery: "DELIVERY" (CNC)
+                requestBodyJson.put("producttype", "DELIVERY")
+                requestBodyJson.put("duration", "DAY")
+                
+                // For market orders, the price is set to "0" per SmartAPI specs
+                val orderPrice = if (order.orderType.uppercase() == "MARKET") "0" else order.price.toString()
+                requestBodyJson.put("price", orderPrice)
+                requestBodyJson.put("quantity", order.quantity.toString())
 
-            val requestBody = requestBodyJson.toString().toRequestBody(mediaType)
+                val requestBody = requestBodyJson.toString().toRequestBody(mediaType)
 
-            val request = Request.Builder()
-                .url("$BASE_URL/rest/secure/angelbroking/order/v1/placeOrder")
-                .post(requestBody)
-                .addHeader("Authorization", "Bearer $token")
-                .addHeader("Content-Type", "application/json")
-                .addHeader("Accept", "application/json")
-                .addHeader("X-PrivateKey", activeApiKey)
-                .addHeader("X-UserType", "USER")
-                .addHeader("X-SourceID", "WEB")
-                .addHeader("X-ClientLocalIP", "192.168.1.100")
-                .addHeader("X-ClientPublicIP", "106.193.147.98")
-                .addHeader("X-MACAddress", "00-50-56-C0-00-08")
-                .build()
+                val request = Request.Builder()
+                    .url("$BASE_URL/rest/secure/angelbroking/order/v1/placeOrder")
+                    .post(requestBody)
+                    .addHeader("Authorization", "Bearer $token")
+                    .addHeader("Content-Type", "application/json")
+                    .addHeader("Accept", "application/json")
+                    .addHeader("X-PrivateKey", activeApiKey)
+                    .addHeader("X-UserType", "USER")
+                    .addHeader("X-SourceID", "WEB")
+                    .addHeader("X-ClientLocalIP", "192.168.1.100")
+                    .addHeader("X-ClientPublicIP", "106.193.147.98")
+                    .addHeader("X-MACAddress", "00-50-56-C0-00-08")
+                    .build()
 
-            httpClient.newCall(request).execute().use { response ->
-                if (!response.isSuccessful) {
-                    System.err.println("Order placement failed: HTTP ${response.code}")
-                    return null
-                }
+                httpClient.newCall(request).execute().use { response ->
+                    if (!response.isSuccessful) {
+                        System.err.println("Order placement failed: HTTP ${response.code}")
+                        return@use
+                    }
 
-                val bodyStr = response.body?.string() ?: ""
-                if (bodyStr.isEmpty()) return null
+                    val bodyStr = response.body?.string() ?: ""
+                    if (bodyStr.isEmpty()) return@use
 
-                val responseJson = JSONObject(bodyStr)
-                if (responseJson.optBoolean("status", false)) {
-                    val data = responseJson.optJSONObject("data")
-                    val orderId = data?.optString("orderid")
-                    println("Order placed successfully on Angel One. OrderID: $orderId")
-                    return orderId
-                } else {
-                    val errMsg = responseJson.optString("message")
-                    val errCode = responseJson.optString("errorcode")
-                    System.err.println("Angel One Order API Error: $errMsg (Code: $errCode)")
-                    
-                    // GSM/ASM or Cautionary fallback: retry as LIMIT at LTP
-                    val isCautionaryOrGsm = errCode == "AB4036" || 
-                        errMsg.contains("cautionary", ignoreCase = true) ||
-                        errMsg.contains("GSM", ignoreCase = true) ||
-                        errMsg.contains("ASM", ignoreCase = true) ||
-                        errMsg.contains("circuit", ignoreCase = true)
+                    val responseJson = JSONObject(bodyStr)
+                    if (responseJson.optBoolean("status", false)) {
+                        val data = responseJson.optJSONObject("data")
+                        val orderId = data?.optString("orderid")
+                        println("Order placed successfully on Angel One. OrderID: $orderId")
+                        if (orderId != null) return com.mobatrade.core.model.OrderResult.Success(orderId)
+                    } else {
+                        val errMsg = responseJson.optString("message")
+                        val errCode = responseJson.optString("errorcode")
+                        System.err.println("Angel One Order API Error: $errMsg (Code: $errCode)")
+                        
+                        // GSM/ASM or Cautionary fallback: retry as LIMIT at LTP
+                        val isCautionaryOrGsm = errCode == "AB4036" || 
+                            errMsg.contains("cautionary", ignoreCase = true) ||
+                            errMsg.contains("GSM", ignoreCase = true) ||
+                            errMsg.contains("ASM", ignoreCase = true) ||
+                            errMsg.contains("circuit", ignoreCase = true)
 
-                    if (isCautionaryOrGsm && !isRetry) {
-                        System.err.println("⚠️ GSM/ASM/Cautionary listing detected for ${order.symbol}. Retrying as LIMIT order at LTP.")
-                        val ltp = fetchRealLtp(order.symbol, verifiedToken)
-                        if (ltp > 0.0) {
-                            val roundedLtp = Math.round(ltp * 20.0) / 20.0
-                            println("🤖 Fetched LTP for fallback limit order: ₹$roundedLtp")
-                            val limitOrder = order.copy(orderType = "LIMIT", price = roundedLtp)
-                            return placeOrder(limitOrder, verifiedToken, apiKey, true)
-                        } else {
-                            System.err.println("❌ Failed to fetch LTP for cautionary/GSM stock fallback.")
+                        if (isCautionaryOrGsm) {
+                            System.err.println("⚠️ GSM/ASM/Cautionary listing detected for ${order.symbol}. Retrying as LIMIT order at LTP.")
+                            val ltp = fetchRealLtp(order.symbol, verifiedToken)
+                            if (ltp > 0.0) {
+                                val roundedLtp = Math.round(ltp * 20.0) / 20.0
+                                println("🤖 Fetched LTP for fallback limit order: ₹$roundedLtp")
+                                val limitOrder = order.copy(orderType = "LIMIT", price = roundedLtp)
+                                return placeOrder(limitOrder, verifiedToken, apiKey, 1) // only 1 fallback attempt
+                            } else {
+                                System.err.println("❌ Failed to fetch LTP for cautionary/GSM stock fallback.")
+                            }
                         }
-                    }
 
-                    // Self-Healing Logic for AB1019 Mismatch
-                    if (errMsg.contains("AB1019") && !isRetry) {
-                        System.err.println("AB1019 Detected for ${order.symbol}. Refreshing Scrip Master and retrying...")
-                        TokenIntegrityGuard.forceRefresh()
-                        return placeOrder(order, verifiedToken, apiKey, true)
+                        // Self-Healing Logic for AB1019 Mismatch
+                        if (errMsg.contains("AB1019")) {
+                            System.err.println("AB1019 Detected for ${order.symbol}. Refreshing Scrip Master and retrying...")
+                            TokenIntegrityGuard.forceRefresh()
+                            if (attempt == maxRetries - 1) return com.mobatrade.core.model.OrderResult.Failure("Persistent AB1019")
+                            return@use
+                        }
+                        
+                        return com.mobatrade.core.model.OrderResult.Failure(errCode)
                     }
                 }
+            } catch (e: java.net.SocketTimeoutException) {
+                System.err.println("Timeout placing order for ${order.symbol}")
+            } catch (e: java.io.IOException) {
+                System.err.println("IO Error placing order for ${order.symbol}")
+            } catch (e: Exception) {
+                e.printStackTrace()
             }
-        } catch (e: Exception) {
-            e.printStackTrace()
         }
-        return null
+        return com.mobatrade.core.model.OrderResult.Failure("Max retries exceeded")
     }
 
     /**
@@ -325,166 +341,162 @@ object AngelOneClient {
      * @param limitDays Number of historical days to pull.
      * @return List<Candle> Containing the parsed candles, or empty list on failure.
      */
-    fun fetchHistoricalCandles(
+    suspend fun <T> withAuthRetry(maxAttempts: Int = 1, block: suspend () -> FetchResult<T>): FetchResult<T> {
+        var attempts = 0
+        while (true) {
+            val result = block()
+            if (result is FetchResult.Success) return result
+            
+            val failure = result as FetchResult.Failure
+            if (failure.reason != "auth_error" || attempts >= maxAttempts) {
+                if (failure.reason == "auth_error") {
+                    System.err.println("[SESSION] Re-authentication failed — trading halted temporarily.")
+                }
+                return result
+            }
+            attempts++
+            System.err.println("[SESSION] Auth rejected, re-authenticating (attempt $attempts)...")
+            val reauthed = login(
+                clientId = EnvLoader.get("ANGEL_CLIENT_ID") ?: activeClientId,
+                tradingPassword = EnvLoader.get("ANGEL_PIN") ?: "3112",
+                apiKey = EnvLoader.get("ANGEL_API_KEY") ?: activeApiKey,
+                totpSecret = EnvLoader.get("ANGEL_TOTP_SECRET") ?: DEFAULT_TOTP_SECRET
+            )
+            if (!reauthed) {
+                System.err.println("[SESSION] Re-login failed — returning auth_error")
+                return FetchResult.Failure("auth_error")
+            }
+            delay(1000L)
+        }
+    }
+
+    suspend fun fetchHistoricalCandlesCore(
         symbolToken: String,
         symbol: String,
         interval: String = "ONE_HOUR",
         limitDays: Int = 15,
         apiKey: String = DEFAULT_API_KEY
-    ): List<Candle> {
-        synchronized(historicalLock) {
-            val now = System.currentTimeMillis()
-            val elapsed = now - lastHistoricalCallTimeMs
-            val minInterval = 2000L
-            if (elapsed < minInterval) {
-                try { Thread.sleep(minInterval - elapsed) } catch (e: InterruptedException) {}
-            }
-            lastHistoricalCallTimeMs = System.currentTimeMillis()
-        }
+    ): FetchResult<List<Candle>> {
+        return historicalDataLimiter.execute {
+            refreshSessionIfNeeded()
+            val token = jwtToken ?: return@execute FetchResult.Failure("auth_error")
 
-        // Auto-refresh session if JWT has expired
-        refreshSessionIfNeeded()
+            try {
+                val zone = ZoneId.of("Asia/Kolkata")
+                val nowIst = ZonedDateTime.now(zone)
+                val fromIst = nowIst.minusDays(limitDays.toLong())
 
-        val token = jwtToken
-        if (token == null) {
-            System.err.println("BLOCK: Angel One historical fetch failed. Session is not authenticated.")
-            return emptyList()
-        }
+                val formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm")
+                val fromDateStr = fromIst.format(formatter)
+                val toDateStr = nowIst.format(formatter)
 
-        try {
-            // Generate standard yyyy-MM-dd HH:mm formats in Asia/Kolkata (IST)
-            val zone = ZoneId.of("Asia/Kolkata")
-            val nowIst = ZonedDateTime.now(zone)
-            val fromIst = nowIst.minusDays(limitDays.toLong())
+                val requestBodyJson = JSONObject()
+                requestBodyJson.put("exchange", "NSE")
+                requestBodyJson.put("symboltoken", symbolToken)
+                requestBodyJson.put("interval", interval)
+                requestBodyJson.put("fromdate", fromDateStr)
+                requestBodyJson.put("todate", toDateStr)
 
-            val formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm")
-            val fromDateStr = fromIst.format(formatter)
-            val toDateStr = nowIst.format(formatter)
+                val requestBody = requestBodyJson.toString().toRequestBody(mediaType)
 
-            val requestBodyJson = JSONObject()
-            requestBodyJson.put("exchange", "NSE")
-            requestBodyJson.put("symboltoken", symbolToken)
-            requestBodyJson.put("interval", interval)
-            requestBodyJson.put("fromdate", fromDateStr)
-            requestBodyJson.put("todate", toDateStr)
+                val request = Request.Builder()
+                    .url("$BASE_URL/rest/secure/angelbroking/historical/v1/getCandleData")
+                    .post(requestBody)
+                    .addHeader("Authorization", "Bearer $token")
+                    .addHeader("Content-Type", "application/json")
+                    .addHeader("Accept", "application/json")
+                    .addHeader("X-PrivateKey", activeApiKey)
+                    .addHeader("X-UserType", "USER")
+                    .addHeader("X-SourceID", "WEB")
+                    .addHeader("X-ClientLocalIP", "192.168.1.100")
+                    .addHeader("X-ClientPublicIP", "106.193.147.98")
+                    .addHeader("X-MACAddress", "00-50-56-C0-00-08")
+                    .build()
 
-            val requestBody = requestBodyJson.toString().toRequestBody(mediaType)
+                historicalHttpClient.newCall(request).execute().use { response ->
+                    if (response.isSuccessful) {
+                        val bodyStr = response.body?.string() ?: ""
+                        if (bodyStr.isEmpty()) return@execute FetchResult.Success(emptyList())
 
-            val request = Request.Builder()
-                .url("$BASE_URL/rest/secure/angelbroking/historical/v1/getCandleData")
-                .post(requestBody)
-                .addHeader("Authorization", "Bearer $token")
-                .addHeader("Content-Type", "application/json")
-                .addHeader("Accept", "application/json")
-                .addHeader("X-PrivateKey", activeApiKey)
-                .addHeader("X-UserType", "USER")
-                .addHeader("X-SourceID", "WEB")
-                .addHeader("X-ClientLocalIP", "192.168.1.100")
-                .addHeader("X-ClientPublicIP", "106.193.147.98")
-                .addHeader("X-MACAddress", "00-50-56-C0-00-08")
-                .build()
+                        val responseJson = JSONObject(bodyStr)
+                        if (responseJson.optBoolean("status", false)) {
+                            val dataArray = responseJson.optJSONArray("data") ?: return@execute FetchResult.Success(emptyList())
+                            val candles = ArrayList<Candle>()
 
-            var attempt = 0
-            val maxAttempts = 3
-            while (attempt < maxAttempts) {
-                attempt++
-                try {
-                    // Build a fresh request each iteration — OkHttp body is single-use
-                    val freshToken = jwtToken ?: return emptyList()
-                    val retryRequest = Request.Builder()
-                        .url("$BASE_URL/rest/secure/angelbroking/historical/v1/getCandleData")
-                        .post(requestBody)
-                        .addHeader("Authorization", "Bearer $freshToken")
-                        .addHeader("Content-Type", "application/json")
-                        .addHeader("Accept", "application/json")
-                        .addHeader("X-PrivateKey", activeApiKey)
-                        .addHeader("X-UserType", "USER")
-                        .addHeader("X-SourceID", "WEB")
-                        .addHeader("X-ClientLocalIP", "192.168.1.100")
-                        .addHeader("X-ClientPublicIP", "106.193.147.98")
-                        .addHeader("X-MACAddress", "00-50-56-C0-00-08")
-                        .build()
-
-                    historicalHttpClient.newCall(retryRequest).execute().use { response ->
-                        if (response.isSuccessful) {
-                            val bodyStr = response.body?.string() ?: ""
-                            if (bodyStr.isEmpty()) return emptyList()
-
-                            val responseJson = JSONObject(bodyStr)
-                            if (responseJson.optBoolean("status", false)) {
-                                val dataArray = responseJson.optJSONArray("data") ?: return emptyList()
-                                val candles = ArrayList<Candle>()
-
-                                for (i in 0 until dataArray.length()) {
-                                    val row = dataArray.getJSONArray(i)
-                                    val timestampStr = row.getString(0)
-                                    val timestamp = try {
-                                        OffsetDateTime.parse(timestampStr).toInstant()
-                                    } catch (e: Exception) {
-                                        Instant.now().minus((dataArray.length() - i).toLong(), ChronoUnit.HOURS)
-                                    }
-                                    val open = row.getDouble(1)
-                                    val high = row.getDouble(2)
-                                    val low = row.getDouble(3)
-                                    val close = row.getDouble(4)
-                                    val volume = row.getLong(5)
-                                    candles.add(Candle(timestamp, open, high, low, close, volume))
+                            for (i in 0 until dataArray.length()) {
+                                val row = dataArray.getJSONArray(i)
+                                val timestampStr = row.getString(0)
+                                val timestamp = try {
+                                    OffsetDateTime.parse(timestampStr).toInstant()
+                                } catch (e: Exception) {
+                                    Instant.now().minus((dataArray.length() - i).toLong(), ChronoUnit.HOURS)
                                 }
-                                return candles
-                            } else {
-                                val errMsg = responseJson.optString("message", "")
-                                System.err.println("Angel One Historical API Error for $symbol: $errMsg")
-                                // If session expired (errorcode AB8050 or similar), force a refresh and retry
-                                if (errMsg.contains("Invalid Token", ignoreCase = true) ||
-                                    errMsg.contains("session", ignoreCase = true) ||
-                                    errMsg.contains("expired", ignoreCase = true)) {
-                                    System.err.println("[SESSION] Token rejected during candle fetch. Forcing re-login...")
-                                    login(
-                                        clientId = EnvLoader.get("ANGEL_CLIENT_ID") ?: activeClientId,
-                                        tradingPassword = EnvLoader.get("ANGEL_PIN") ?: "3112",
-                                        apiKey = EnvLoader.get("ANGEL_API_KEY") ?: activeApiKey,
-                                        totpSecret = EnvLoader.get("ANGEL_TOTP_SECRET") ?: DEFAULT_TOTP_SECRET
-                                    )
-                                    try { Thread.sleep(2000) } catch (ie: InterruptedException) {}
-                                } else {
-                                    return emptyList()
-                                }
+                                val open = row.getDouble(1)
+                                val high = row.getDouble(2)
+                                val low = row.getDouble(3)
+                                val close = row.getDouble(4)
+                                val volume = row.getLong(5)
+                                candles.add(Candle(timestamp, open, high, low, close, volume))
                             }
+                            return@execute FetchResult.Success(candles)
                         } else {
-                            val errBody = response.body?.string() ?: ""
-                            System.err.println("Historical fetch failed for $symbol ($symbolToken) (Attempt $attempt/$maxAttempts): HTTP ${response.code} - Body: $errBody")
-                            if (response.code == 403 && errBody.contains("exceeding access rate")) {
-                                println("Rate limit hit for $symbol! Sleeping 10 seconds to cool down before retry...")
-                                try { Thread.sleep(10000) } catch (e: InterruptedException) {}
-                                // Continue loop to retry
-                            } else if (response.code == 401 || response.code == 403) {
-                                // Auth failure: re-login and retry
-                                System.err.println("[SESSION] Auth error on candle fetch (HTTP ${response.code}). Re-logging in...")
-                                login(
-                                    clientId = EnvLoader.get("ANGEL_CLIENT_ID") ?: activeClientId,
-                                    tradingPassword = EnvLoader.get("ANGEL_PIN") ?: "3112",
-                                    apiKey = EnvLoader.get("ANGEL_API_KEY") ?: activeApiKey,
-                                    totpSecret = EnvLoader.get("ANGEL_TOTP_SECRET") ?: DEFAULT_TOTP_SECRET
-                                )
-                                try { Thread.sleep(3000) } catch (ie: InterruptedException) {}
-                            } else {
-                                return emptyList()
+                            val errMsg = responseJson.optString("message", "")
+                            if (errMsg.contains("Invalid Token", ignoreCase = true) ||
+                                errMsg.contains("session", ignoreCase = true) ||
+                                errMsg.contains("expired", ignoreCase = true)) {
+                                return@execute FetchResult.Failure("auth_error")
                             }
+                            return@execute FetchResult.Failure(errMsg)
                         }
+                    } else {
+                        val errBody = response.body?.string() ?: ""
+                        if (response.code == 403 && errBody.contains("exceeding access rate")) {
+                            return@execute FetchResult.Failure("rate_limit")
+                        } else if (response.code == 401 || response.code == 403) {
+                            return@execute FetchResult.Failure("auth_error")
+                        }
+                        return@execute FetchResult.Failure("HTTP ${response.code}")
                     }
-                } catch (e: Exception) {
-                    System.err.println("Exception in historical fetch for $symbol: ${e.message}")
-                    if (attempt >= maxAttempts) {
-                        return emptyList()
-                    }
-                    try { Thread.sleep(2000) } catch (ie: InterruptedException) {}
                 }
+            } catch (e: SocketTimeoutException) {
+                return@execute FetchResult.Failure("timeout")
+            } catch (e: IOException) {
+                return@execute FetchResult.Failure("io_error")
+            } catch (e: Exception) {
+                return@execute FetchResult.Failure("exception")
             }
-        } catch (e: Exception) {
-            e.printStackTrace()
         }
+    }
 
-        return emptyList()
+    suspend fun fetchHistoricalCandles(
+        symbolToken: String,
+        symbol: String,
+        interval: String = "ONE_HOUR",
+        limitDays: Int = 15,
+        apiKey: String = DEFAULT_API_KEY
+    ): FetchResult<List<Candle>> {
+        return withAuthRetry(maxAttempts = 1) {
+            var attempts = 0
+            while (attempts < 3) {
+                val result = fetchHistoricalCandlesCore(symbolToken, symbol, interval, limitDays, apiKey)
+                if (result is FetchResult.Success) return@withAuthRetry result
+                
+                val failure = result as FetchResult.Failure
+                if (failure.reason == "auth_error") {
+                    return@withAuthRetry result // Pass up to withAuthRetry
+                } else if (failure.reason == "rate_limit") {
+                    System.err.println("Rate limit hit for $symbol! Sleeping 2 seconds to cool down before retry...")
+                    delay(2000L) // Wait and retry
+                } else if (failure.reason == "timeout" || failure.reason == "io_error") {
+                    System.err.println("Network issue fetching $symbol: ${failure.reason}. Retrying...")
+                    delay(1000L)
+                } else {
+                    return@withAuthRetry result // Terminal failure
+                }
+                attempts++
+            }
+            FetchResult.Failure("Max attempts reached")
+        }
     }
 
     /**

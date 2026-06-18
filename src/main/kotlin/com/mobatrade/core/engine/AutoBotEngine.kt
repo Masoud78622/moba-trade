@@ -325,9 +325,14 @@ object AutoBotEngine {
 
             // Fetch 15-minute candles to run breakout and ATR confirmation (Priority 2)
             println("  └─ SCAN: Fetching 15m candles for $symbol to verify breakout confirmation...")
-            val candles = AngelOneClient.fetchHistoricalCandles(token, symbol, "FIFTEEN_MINUTE", 30)
+            val fetchResult = kotlinx.coroutines.runBlocking { AngelOneClient.fetchHistoricalCandles(token, symbol, "FIFTEEN_MINUTE", 30) }
+            if (fetchResult !is com.mobatrade.core.model.FetchResult.Success) {
+                println("  └─ SKIP: Failed to fetch candles for confirmation. Reason: ${(fetchResult as com.mobatrade.core.model.FetchResult.Failure).reason}")
+                continue
+            }
+            val candles = fetchResult.data
             if (candles.isEmpty()) {
-                println("  └─ SKIP: Failed to fetch candles for confirmation.")
+                println("  └─ SKIP: Fetched candles list is empty.")
                 continue
             }
 
@@ -366,8 +371,9 @@ object AutoBotEngine {
 
             if (order != null) {
                 println("🤖 AUTO-BOT: LIVE ORDER INITIATED — ${order.quantity} × $symbol @ ₹${price}")
-                val orderId = AngelOneClient.placeOrder(order, token, isRetry = false)
-                if (orderId != null) {
+                val orderResult = kotlinx.coroutines.runBlocking { AngelOneClient.placeOrder(order, token) }
+                if (orderResult is com.mobatrade.core.model.OrderResult.Success) {
+                    val orderId = orderResult.orderId
                     println("🤖 AUTO-BOT: ORDER SUCCESSFUL. ID: $orderId")
                     riskManager.registerPosition(
                         com.mobatrade.core.model.Position(
@@ -423,8 +429,8 @@ object AutoBotEngine {
             stopLoss = null,
             target = null
         )
-        val orderId = AngelOneClient.placeOrder(order, token, isRetry = false)
-        if (orderId != null) {
+        val orderResult = kotlinx.coroutines.runBlocking { AngelOneClient.placeOrder(order, token) }
+        if (orderResult is com.mobatrade.core.model.OrderResult.Success) {
             liquidatedCooldown[symbol] = nowMs
             return true
         }
@@ -435,12 +441,15 @@ object AutoBotEngine {
         if (!AngelOneClient.isLoggedIn) return false
         try {
             println("🤖 [SCAN CYCLE] Fetching Nifty 50 index candles to evaluate market regime...")
-            val candles = AngelOneClient.fetchHistoricalCandles(
-                symbolToken = "99926000",
-                symbol = "Nifty 50",
-                interval = "FIFTEEN_MINUTE",
-                limitDays = 5
-            )
+            val fetchResult = kotlinx.coroutines.runBlocking {
+                AngelOneClient.fetchHistoricalCandles(
+                    symbolToken = "99926000",
+                    symbol = "Nifty 50",
+                    interval = "FIFTEEN_MINUTE",
+                    limitDays = 5
+                )
+            }
+            val candles = if (fetchResult is com.mobatrade.core.model.FetchResult.Success) fetchResult.data else emptyList()
             if (candles.isEmpty()) {
                 println("⚠️ [SCAN CYCLE] Could not fetch Nifty 50 index data. Defaulting to allowing entries.")
                 return true
@@ -560,7 +569,8 @@ object SwingPeakTracker {
     private fun fetchHistoricalPeak(symbol: String, entryPrice: Double): Double {
         try {
             val token = TokenIntegrityGuard.verifyAndGetToken(symbol, null) ?: return entryPrice
-            val candles = AngelOneClient.fetchHistoricalCandles(token, symbol, "ONE_DAY", 15)
+            val fetchResult = kotlinx.coroutines.runBlocking { AngelOneClient.fetchHistoricalCandles(token, symbol, "ONE_DAY", 15) }
+            val candles = if (fetchResult is com.mobatrade.core.model.FetchResult.Success) fetchResult.data else emptyList()
             if (candles.isNotEmpty()) {
                 val maxHigh = candles.filter { it.high >= entryPrice }.map { it.high }.maxOrNull()
                 if (maxHigh != null) {

@@ -547,12 +547,15 @@ object MobaTradeServer {
             if (AngelOneClient.isLoggedIn && token != null) {
                 try {
                     println("BackgroundScanner: Fetching real-world 15-min candles for $symbol ($token)...")
-                    candles = AngelOneClient.fetchHistoricalCandles(
-                        symbolToken = token,
-                        symbol = symbol,
-                        interval = "FIFTEEN_MINUTE",
-                        limitDays = 5
-                    )
+                    val fetchResult = kotlinx.coroutines.runBlocking {
+                        AngelOneClient.fetchHistoricalCandles(
+                            symbolToken = token,
+                            symbol = symbol,
+                            interval = "FIFTEEN_MINUTE",
+                            limitDays = 5
+                        )
+                    }
+                    candles = if (fetchResult is com.mobatrade.core.model.FetchResult.Success) fetchResult.data else emptyList()
                     // Rate limit protection: sleep for 3000ms to respect Angel One SmartAPI guidelines
                     Thread.sleep(3000)
                 } catch (e: Exception) {

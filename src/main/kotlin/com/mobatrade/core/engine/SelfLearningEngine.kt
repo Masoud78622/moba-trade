@@ -44,7 +44,8 @@ object SelfLearningEngine {
             for (symbol in symbols) {
                 val token = TokenIntegrityGuard.verifyAndGetToken(symbol, null) ?: continue
                 // FIXED: symbolToken is first param, symbol is second
-                val candles = AngelOneClient.fetchHistoricalCandles(token, symbol, "FIVE_MINUTE", 1)
+                val fetchResult = kotlinx.coroutines.runBlocking { AngelOneClient.fetchHistoricalCandles(token, symbol, "FIVE_MINUTE", 1) }
+                val candles = if (fetchResult is com.mobatrade.core.model.FetchResult.Success) fetchResult.data else emptyList()
                 if (candles.isEmpty()) continue
 
                 val dailyLow = candles.minOf { it.low }

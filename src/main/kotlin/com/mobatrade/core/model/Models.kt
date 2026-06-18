@@ -84,3 +84,15 @@ data class TradeRecord(
     val isWin: Boolean = pnl > 0.0
 )
 
+
+sealed class FetchResult<out T> {
+    data class Success<T>(val data: T) : FetchResult<T>()
+    data class Failure(val reason: String) : FetchResult<Nothing>()
+}
+
+sealed class OrderResult {
+    data class Success(val orderId: String) : OrderResult()
+    data class Failure(val reason: String) : OrderResult()
+    val isSuccess get() = this is Success
+    val errorCode get() = if (this is Failure) reason else null
+}

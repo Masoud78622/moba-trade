@@ -4,6 +4,7 @@ import java.io.File
 
 object EnvLoader {
     private val envMap = HashMap<String, String>()
+    private val requiredKeys = listOf("ANGEL_API_KEY", "ANGEL_CLIENT_ID", "ANGEL_TOTP_SECRET")
 
     init {
         load()
@@ -24,7 +25,12 @@ object EnvLoader {
                 println("EnvLoader: Loaded local .env file successfully.")
             }
         } catch (e: Exception) {
-            System.err.println("EnvLoader: Failed to load .env file: ${e.message}")
+            println("EnvLoader: Failed to load .env file, falling back to system env vars.")
+        }
+
+        val missing = requiredKeys.filter { get(it).isNullOrBlank() }
+        if (missing.isNotEmpty()) {
+            throw java.lang.IllegalStateException("Missing required env vars: $missing — refusing to start")
         }
     }
 

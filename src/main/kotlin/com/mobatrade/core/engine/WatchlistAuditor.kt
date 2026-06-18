@@ -75,12 +75,15 @@ object WatchlistAuditor {
 
                     // 1. Fetch daily candles for the last 300 days (approx. 250 trading days)
                     println("🤖 [WATCHLIST AUDIT] Fetching daily candles for $symbol ($token)...")
-                    val candles = AngelOneClient.fetchHistoricalCandles(
-                        symbolToken = token,
-                        symbol = symbol,
-                        interval = "ONE_DAY",
-                        limitDays = 300
-                    )
+                    val fetchResult = kotlinx.coroutines.runBlocking {
+                        AngelOneClient.fetchHistoricalCandles(
+                            symbolToken = token,
+                            symbol = symbol,
+                            interval = "ONE_DAY",
+                            limitDays = 300
+                        )
+                    }
+                    val candles = if (fetchResult is com.mobatrade.core.model.FetchResult.Success) fetchResult.data else emptyList()
 
                     // Sleep 1000ms to stay safely below Angel One rate limits
                     Thread.sleep(1000)
