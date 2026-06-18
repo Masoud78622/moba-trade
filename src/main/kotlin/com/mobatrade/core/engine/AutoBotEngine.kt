@@ -273,9 +273,9 @@ object AutoBotEngine {
         val swingHoldings = AngelOneClient.fetchSwingHoldings()
         val holdingTickers = swingHoldings.filter { extractQty(it) > 0 }.map { extractSymbol(it).uppercase() }.toSet()
 
-        println("🤖 [SCAN CYCLE] Active positions: ${activeTickers.size}/2 — $activeTickers")
+        println("🤖 [SCAN CYCLE] Active day trades: ${activeTickers.size}/2 | Swing trades: ${holdingTickers.size} — $activeTickers")
         if (activeTickers.size >= 2) {
-            println("🤖 [SCAN CYCLE] Skipping new entries: max 2 positions already held.")
+            println("🤖 [SCAN CYCLE] Skipping new entries: max 2 day trades already held.")
             return // Max 2 positions
         }
 

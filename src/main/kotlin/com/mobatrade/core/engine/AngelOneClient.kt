@@ -8,6 +8,8 @@ import com.mobatrade.core.model.Candle
 import com.mobatrade.core.model.FetchResult
 import com.mobatrade.core.model.OrderResult
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import java.net.SocketTimeoutException
 import java.io.IOException
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
@@ -32,6 +34,7 @@ object AngelOneClient {
     const val DEFAULT_CLIENT_ID = "AAAC764774"
 
     private val historicalDataLimiter = RateLimiter(maxRequestsPerSecond = 3)
+    private val apiMutex = Mutex()
 
     private val httpClient = HttpClientFactory.createClient(20, 30, 20)
     private val historicalHttpClient = httpClient.newBuilder()
@@ -390,8 +393,9 @@ object AngelOneClient {
         limitDays: Int = 15,
         apiKey: String = DEFAULT_API_KEY
     ): FetchResult<List<Candle>> {
-        return historicalDataLimiter.execute {
-            refreshSessionIfNeeded()
+        return apiMutex.withLock {
+            historicalDataLimiter.execute {
+                refreshSessionIfNeeded()
             val token = jwtToken ?: return@execute FetchResult.Failure("auth_error")
 
             try {
@@ -478,6 +482,7 @@ object AngelOneClient {
             } catch (e: Exception) {
                 return@execute FetchResult.Failure("exception")
             }
+        }
         }
     }
 

@@ -73,6 +73,7 @@ object TokenIntegrityGuard {
                     symbolMap.clear()
                     symbolMap.putAll(parsed)
                     isLoaded = true
+                    updateBaseFiles()
                     
                     // Atomically replace the final cache file
                     val finalFile = File(CACHE_PATH)
@@ -107,6 +108,7 @@ object TokenIntegrityGuard {
                 symbolMap.clear()
                 symbolMap.putAll(parsed)
                 isLoaded = true
+                updateBaseFiles()
             }
         }
 
@@ -131,6 +133,7 @@ object TokenIntegrityGuard {
                 symbolMap.clear()
                 symbolMap.putAll(parsed)
                 isLoaded = true
+                updateBaseFiles()
                 
                 val finalFile = File(CACHE_PATH)
                 finalFile.delete()
@@ -288,5 +291,45 @@ object TokenIntegrityGuard {
         }
 
         return actualToken
+    }
+
+    private fun updateBaseFiles() {
+        val filesToUpdate = listOf(
+            if (isWindows) "c:\\moba trade\\halal_stocks.json" else "halal_stocks.json",
+            if (isWindows) "c:\\moba trade\\watchlist_intraday.json" else "watchlist_intraday.json"
+        )
+        for (filePath in filesToUpdate) {
+            try {
+                val file = File(filePath)
+                if (file.exists()) {
+                    val content = file.readText(StandardCharsets.UTF_8)
+                    if (content.trim().isNotEmpty()) {
+                        val array = JSONArray(content)
+                        var updatedCount = 0
+                        for (i in 0 until array.length()) {
+                            val obj = array.getJSONObject(i)
+                            val symbol = obj.optString("symbol")
+                            if (symbol.isNotEmpty()) {
+                                val newInfo = symbolMap[symbol.uppercase()]
+                                if (newInfo != null) {
+                                    val newToken = newInfo.first
+                                    val oldToken = obj.optString("token")
+                                    if (oldToken.isNotEmpty() && newToken != oldToken) {
+                                        obj.put("token", newToken)
+                                        updatedCount++
+                                    }
+                                }
+                            }
+                        }
+                        if (updatedCount > 0) {
+                            file.writeText(array.toString(2), StandardCharsets.UTF_8)
+                            println("TokenIntegrityGuard: Updated $updatedCount tokens in $filePath")
+                        }
+                    }
+                }
+            } catch (e: Exception) {
+                System.err.println("TokenIntegrityGuard: Failed to update base file $filePath: ${e.message}")
+            }
+        }
     }
 }
