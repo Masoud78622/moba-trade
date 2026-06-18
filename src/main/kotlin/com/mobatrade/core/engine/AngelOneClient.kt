@@ -287,7 +287,16 @@ object AngelOneClient {
 
                 httpClient.newCall(request).execute().use { response ->
                     if (!response.isSuccessful) {
-                        System.err.println("Order placement failed: HTTP ${response.code}")
+                        val errBody = response.body?.string() ?: ""
+                        System.err.println("Order placement failed: HTTP ${response.code} | Body: $errBody")
+                        
+                        // Force a session refresh if token expired on the server side
+                        if (response.code == 401 || response.code == 403) {
+                            if (errBody.contains("Invalid Token", ignoreCase = true) || errBody.contains("expired", ignoreCase = true)) {
+                                System.err.println("[SESSION] Order API returned auth error. Forcing re-login...")
+                                login()
+                            }
+                        }
                         return@use
                     }
 
