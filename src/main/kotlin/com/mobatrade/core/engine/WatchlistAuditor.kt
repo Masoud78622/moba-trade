@@ -135,18 +135,20 @@ object WatchlistAuditor {
                     )
 
                     val atrRatio = if (price > 0) atr14 / price else 0.0
+                    val rsScore = if (week52High > 0) price / week52High else 0.0
+                    
                     if (auditPassed) {
-                        println("✅ [WATCHLIST AUDIT] $symbol PASSED audit! Price=₹$price, Vol=${avgDailyVolume.toInt()}, Value=₹${avgDailyValueTraded.toInt()}, ATR/Price=${String.format("%.3f", atrRatio)}")
-                        matchedStocksList.add(Pair(stockObj, avgDailyValueTraded))
+                        println("✅ [WATCHLIST AUDIT] $symbol PASSED audit! Price=₹$price, RS=${String.format("%.3f", rsScore)}, Vol=${avgDailyVolume.toInt()}, ATR/Price=${String.format("%.3f", atrRatio)}")
+                        matchedStocksList.add(Pair(stockObj, rsScore))
                     } else {
                         println("❌ [WATCHLIST AUDIT] $symbol FAILED audit.")
                     }
                 }
 
-                // Sort by average daily value traded descending, and take at most 17 stocks
-                val top17Stocks = matchedStocksList.sortedByDescending { it.second }.take(17)
+                // Sort by Relative Strength descending, and strictly take top 15 stocks
+                val top15Stocks = matchedStocksList.sortedByDescending { it.second }.take(15)
                 val matchedStocks = JSONArray()
-                for (item in top17Stocks) {
+                for (item in top15Stocks) {
                     matchedStocks.put(item.first)
                 }
 
