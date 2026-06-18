@@ -166,11 +166,16 @@ object MobaTradeServer {
                             continue
                         }
 
-                        // Check if we need to run the weekly audit (at or after 9:00 AM IST on Saturday)
+                        // Check if we need to run the weekly audit (Saturday >= 9 AM, OR if the file is completely missing)
                         val nowIst = java.time.ZonedDateTime.now(ZoneId.of("Asia/Kolkata"))
                         val today = nowIst.toLocalDate()
-                        if (nowIst.dayOfWeek == java.time.DayOfWeek.SATURDAY && nowIst.hour >= 9 && today != lastWeeklyAuditDate) {
-                            println("BackgroundScanner: Saturday morning check. Triggering weekly watchlist audit refresh...")
+                        
+                        val isWindows = System.getProperty("os.name").lowercase().contains("win")
+                        val watchListFile = if (isWindows) File("c:\\moba trade\\watchlist_intraday.json") else File("watchlist_intraday.json")
+                        val isMissing = !watchListFile.exists() || watchListFile.length() <= 2
+                        
+                        if ((nowIst.dayOfWeek == java.time.DayOfWeek.SATURDAY && nowIst.hour >= 9 && today != lastWeeklyAuditDate) || isMissing) {
+                            println("BackgroundScanner: Saturday check OR missing watchlist. Triggering watchlist audit refresh...")
                             val auditStarted = WatchlistAuditor.runDailyAudit(force = true)
                             if (auditStarted) {
                                 lastWeeklyAuditDate = today
