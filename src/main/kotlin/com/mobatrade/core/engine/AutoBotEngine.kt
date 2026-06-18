@@ -329,7 +329,7 @@ object AutoBotEngine {
 
             // Fetch 15-minute candles to run breakout and ATR confirmation (Priority 2)
             println("  └─ SCAN: Fetching 15m candles for $symbol to verify breakout confirmation...")
-            val fetchResult = kotlinx.coroutines.runBlocking { AngelOneClient.fetchHistoricalCandles(token, symbol, "FIFTEEN_MINUTE", 30) }
+            val fetchResult = kotlinx.coroutines.runBlocking { AngelOneClient.fetchHistoricalCandles(token, symbol, "FIFTEEN_MINUTE", TradingConstants.CANDLE_HISTORY_DAYS_BREAKOUT_CONFIRM) }
             if (fetchResult !is com.mobatrade.core.model.FetchResult.Success) {
                 println("  └─ SKIP: Failed to fetch candles for confirmation. Reason: ${(fetchResult as com.mobatrade.core.model.FetchResult.Failure).reason}")
                 continue
@@ -450,19 +450,19 @@ object AutoBotEngine {
                     symbolToken = "99926000",
                     symbol = "Nifty 50",
                     interval = "FIFTEEN_MINUTE",
-                    limitDays = 5
+                    limitDays = TradingConstants.CANDLE_HISTORY_DAYS_INTRADAY_SCORING
                 )
             }
             val candles = if (fetchResult is com.mobatrade.core.model.FetchResult.Success) fetchResult.data else emptyList()
             if (candles.isEmpty()) {
-                println("⚠️ [SCAN CYCLE] Could not fetch Nifty 50 index data. Defaulting to allowing entries.")
-                return true
+                println("⚠️ [SCAN CYCLE] Could not fetch Nifty 50 index data. Defaulting to block entries (fail closed).")
+                return false
             }
             val closePrices = candles.map { it.close }
             val ema20 = com.mobatrade.core.strategies.tier4.TechIndicators.calculateEma(closePrices, 20)
             val ema50 = com.mobatrade.core.strategies.tier4.TechIndicators.calculateEma(closePrices, 50)
             
-            if (ema20.isEmpty() || ema50.isEmpty()) return true
+            if (ema20.isEmpty() || ema50.isEmpty()) return false
             
             val lastEma20 = ema20.last()
             val lastEma50 = ema50.last()
@@ -474,7 +474,7 @@ object AutoBotEngine {
         } catch (e: Exception) {
             System.err.println("Error checking Nifty regime: ${e.message}")
         }
-        return true
+        return false
     }
 
     private fun isEntryWindowOpen(): Boolean {

@@ -563,7 +563,7 @@ object MobaTradeServer {
                             symbolToken = token,
                             symbol = symbol,
                             interval = "FIFTEEN_MINUTE",
-                            limitDays = 5
+                            limitDays = TradingConstants.CANDLE_HISTORY_DAYS_INTRADAY_SCORING
                         )
                     }
                     candles = if (fetchResult is com.mobatrade.core.model.FetchResult.Success) fetchResult.data else emptyList()

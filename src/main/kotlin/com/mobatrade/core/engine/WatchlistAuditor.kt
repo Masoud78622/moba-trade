@@ -80,7 +80,7 @@ object WatchlistAuditor {
                             symbolToken = token,
                             symbol = symbol,
                             interval = "ONE_DAY",
-                            limitDays = 300
+                            limitDays = TradingConstants.CANDLE_HISTORY_DAYS_DAILY_AUDIT
                         )
                     }
                     val candles = if (fetchResult is com.mobatrade.core.model.FetchResult.Success) fetchResult.data else emptyList()
