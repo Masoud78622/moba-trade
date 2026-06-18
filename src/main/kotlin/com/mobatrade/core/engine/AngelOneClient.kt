@@ -393,9 +393,8 @@ object AngelOneClient {
         limitDays: Int = 15,
         apiKey: String = DEFAULT_API_KEY
     ): FetchResult<List<Candle>> {
-        return apiMutex.withLock {
-            historicalDataLimiter.execute {
-                refreshSessionIfNeeded()
+        return historicalDataLimiter.execute {
+            refreshSessionIfNeeded()
             val token = jwtToken ?: return@execute FetchResult.Failure("auth_error")
 
             try {
@@ -483,7 +482,6 @@ object AngelOneClient {
                 return@execute FetchResult.Failure("exception")
             }
         }
-        }
     }
 
     suspend fun fetchHistoricalCandles(
@@ -494,10 +492,11 @@ object AngelOneClient {
         apiKey: String = DEFAULT_API_KEY
     ): FetchResult<List<Candle>> {
         return withAuthRetry(maxAttempts = 1) {
-            var attempts = 0
-            while (attempts < 3) {
-                val result = fetchHistoricalCandlesCore(symbolToken, symbol, interval, limitDays, apiKey)
-                if (result is FetchResult.Success) return@withAuthRetry result
+            apiMutex.withLock {
+                var attempts = 0
+                while (attempts < 3) {
+                    val result = fetchHistoricalCandlesCore(symbolToken, symbol, interval, limitDays, apiKey)
+                    if (result is FetchResult.Success) return@withAuthRetry result
                 
                 val failure = result as FetchResult.Failure
                 if (failure.reason == "auth_error") {
@@ -512,8 +511,9 @@ object AngelOneClient {
                     return@withAuthRetry result // Terminal failure
                 }
                 attempts++
+                }
+                FetchResult.Failure("Max attempts reached")
             }
-            FetchResult.Failure("Max attempts reached")
         }
     }
 
