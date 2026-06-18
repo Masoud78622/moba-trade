@@ -313,15 +313,20 @@ object AngelOneClient {
                             errMsg.contains("circuit", ignoreCase = true)
 
                         if (isCautionaryOrGsm) {
-                            System.err.println("⚠️ GSM/ASM/Cautionary listing detected for ${order.symbol}. Retrying as LIMIT order at LTP.")
-                            val ltp = fetchRealLtp(order.symbol, verifiedToken)
-                            if (ltp > 0.0) {
-                                val roundedLtp = Math.round(ltp * 20.0) / 20.0
-                                println("🤖 Fetched LTP for fallback limit order: ₹$roundedLtp")
-                                val limitOrder = order.copy(orderType = "LIMIT", price = roundedLtp)
-                                return placeOrder(limitOrder, verifiedToken, apiKey, 1) // only 1 fallback attempt
+                            if (order.orderType.equals("MARKET", ignoreCase = true)) {
+                                System.err.println("⚠️ GSM/ASM/Cautionary listing detected for ${order.symbol}. Retrying as LIMIT order at LTP.")
+                                val ltp = fetchRealLtp(order.symbol, verifiedToken)
+                                if (ltp > 0.0) {
+                                    val roundedLtp = Math.round(ltp * 20.0) / 20.0
+                                    println("🤖 Fetched LTP for fallback limit order: ₹$roundedLtp")
+                                    val limitOrder = order.copy(orderType = "LIMIT", price = roundedLtp)
+                                    return placeOrder(limitOrder, verifiedToken, apiKey, 1) // only 1 fallback attempt
+                                } else {
+                                    System.err.println("❌ Failed to fetch LTP for cautionary/GSM stock fallback.")
+                                }
                             } else {
-                                System.err.println("❌ Failed to fetch LTP for cautionary/GSM stock fallback.")
+                                System.err.println("❌ Blocked completely: GSM/ASM LIMIT order was also rejected by exchange for ${order.symbol}.")
+                                return com.mobatrade.core.model.OrderResult.Failure("GSM_BLOCKED")
                             }
                         }
 
