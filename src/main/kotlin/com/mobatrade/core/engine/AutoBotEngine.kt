@@ -9,6 +9,7 @@ import java.util.concurrent.ConcurrentHashMap
 import com.mobatrade.core.model.Direction
 import com.mobatrade.core.model.Order
 import com.mobatrade.core.model.Candle
+import com.mobatrade.core.model.MarketRegime
 
 object AutoBotEngine {
     @Volatile
@@ -288,17 +289,26 @@ object AutoBotEngine {
             return
         }
 
-        // Check Intraday Session Gates (9:45-11:30 and 14:00-15:00)
+        // Check Intraday Session Gates (9:30-12:00 and 13:30-15:00)
         if (!isEntryWindowOpen()) {
             println("🤖 [SCAN CYCLE] Skipping new entries: Outside primary entry windows.")
             return
         }
 
-        // Nifty 50 Regime Gate: only go long when the broad market is not in a confirmed downtrend
-        val isNiftyBullish = checkNiftyRegime()
-        if (!isNiftyBullish) {
-            println("🤖 [SCAN CYCLE] Skipping new entries: Nifty 50 is Ranging/Bearish.")
+        // Nifty 50 Regime Gate: classify market state and adapt score threshold accordingly
+        val niftyState = getNiftyMarketState()
+        if (niftyState == MarketRegime.TRENDING_BEARISH) {
+            println("🤖 [SCAN CYCLE] Skipping new entries: Nifty 50 is Bearish.")
             return
+        }
+
+        // Regime-Adaptive Score Threshold (Phase 4)
+        // TRENDING_BULLISH → lower bar (easier to enter, market is pulling stocks up)
+        // RANGING           → standard bar
+        val scoreThreshold = when (niftyState) {
+            MarketRegime.TRENDING_BULLISH -> { println("🤖 [SCAN CYCLE] Nifty BULLISH — score threshold = 2"); 2 }
+            MarketRegime.RANGING          -> { println("🤖 [SCAN CYCLE] Nifty RANGING — score threshold = 3"); 3 }
+            else                          -> { println("🤖 [SCAN CYCLE] Nifty VOLATILE/UNKNOWN — score threshold = 4"); 4 }
         }
 
         val rawSignalsArray = JSONArray(MobaTradeServer.getCachedSignalsJson())
@@ -323,9 +333,9 @@ object AutoBotEngine {
             println("🤖 [SIGNAL] $symbol | score=$score | compliant=$compliant | price=₹$price | regime=$regime | isSwingEligible=$isSwingEligible")
 
             if (!compliant) { println("  └─ SKIP: Not Shariah-compliant."); continue }
-            
-            // Entry threshold: score >= 3 (at least 3 confluence factors must align)
-            if (score < 3) { println("  └─ SKIP: Score $score < 3 threshold."); continue }
+
+            // Regime-adaptive entry threshold
+            if (score < scoreThreshold) { println("  └─ SKIP: Score $score < $scoreThreshold (regime threshold)."); continue }
             if (price <= 0.0) { println("  └─ SKIP: Invalid price $price."); continue }
 
             if (activeTickers.contains(symbol) || holdingTickers.contains(symbol)) {
@@ -443,8 +453,17 @@ object AutoBotEngine {
         return false
     }
 
-    private fun checkNiftyRegime(): Boolean {
-        if (!AngelOneClient.isLoggedIn) return false
+    /**
+     * Phase 4 — Regime-Adaptive Score Threshold
+     * Returns TRENDING_BULLISH, RANGING, or TRENDING_BEARISH based on how far
+     * the Nifty 50 is above or below its intraday VWAP.
+     *
+     *   +0.3% above VWAP  → TRENDING_BULLISH (lower entry bar, threshold = 2)
+     *   Within ±0.3%      → RANGING           (normal threshold = 3)
+     *   Below VWAP        → TRENDING_BEARISH  (block all new entries)
+     */
+    private fun getNiftyMarketState(): MarketRegime {
+        if (!AngelOneClient.isLoggedIn) return MarketRegime.TRENDING_BEARISH
         try {
             println("🤖 [SCAN CYCLE] Fetching Nifty 50 index candles to evaluate market regime...")
             val fetchResult = kotlinx.coroutines.runBlocking {
@@ -457,33 +476,33 @@ object AutoBotEngine {
             }
             val candles = if (fetchResult is com.mobatrade.core.model.FetchResult.Success) fetchResult.data else emptyList()
             if (candles.isEmpty()) {
-                println("⚠️ [SCAN CYCLE] Could not fetch Nifty 50 data. Defaulting to block entries (fail closed).")
-                return false
+                println("⚠️ [SCAN CYCLE] Could not fetch Nifty 50 data. Defaulting to BEARISH (fail closed).")
+                return MarketRegime.TRENDING_BEARISH
             }
 
-            // Real-time VWAP check: is Nifty trading above its intraday VWAP?
-            // Nifty 50 is an index — Angel One returns volume=0 for all index candles.
-            // Fallback: use simple typical-price average (unweighted VWAP) which gives
-            // the same directional information without needing volume data.
             val todayCandles = candles.takeLast(78) // max 78 x 5m candles in a trading day
             val totalVolume = todayCandles.sumOf { it.volume.toDouble() }
             val vwap = if (totalVolume > 0) {
-                // Volume-weighted (for tradeable instruments)
                 todayCandles.sumOf { ((it.high + it.low + it.close) / 3.0) * it.volume } / totalVolume
             } else {
-                // Unweighted typical-price average (for indices with no volume data)
                 todayCandles.map { (it.high + it.low + it.close) / 3.0 }.average()
             }
 
             val lastClose = candles.last().close
-            val isAboveVwap = vwap > 0 && lastClose > vwap
+            val vwapDeltaPct = if (vwap > 0) ((lastClose - vwap) / vwap) * 100.0 else 0.0
 
-            println("🤖 [SCAN CYCLE] Nifty 50 LTP = ₹${String.format("%.2f", lastClose)} | VWAP = ₹${String.format("%.2f", vwap)} | Above VWAP = $isAboveVwap")
-            return isAboveVwap
+            val state = when {
+                vwapDeltaPct >= 0.30  -> MarketRegime.TRENDING_BULLISH   // +0.3%+ above VWAP → strong bull
+                vwapDeltaPct >= -0.30 -> MarketRegime.RANGING             // within ±0.3% of VWAP → ranging
+                else                  -> MarketRegime.TRENDING_BEARISH    // below -0.3% → bearish, skip entries
+            }
+
+            println("🤖 [SCAN CYCLE] Nifty 50 LTP = ₹${String.format("%.2f", lastClose)} | VWAP = ₹${String.format("%.2f", vwap)} | Δ = ${String.format("%.2f", vwapDeltaPct)}% | Regime = $state")
+            return state
         } catch (e: Exception) {
             System.err.println("Error checking Nifty regime: ${e.message}")
         }
-        return false
+        return MarketRegime.TRENDING_BEARISH
     }
 
     private fun isEntryWindowOpen(): Boolean {
