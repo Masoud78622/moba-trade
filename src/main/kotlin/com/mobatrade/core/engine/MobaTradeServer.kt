@@ -57,6 +57,9 @@ object MobaTradeServer {
             println("Server initialized Shariah compliance filter with local defaults.")
         }
 
+        // Phase 6: reset self-healing counters on startup (stale state from a previous run is meaningless)
+        SelfHealingWatchlist.reset()
+
         // Seed positive news sentiment for ALL halal stocks by default (0.75 = mildly positive)
         // This ensures NewsSentiment strategy contributes to scoring for every stock in the universe,
         // not just the 4 IT stocks that were hardcoded before.
@@ -599,6 +602,8 @@ object MobaTradeServer {
                 item.put("triggers", JSONArray(listOf("FAILED_TO_FETCH_MARKET_DATA")))
                 item.put("price", String.format("₹%,.2f", startPrice))
                 signalsArray.put(item)
+                // Phase 6: count failed fetch as a miss — candle fetch failure = dead signal
+                SelfHealingWatchlist.recordScore(symbol, 0)
                 continue
             }
 
@@ -645,8 +650,15 @@ object MobaTradeServer {
                 item.put("price", String.format("₹%,.2f", currentPrice))
             }
 
+            // Phase 6: record the score so SelfHealingWatchlist can track stale stocks
+            val finalScore = if (orbSignal != null) orbSignal.score else scored.totalScore
+            SelfHealingWatchlist.recordScore(symbol, finalScore)
+
             signalsArray.put(item)
         }
+
+        // Phase 6: after scoring all symbols, check for stale stocks and heal the watchlist
+        SelfHealingWatchlist.checkAndHeal()
 
         return signalsArray
     }
