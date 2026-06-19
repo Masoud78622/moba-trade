@@ -595,26 +595,43 @@ object MobaTradeServer {
             val scorer = ConfluenceScorer(symbol, sector)
             val scored = scorer.scoreTrade(candles)
 
+            // Check Opening Range Breakout (ORB) as an independent strategy
+            val orbSignal = OpeningRangeEngine.detect(symbol, token ?: "", candles)
+
             val item = JSONObject()
             item.put("symbol", scored.symbol)
             item.put("token", token)
-            item.put("score", scored.totalScore)
-            item.put("direction", scored.recommendedDirection.name)
-            item.put("regime", scored.marketRegime.name)
-            item.put("compliant", scored.isShariahCompliant)
-            item.put("isSwingEligible", scored.isSwingEligible)
-            item.put("atr14", scored.atr14)
-            
-            val triggersArray = JSONArray()
-            for (trigger in scored.triggers) {
-                triggersArray.put(trigger)
+
+            if (orbSignal != null) {
+                // ORB overrides the confluence score — it's a standalone edge
+                item.put("score", orbSignal.score)
+                item.put("direction", "BUY")
+                item.put("regime", scored.marketRegime.name)
+                item.put("compliant", scored.isShariahCompliant)
+                item.put("isSwingEligible", false) // ORB is always intraday
+                item.put("atr14", scored.atr14)
+                item.put("orbStopLoss", orbSignal.stopLoss)
+                item.put("orbTarget", orbSignal.target)
+                item.put("isOrb", true)
+                val triggersArray = JSONArray()
+                for (trigger in orbSignal.triggers) triggersArray.put(trigger)
+                item.put("triggers", triggersArray)
+                item.put("price", String.format("₹%,.2f", orbSignal.entryPrice))
+            } else {
+                item.put("score", scored.totalScore)
+                item.put("direction", scored.recommendedDirection.name)
+                item.put("regime", scored.marketRegime.name)
+                item.put("compliant", scored.isShariahCompliant)
+                item.put("isSwingEligible", scored.isSwingEligible)
+                item.put("atr14", scored.atr14)
+                item.put("isOrb", false)
+                val triggersArray = JSONArray()
+                for (trigger in scored.triggers) triggersArray.put(trigger)
+                item.put("triggers", triggersArray)
+                val currentPrice = if (candles.isNotEmpty()) candles.last().close else startPrice
+                item.put("price", String.format("₹%,.2f", currentPrice))
             }
-            item.put("triggers", triggersArray)
-            
-            // Return the actual last close price as the stock's current price in the signals JSON.
-            val currentPrice = if (candles.isNotEmpty()) candles.last().close else startPrice
-            item.put("price", String.format("₹%,.2f", currentPrice))
-            
+
             signalsArray.put(item)
         }
 

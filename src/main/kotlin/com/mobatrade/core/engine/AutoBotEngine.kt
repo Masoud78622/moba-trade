@@ -52,6 +52,9 @@ object AutoBotEngine {
     private fun runScanCycle() {
         val totalCapital = AngelOneClient.fetchMarginCapital()
         println("🤖 [SCAN CYCLE] isEnabled=$isEnabled | isLoggedIn=${AngelOneClient.isLoggedIn} | Capital=₹$totalCapital")
+
+        // Clear any stale ORB fired-today entries from yesterday
+        OpeningRangeEngine.clearStaleEntries()
         
         val activePositionsJson = AngelOneClient.fetchActivePositions()
         val realActivePositions = activePositionsJson.filter { extractQty(it) > 0 }
@@ -331,13 +334,17 @@ object AutoBotEngine {
             }
 
             val atr14 = sig.optDouble("atr14", 0.0)
-            
+            val isOrb = sig.optBoolean("isOrb", false)
+            val orbStopLoss = sig.optDouble("orbStopLoss", 0.0)
+            val orbTarget = sig.optDouble("orbTarget", 0.0)
+
             val order = riskManager.evaluateAndSizeTrade(
                 symbol = symbol,
                 score = score,
                 entryPrice = price,
                 atr14 = atr14,
-                availableCash = totalCapital
+                availableCash = totalCapital,
+                fallbackStopLoss = if (isOrb && orbStopLoss > 0) orbStopLoss else null
             )
 
             if (order != null) {
@@ -352,12 +359,12 @@ object AutoBotEngine {
                             entryPrice = price,
                             quantity = order.quantity,
                             direction = com.mobatrade.core.model.Direction.BUY,
-                            stopLoss = order.stopLoss ?: (price - (atr14 * 1.5)),
-                            target = order.target ?: (price + (atr14 * 1.5 * 2.0)),
+                            stopLoss = if (isOrb && orbStopLoss > 0) orbStopLoss else (order.stopLoss ?: (price - (atr14 * 1.5))),
+                            target = if (isOrb && orbTarget > 0) orbTarget else (order.target ?: (price + (atr14 * 1.5 * 2.0))),
                             entryTime = java.time.Instant.now(),
                             isSwing = isSwingEligible,
                             atr14 = atr14,
-                            initialRiskPerShare = price - (order.stopLoss ?: (price - (atr14 * 1.5)))
+                            initialRiskPerShare = if (isOrb && orbStopLoss > 0) (price - orbStopLoss) else (price - (order.stopLoss ?: (price - (atr14 * 1.5))))
                         )
                     )
                     break // Place only one order per cycle
