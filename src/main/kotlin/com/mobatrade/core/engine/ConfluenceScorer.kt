@@ -28,10 +28,12 @@ import java.time.Instant
 
 class ConfluenceScorer(
     val symbol: String,
-    val sectorName: String
+    val sectorName: String,
+    /** ADX minimum threshold. Default = 18.0 (Phase 2 calibrated for 5m candles). */
+    private val adxThreshold: Double = 18.0
 ) {
     private val regimeDetector = RegimeDetector()
-    private val adxFilter = AdxFilter(symbol)
+    private val adxFilter = AdxFilter(symbol, adxMinThreshold = adxThreshold)
     private val sectorRotation = SectorRotation(symbol, sectorName)
     
     // Independent Factor Analyzers

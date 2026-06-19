@@ -188,7 +188,9 @@ class EmaCrossover(
  */
 class AdxFilter(
     val symbol: String,
-    private val period: Int = 14
+    private val period: Int = 14,
+    /** Minimum ADX value required to confirm a trend is present. Default = 18 (5m candle calibrated). */
+    private val adxMinThreshold: Double = 18.0
 ) : Strategy {
     override val name: String = "ADX Trend Filter"
 
@@ -206,11 +208,11 @@ class AdxFilter(
         val latestCandle = candles.last()
         val currentPrice = currentTick?.price ?: latestCandle.close
         
-        // Bullish crossover (+DI crossing -DI from below) + Trend Presence (ADX > 18)
-        // Note: 18 is used instead of 25 because on 5m candles ADX is naturally lower
-        // and a genuine intraday move can be underway at ADX 18-24 before it strengthens.
+        // Bullish crossover (+DI crossing -DI from below) + Trend Presence (ADX > adxMinThreshold)
+        // Default 18.0 — on 5m candles ADX is naturally lower; a genuine intraday move can be
+        // underway at ADX 18-24 before it strengthens. Use 25.0 for daily-candle comparisons.
         val crossover = prevPlusDI <= prevMinusDI && currPlusDI > currMinusDI
-        val strongTrend = currAdx > 18.0
+        val strongTrend = currAdx > adxMinThreshold
         
         if (crossover && strongTrend) {
             return Signal(
