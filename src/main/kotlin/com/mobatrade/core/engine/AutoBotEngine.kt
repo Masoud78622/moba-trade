@@ -428,12 +428,18 @@ object AutoBotEngine {
             }
 
             // Real-time VWAP check: is Nifty trading above its intraday VWAP?
-            // VWAP = sum(price * volume) / sum(volume) — only use today's candles
+            // Nifty 50 is an index — Angel One returns volume=0 for all index candles.
+            // Fallback: use simple typical-price average (unweighted VWAP) which gives
+            // the same directional information without needing volume data.
             val todayCandles = candles.takeLast(78) // max 78 x 5m candles in a trading day
             val totalVolume = todayCandles.sumOf { it.volume.toDouble() }
             val vwap = if (totalVolume > 0) {
+                // Volume-weighted (for tradeable instruments)
                 todayCandles.sumOf { ((it.high + it.low + it.close) / 3.0) * it.volume } / totalVolume
-            } else 0.0
+            } else {
+                // Unweighted typical-price average (for indices with no volume data)
+                todayCandles.map { (it.high + it.low + it.close) / 3.0 }.average()
+            }
 
             val lastClose = candles.last().close
             val isAboveVwap = vwap > 0 && lastClose > vwap
