@@ -52,6 +52,7 @@ class WatchlistAuditorTest {
             candles = candles,
             avgDailyVolume = 600_000.0,
             avgDailyValueTraded = 600_000.0 * lastPrice, // > ₹2 crore
+            ema20Daily = lastPrice * 0.98, // Price > EMA20 (daily bias bullish)
             ema50Daily = lastPrice * 0.95, // EMA50 > EMA200
             ema200Daily = lastPrice * 0.85, // Price > EMA200
             atr14 = lastPrice * 0.02, // ATR is 2% of price
@@ -72,6 +73,7 @@ class WatchlistAuditorTest {
             candles = candles,
             avgDailyVolume = 100_000.0,
             avgDailyValueTraded = 100_000.0 * lastPrice,
+            ema20Daily = lastPrice * 0.98,
             ema50Daily = lastPrice * 0.95,
             ema200Daily = lastPrice * 0.85,
             atr14 = lastPrice * 0.02,
@@ -92,6 +94,7 @@ class WatchlistAuditorTest {
             candles = candles,
             avgDailyVolume = 600_000.0,
             avgDailyValueTraded = 600_000.0 * lastPrice,
+            ema20Daily = lastPrice * 0.98,
             ema50Daily = lastPrice * 0.95,
             ema200Daily = lastPrice * 0.85,
             atr14 = lastPrice * 0.02,
@@ -112,6 +115,7 @@ class WatchlistAuditorTest {
             candles = candles,
             avgDailyVolume = 600_000.0,
             avgDailyValueTraded = 600_000.0 * lastPrice,
+            ema20Daily = lastPrice * 1.05, // price is below EMA20 (daily bias bearish)
             ema50Daily = lastPrice * 1.05,
             ema200Daily = lastPrice * 1.15, // price is below EMA200
             atr14 = lastPrice * 0.02,
@@ -132,6 +136,7 @@ class WatchlistAuditorTest {
             candles = candles,
             avgDailyVolume = 600_000.0,
             avgDailyValueTraded = 600_000.0 * lastPrice,
+            ema20Daily = lastPrice * 0.98,
             ema50Daily = lastPrice * 0.95,
             ema200Daily = lastPrice * 0.85,
             atr14 = lastPrice * 0.02,

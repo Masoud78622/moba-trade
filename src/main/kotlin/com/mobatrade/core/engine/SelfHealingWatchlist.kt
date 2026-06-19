@@ -5,6 +5,7 @@ import org.json.JSONObject
 import java.io.File
 import java.nio.charset.StandardCharsets
 import java.util.concurrent.ConcurrentHashMap
+import com.mobatrade.core.model.Candle
 
 /**
  * Phase 6 — Self-Healing Watchlist
@@ -159,11 +160,46 @@ object SelfHealingWatchlist {
             // with a simple shuffle to avoid always picking the same stock.
             // A future improvement can rank by real-time RS score here.
             val replacement = pickReplacement(candidates, activeSymbols)
-            surviving.put(replacement)
-
             val replaceSym = replacement.optString("symbol", "UNKNOWN")
             val replaceSector = replacement.optString("sector", "?")
-            println("✅ [SELF-HEAL] Promoted $replaceSym ($replaceSector) to replace $deadSymbol.")
+            val replaceToken = replacement.optString("token", "")
+
+            // Fetch daily candles to calculate daily bias and daily ATR for the promoted stock
+            var dailyAtr = 0.0
+            var dailyBias = "UNKNOWN"
+            if (AngelOneClient.isLoggedIn && replaceToken.isNotEmpty()) {
+                try {
+                    println("🔄 [SELF-HEAL] Fetching daily candles for replacement candidate $replaceSym...")
+                    val fetchResult = kotlinx.coroutines.runBlocking {
+                        AngelOneClient.fetchHistoricalCandles(
+                            symbolToken = replaceToken,
+                            symbol = replaceSym,
+                            interval = "ONE_DAY",
+                            limitDays = TradingConstants.CANDLE_HISTORY_DAYS_DAILY_AUDIT
+                        )
+                    }
+                    val candles = if (fetchResult is com.mobatrade.core.model.FetchResult.Success) fetchResult.data else emptyList()
+                    if (candles.size >= 200) {
+                        val closePrices = candles.map { it.close }
+                        val ema20List = com.mobatrade.core.strategies.tier4.TechIndicators.calculateEma(closePrices, 20)
+                        if (ema20List.isNotEmpty()) {
+                            val price = candles.last().close
+                            val ema20 = ema20List.last()
+                            dailyBias = if (price > ema20) "BULLISH" else "BEARISH"
+                        }
+                        dailyAtr = calculateDailyATR14(candles)
+                    }
+                    Thread.sleep(1000) // Stay safe under API rate limits
+                } catch (e: Exception) {
+                    System.err.println("🔄 [SELF-HEAL] Failed to calculate metrics for $replaceSym: ${e.message}")
+                }
+            }
+
+            replacement.put("dailyBias", dailyBias)
+            replacement.put("dailyAtr", dailyAtr)
+
+            surviving.put(replacement)
+            println("✅ [SELF-HEAL] Promoted $replaceSym ($replaceSector) to replace $deadSymbol (dailyBias=$dailyBias, dailyAtr=$dailyAtr).")
 
             writeWatchlist(watchlistFile, surviving)
         } catch (e: Exception) {
@@ -173,21 +209,28 @@ object SelfHealingWatchlist {
 
     /**
      * Picks the best replacement from [candidates].
-     *
-     * Ranking heuristic (no API calls needed):
-     *  1. Prefer stocks whose sector is already represented in the active watchlist
-     *     (sector momentum is already proven).
-     *  2. Among equals, pick randomly to avoid deterministic bias.
-     *
-     * When real-time daily candle data is available (via future live-fetch), this can
-     * be upgraded to rank by Relative Strength (price / 52-week high).
      */
     private fun pickReplacement(candidates: List<JSONObject>, activeSectors: Set<String>): JSONObject {
-        // Collect sectors already in the active watchlist for sector-momentum bias
-        val activeSectorCounts = mutableMapOf<String, Int>()
-        // (activeSectors here is a set of symbols — sector info not passed in, so fall back to random)
         // Shuffle for diversity, then return first
         return candidates.shuffled().first()
+    }
+
+    private fun calculateDailyATR14(candles: List<Candle>): Double {
+        if (candles.size < 15) return 0.0
+        val trList = ArrayList<Double>()
+        for (i in 1 until candles.size) {
+            val curr = candles[i]
+            val prev = candles[i - 1]
+            val hl = curr.high - curr.low
+            val hcp = Math.abs(curr.high - prev.close)
+            val lcp = Math.abs(curr.low - prev.close)
+            trList.add(maxOf(hl, hcp, lcp))
+        }
+        var atr = trList.take(14).average()
+        for (i in 14 until trList.size) {
+            atr = (atr * 13 + trList[i]) / 14.0
+        }
+        return atr
     }
 
     /** Atomically writes the watchlist JSON to disk. */

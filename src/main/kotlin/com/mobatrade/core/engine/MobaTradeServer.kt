@@ -505,6 +505,8 @@ object MobaTradeServer {
         // Dynamically build the list of stocks to scan from halal_stocks.json cache
         val activeStocks = ArrayList<Triple<String, String, Double>>()
         val symbolToToken = mutableMapOf<String, String>()
+        val symbolToDailyBias = mutableMapOf<String, String>()
+        val symbolToDailyAtr = mutableMapOf<String, Double>()
 
         try {
             val isWindows = System.getProperty("os.name").lowercase().contains("win")
@@ -526,6 +528,10 @@ object MobaTradeServer {
 
                     if (symbol.isNotEmpty() && token.isNotEmpty()) {
                         symbolToToken[symbol] = token
+                        val dailyAtr = obj.optDouble("dailyAtr", 0.0)
+                        val dailyBias = obj.optString("dailyBias", "UNKNOWN")
+                        symbolToDailyAtr[symbol] = dailyAtr
+                        symbolToDailyBias[symbol] = dailyBias
                         // Provide reasonable default start prices if falling back to synthetic
                         val defaultPrice = when (symbol) {
                             "TCS" -> 3045.00
@@ -653,6 +659,11 @@ object MobaTradeServer {
             // Phase 6: record the score so SelfHealingWatchlist can track stale stocks
             val finalScore = if (orbSignal != null) orbSignal.score else scored.totalScore
             SelfHealingWatchlist.recordScore(symbol, finalScore)
+
+            val db = symbolToDailyBias[symbol.uppercase()] ?: "UNKNOWN"
+            val da = symbolToDailyAtr[symbol.uppercase()] ?: 0.0
+            item.put("dailyBias", db)
+            item.put("dailyAtr", da)
 
             signalsArray.put(item)
         }

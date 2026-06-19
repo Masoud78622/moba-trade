@@ -98,15 +98,17 @@ object WatchlistAuditor {
 
                     // 2. Compute metrics
                     val closePrices = candles.map { it.close }
+                    val ema20List = TechIndicators.calculateEma(closePrices, 20)
                     val ema50List = TechIndicators.calculateEma(closePrices, 50)
                     val ema200List = TechIndicators.calculateEma(closePrices, 200)
 
-                    if (ema50List.isEmpty() || ema200List.isEmpty()) {
+                    if (ema20List.isEmpty() || ema50List.isEmpty() || ema200List.isEmpty()) {
                         println("🤖 [WATCHLIST AUDIT] Skip $symbol: EMA computation failed.")
                         continue
                     }
 
                     val price = candles.last().close
+                    val ema20Daily = ema20List.last()
                     val ema50Daily = ema50List.last()
                     val ema200Daily = ema200List.last()
 
@@ -130,6 +132,7 @@ object WatchlistAuditor {
                         candles = candles,
                         avgDailyVolume = avgDailyVolume,
                         avgDailyValueTraded = avgDailyValueTraded,
+                        ema20Daily = ema20Daily,
                         ema50Daily = ema50Daily,
                         ema200Daily = ema200Daily,
                         atr14 = atr14,
@@ -142,6 +145,8 @@ object WatchlistAuditor {
                     
                     if (auditPassed) {
                         println("✅ [WATCHLIST AUDIT] $symbol PASSED audit! Price=₹$price, RS=${String.format("%.3f", rsScore)}, Vol=${avgDailyVolume.toInt()}, ATR/Price=${String.format("%.3f", atrRatio)}")
+                        stockObj.put("dailyBias", "BULLISH")
+                        stockObj.put("dailyAtr", atr14)
                         matchedStocksList.add(Pair(stockObj, rsScore))
                     } else {
                         println("❌ [WATCHLIST AUDIT] $symbol FAILED audit.")
@@ -193,6 +198,7 @@ object WatchlistAuditor {
         candles: List<Candle>,
         avgDailyVolume: Double,
         avgDailyValueTraded: Double,
+        ema20Daily: Double,
         ema50Daily: Double,
         ema200Daily: Double,
         atr14: Double,
@@ -204,6 +210,7 @@ object WatchlistAuditor {
         
         val matchesLiquidity = avgDailyVolume > 500_000.0 && avgDailyValueTraded > 2_00_00_000.0
         val matchesPrice = price > 100.0 && price < 10_000.0
+        val matchesDailyBias = price > ema20Daily
         val matchesTrend = price > ema200Daily && ema50Daily > ema200Daily
         
         val atrRatio = if (price > 0) atr14 / price else 0.0
@@ -211,7 +218,7 @@ object WatchlistAuditor {
         
         val matchesRange = price > week52Low * 1.20 && price > week52High * 0.85
 
-        return matchesLiquidity && matchesPrice && matchesTrend && matchesVolatility && matchesRange
+        return matchesLiquidity && matchesPrice && matchesDailyBias && matchesTrend && matchesVolatility && matchesRange
     }
 
     fun getMostRecentSaturday(date: LocalDate): LocalDate {

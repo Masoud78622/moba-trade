@@ -314,21 +314,9 @@ object AutoBotEngine {
             return
         }
 
-        // Nifty 50 Regime Gate: classify market state and adapt score threshold accordingly
-        val niftyState = getNiftyMarketState()
-        if (niftyState == MarketRegime.TRENDING_BEARISH) {
-            println("🤖 [SCAN CYCLE] Skipping new entries: Nifty 50 is Bearish.")
-            return
-        }
-
-        // Regime-Adaptive Score Threshold (Phase 4)
-        // TRENDING_BULLISH → lower bar (easier to enter, market is pulling stocks up)
-        // RANGING           → standard bar
-        val scoreThreshold = when (niftyState) {
-            MarketRegime.TRENDING_BULLISH -> { println("🤖 [SCAN CYCLE] Nifty BULLISH — score threshold = 2"); 2 }
-            MarketRegime.RANGING          -> { println("🤖 [SCAN CYCLE] Nifty RANGING — score threshold = 3"); 3 }
-            else                          -> { println("🤖 [SCAN CYCLE] Nifty VOLATILE/UNKNOWN — score threshold = 4"); 4 }
-        }
+        // Fixed score threshold = 3 (Nifty index gate removed)
+        val scoreThreshold = 3
+        println("🤖 [SCAN CYCLE] Score threshold is fixed at $scoreThreshold.")
 
         val rawSignalsArray = JSONArray(MobaTradeServer.getCachedSignalsJson())
         val liveSignalsList = mutableListOf<JSONObject>()
@@ -363,6 +351,8 @@ object AutoBotEngine {
             }
 
             val atr14 = sig.optDouble("atr14", 0.0)
+            val dailyAtr = sig.optDouble("dailyAtr", 0.0)
+            val atrToUse = if (dailyAtr > 0.0) dailyAtr else atr14
             val isOrb = sig.optBoolean("isOrb", false)
             val orbStopLoss = sig.optDouble("orbStopLoss", 0.0)
             val orbTarget = sig.optDouble("orbTarget", 0.0)
@@ -374,7 +364,7 @@ object AutoBotEngine {
                 symbol = symbol,
                 score = score,
                 entryPrice = price,
-                atr14 = atr14,
+                atr14 = atrToUse,
                 availableCash = totalCapital,
                 fallbackStopLoss = if (isOrb && orbStopLoss > 0) {
                     orbStopLoss
@@ -402,24 +392,24 @@ object AutoBotEngine {
                             } else if (isVwapReclaim && vwapReclaimStopLoss > 0) {
                                 vwapReclaimStopLoss
                             } else {
-                                order.stopLoss ?: (price - (atr14 * 1.5))
+                                order.stopLoss ?: (price - (atrToUse * 1.5))
                             },
                             target = if (isOrb && orbTarget > 0) {
                                 orbTarget
                             } else if (isVwapReclaim && vwapReclaimTarget > 0) {
                                 vwapReclaimTarget
                             } else {
-                                order.target ?: (price + (atr14 * 1.5 * 2.0))
+                                order.target ?: (price + (atrToUse * 1.5 * 2.0))
                             },
                             entryTime = java.time.Instant.now(),
                             isSwing = isSwingEligible,
-                            atr14 = atr14,
+                            atr14 = atrToUse,
                             initialRiskPerShare = if (isOrb && orbStopLoss > 0) {
                                 price - orbStopLoss
                             } else if (isVwapReclaim && vwapReclaimStopLoss > 0) {
                                 price - vwapReclaimStopLoss
                             } else {
-                                price - (order.stopLoss ?: (price - (atr14 * 1.5)))
+                                price - (order.stopLoss ?: (price - (atrToUse * 1.5)))
                             }
                         )
                     )
@@ -472,57 +462,7 @@ object AutoBotEngine {
         return false
     }
 
-    /**
-     * Phase 4 — Regime-Adaptive Score Threshold
-     * Returns TRENDING_BULLISH, RANGING, or TRENDING_BEARISH based on how far
-     * the Nifty 50 is above or below its intraday VWAP.
-     *
-     *   +0.3% above VWAP  → TRENDING_BULLISH (lower entry bar, threshold = 2)
-     *   Within ±0.3%      → RANGING           (normal threshold = 3)
-     *   Below VWAP        → TRENDING_BEARISH  (block all new entries)
-     */
-    private fun getNiftyMarketState(): MarketRegime {
-        if (!AngelOneClient.isLoggedIn) return MarketRegime.TRENDING_BEARISH
-        try {
-            println("🤖 [SCAN CYCLE] Fetching Nifty 50 index candles to evaluate market regime...")
-            val fetchResult = kotlinx.coroutines.runBlocking {
-                AngelOneClient.fetchHistoricalCandles(
-                    symbolToken = "99926000",
-                    symbol = "Nifty 50",
-                    interval = "FIVE_MINUTE",
-                    limitDays = 2
-                )
-            }
-            val candles = if (fetchResult is com.mobatrade.core.model.FetchResult.Success) fetchResult.data else emptyList()
-            if (candles.isEmpty()) {
-                println("⚠️ [SCAN CYCLE] Could not fetch Nifty 50 data. Defaulting to BEARISH (fail closed).")
-                return MarketRegime.TRENDING_BEARISH
-            }
 
-            val todayCandles = candles.takeLast(78) // max 78 x 5m candles in a trading day
-            val totalVolume = todayCandles.sumOf { it.volume.toDouble() }
-            val vwap = if (totalVolume > 0) {
-                todayCandles.sumOf { ((it.high + it.low + it.close) / 3.0) * it.volume } / totalVolume
-            } else {
-                todayCandles.map { (it.high + it.low + it.close) / 3.0 }.average()
-            }
-
-            val lastClose = candles.last().close
-            val vwapDeltaPct = if (vwap > 0) ((lastClose - vwap) / vwap) * 100.0 else 0.0
-
-            val state = when {
-                vwapDeltaPct >= 0.30  -> MarketRegime.TRENDING_BULLISH   // +0.3%+ above VWAP → strong bull
-                vwapDeltaPct >= -0.30 -> MarketRegime.RANGING             // within ±0.3% of VWAP → ranging
-                else                  -> MarketRegime.TRENDING_BEARISH    // below -0.3% → bearish, skip entries
-            }
-
-            println("🤖 [SCAN CYCLE] Nifty 50 LTP = ₹${String.format("%.2f", lastClose)} | VWAP = ₹${String.format("%.2f", vwap)} | Δ = ${String.format("%.2f", vwapDeltaPct)}% | Regime = $state")
-            return state
-        } catch (e: Exception) {
-            System.err.println("Error checking Nifty regime: ${e.message}")
-        }
-        return MarketRegime.TRENDING_BEARISH
-    }
 
     private fun isEntryWindowOpen(): Boolean {
         val now = LocalTime.now(ZoneId.of("Asia/Kolkata"))
