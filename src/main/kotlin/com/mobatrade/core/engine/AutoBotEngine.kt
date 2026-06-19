@@ -121,7 +121,7 @@ object AutoBotEngine {
             return
         }
 
-        // 5. Evaluate Swing Holdings — trailing stop + take profit management
+        // 5. Evaluate Swing Holdings — Phase 7 enhanced management
         if (isSwingManageEnabled) {
             val swingHoldings = AngelOneClient.fetchSwingHoldings()
             val realSwingHoldings = swingHoldings.filter { extractQty(it) > 0 }
@@ -136,13 +136,14 @@ object AutoBotEngine {
                 if (entry <= 0 || qty <= 0 || current <= 0) continue
 
                 val pnlPercent = ((current - entry) / entry) * 100.0
-                println("🤖 [SWING] $symbol | Entry=₹$entry | LTP=₹$current | PnL=${String.format("%.2f", pnlPercent)}%")
+                val daysHeld = SwingPeakTracker.getDaysHeld(symbol)
+                println("🤖 [SWING] $symbol | Entry=₹$entry | LTP=₹$current | PnL=${String.format("%.2f", pnlPercent)}% | Days=$daysHeld")
 
                 // Update peak tracker for trailing stop
                 val peak = SwingPeakTracker.updateAndGetPeak(symbol, entry, current)
                 val peakGainPercent = ((peak - entry) / entry) * 100.0
 
-                // A. Hard stop loss at -5%
+                // ── Rule A: Hard stop loss at -5% ─────────────────────────────────
                 if (pnlPercent <= -5.0) {
                     println("🤖 SWING STOP-LOSS: $symbol at ${String.format("%.2f", pnlPercent)}%. Liquidating all $qty shares...")
                     if (liquidatePosition(symbol, token, qty)) {
@@ -152,7 +153,7 @@ object AutoBotEngine {
                     continue
                 }
 
-                // B. Full take-profit at +15%
+                // ── Rule B: Full take-profit at +15% ─────────────────────────────
                 if (pnlPercent >= 15.0) {
                     println("🤖 SWING TARGET HIT: $symbol at +${String.format("%.2f", pnlPercent)}%. Taking full profit on $qty shares...")
                     if (liquidatePosition(symbol, token, qty)) {
@@ -162,30 +163,48 @@ object AutoBotEngine {
                     continue
                 }
 
-                // C. Trailing stop check: if peak gain >= 5%, trailing stop is activated
+                // ── Rule C (Phase 7): Time-based stale exit ───────────────────────
+                // If held > 10 days and stuck between -2% and +4%, it's dead money — exit
+                if (daysHeld >= 10 && pnlPercent in -2.0..4.0) {
+                    println("🤖 SWING STALE EXIT: $symbol held $daysHeld days with flat P&L (${String.format("%.2f", pnlPercent)}%). Freeing capital — exiting $qty shares...")
+                    if (liquidatePosition(symbol, token, qty)) {
+                        riskManager.closePosition(symbol, current)
+                        SwingPeakTracker.clear(symbol)
+                    }
+                    continue
+                }
+
+                // ── Rule D (Phase 7): Dynamic trailing stop ───────────────────────
+                // Trail tightens as peak gain grows — protects more profit as trade extends
                 if (peakGainPercent >= 5.0) {
-                    val trailingStop = peak * 0.95 // 5% trailing stop below peak
-                    val entryStop = entry * 0.97     // Never let a winner go below -3% from entry
+                    val trailPct = when {
+                        peakGainPercent >= 15.0 -> 0.03   // +15%+ peak → 3% trail (very tight)
+                        peakGainPercent >= 10.0 -> 0.04   // +10-15% peak → 4% trail
+                        else                    -> 0.05   // +5-10% peak → 5% trail (original)
+                    }
+                    val trailingStop = peak * (1.0 - trailPct)
+                    val entryStop = entry * 0.97  // Never let a winner fall below -3% from entry
                     val effectiveStop = maxOf(trailingStop, entryStop)
-                    
+
                     if (current <= effectiveStop) {
-                        println("🤖 SWING TRAIL STOP: $symbol trailed stop hit at ₹$current (peak=₹$peak, stop=₹${String.format("%.2f", effectiveStop)}). Exiting all $qty shares...")
+                        println("🤖 SWING TRAIL STOP: $symbol trailed stop hit at ₹$current (peak=₹$peak, trail=${(trailPct*100).toInt()}%, stop=₹${String.format("%.2f", effectiveStop)}). Exiting $qty shares...")
                         if (liquidatePosition(symbol, token, qty)) {
                             riskManager.closePosition(symbol, current)
                             SwingPeakTracker.clear(symbol)
                         }
                         continue
                     } else {
-                        println("🤖 [SWING] $symbol trailing stop active. Peak=₹$peak | Stop=₹${String.format("%.2f", effectiveStop)} | Price safe.")
+                        println("🤖 [SWING] $symbol trailing stop active. Peak=₹$peak | Trail=${(trailPct*100).toInt()}% | Stop=₹${String.format("%.2f", effectiveStop)} | Price safe.")
                     }
                 }
 
-                // D. Partial exit (50%) at +10% — book half, let rest run
-                if (pnlPercent >= 10.0 && qty >= 2) {
+                // ── Rule E (Phase 7): Earlier partial exit at +7% ─────────────────
+                // Book 50% at +7% (was +10%) — secures profit, lets the other half run
+                if (pnlPercent >= 7.0 && qty >= 2) {
                     val halfQty = qty / 2
                     val lastPartial = liquidatedCooldown["${symbol}_PARTIAL"] ?: 0L
                     if (System.currentTimeMillis() - lastPartial > 24 * 60 * 60 * 1000L) {
-                        println("🤖 SWING PARTIAL EXIT: $symbol at +${String.format("%.2f", pnlPercent)}%. Booking $halfQty of $qty shares...")
+                        println("🤖 SWING PARTIAL EXIT: $symbol at +${String.format("%.2f", pnlPercent)}%. Booking $halfQty of $qty shares at 1R...")
                         if (liquidatePosition(symbol, token, halfQty)) {
                             liquidatedCooldown["${symbol}_PARTIAL"] = System.currentTimeMillis()
                         }
@@ -561,7 +580,9 @@ object SwingPeakTracker {
     private val isWindows = System.getProperty("os.name").lowercase().contains("win")
     private val FILE_PATH = if (isWindows) "c:\\moba trade\\swing_peaks.json" else "swing_peaks.json"
     
-    private val peaks = ConcurrentHashMap<String, Double>()
+    private val peaks      = ConcurrentHashMap<String, Double>()
+    /** ISO date string (yyyy-MM-dd IST) of when the position was first seen. */
+    private val entryDates = ConcurrentHashMap<String, String>()
 
     init {
         load()
@@ -576,7 +597,11 @@ object SwingPeakTracker {
                 if (content.isNotEmpty()) {
                     val json = JSONObject(content)
                     for (key in json.keys()) {
-                        peaks[key] = json.getDouble(key)
+                        if (key.endsWith("_entry_date")) {
+                            entryDates[key.removeSuffix("_entry_date")] = json.getString(key)
+                        } else {
+                            peaks[key] = json.getDouble(key)
+                        }
                     }
                 }
             }
@@ -592,10 +617,26 @@ object SwingPeakTracker {
             for ((key, value) in peaks) {
                 json.put(key, value)
             }
+            for ((key, value) in entryDates) {
+                json.put("${key}_entry_date", value)
+            }
             File(FILE_PATH).writeText(json.toString())
         } catch (e: java.lang.Exception) {
             System.err.println("SwingPeakTracker: Failed to save peaks: ${e.message}")
         }
+    }
+
+    /**
+     * Returns how many calendar days this symbol has been held.
+     * Returns 0 if entry date is unknown.
+     */
+    fun getDaysHeld(symbol: String): Long {
+        val dateStr = entryDates[symbol.uppercase()] ?: return 0L
+        return try {
+            val entry = java.time.LocalDate.parse(dateStr)
+            val today = java.time.LocalDate.now(java.time.ZoneId.of("Asia/Kolkata"))
+            java.time.temporal.ChronoUnit.DAYS.between(entry, today)
+        } catch (e: Exception) { 0L }
     }
 
     private fun fetchHistoricalPeak(symbol: String, entryPrice: Double): Double {
@@ -621,6 +662,9 @@ object SwingPeakTracker {
         val symbolKey = symbol.uppercase()
         val currentPeak = peaks[symbolKey]
         val newPeak = if (currentPeak == null) {
+            // First time we see this symbol — record entry date
+            val today = java.time.LocalDate.now(java.time.ZoneId.of("Asia/Kolkata")).toString()
+            entryDates[symbolKey] = today
             val histPeak = fetchHistoricalPeak(symbolKey, entryPrice)
             maxOf(entryPrice, currentPrice, histPeak)
         } else {
@@ -634,6 +678,7 @@ object SwingPeakTracker {
     @Synchronized
     fun clear(symbol: String) {
         peaks.remove(symbol.uppercase())
+        entryDates.remove(symbol.uppercase())
         save()
     }
 }
