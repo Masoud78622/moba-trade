@@ -18,6 +18,9 @@ object WatchlistAuditor {
     @Volatile
     private var isAuditRunning = false
 
+    /** Returns true if an audit is currently in progress. Used by BackgroundScanner to wait before first scan. */
+    fun isRunning(): Boolean = isAuditRunning
+
     /**
      * Runs the daily audit to filter and compile the intraday watchlist.
      * Keeps only liquid, trending, and volatile halal stocks near their 52-week highs.

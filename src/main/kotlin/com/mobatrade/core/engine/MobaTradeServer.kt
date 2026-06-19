@@ -173,14 +173,24 @@ object MobaTradeServer {
                         val isWindows = System.getProperty("os.name").lowercase().contains("win")
                         val watchListFile = if (isWindows) File("c:\\moba trade\\watchlist_intraday.json") else File("watchlist_intraday.json")
                         val isMissing = !watchListFile.exists() || watchListFile.length() <= 2
-                        
-                        if ((nowIst.dayOfWeek == java.time.DayOfWeek.SATURDAY && nowIst.hour >= 9 && today != lastWeeklyAuditDate) || isMissing) {
-                            println("BackgroundScanner: Saturday check OR missing watchlist. Triggering watchlist audit refresh...")
+                        val isSaturdayRefresh = nowIst.dayOfWeek == java.time.DayOfWeek.SATURDAY && nowIst.hour >= 9 && today != lastWeeklyAuditDate
+
+                        if (isSaturdayRefresh || isMissing) {
+                            println("BackgroundScanner: ${if (isMissing) "watchlist_intraday.json missing" else "Saturday refresh"} — triggering watchlist audit...")
                             val auditStarted = WatchlistAuditor.runDailyAudit(force = true)
                             if (auditStarted) {
-                                lastWeeklyAuditDate = today
+                                if (isSaturdayRefresh) lastWeeklyAuditDate = today
+                                // Wait for the audit to finish before scanning, so we never
+                                // fall back to scanning all 58 stocks on the first cycle.
+                                var waited = 0
+                                while (WatchlistAuditor.isRunning() && waited < 120) {
+                                    Thread.sleep(5000)
+                                    waited++
+                                }
+                                println("BackgroundScanner: Audit complete. Proceeding with Top 15 scan.")
                             }
                         }
+
 
                         val scanStart = System.currentTimeMillis()
                         logLine("BackgroundScanner: Starting scheduled scan of stock universe...")
