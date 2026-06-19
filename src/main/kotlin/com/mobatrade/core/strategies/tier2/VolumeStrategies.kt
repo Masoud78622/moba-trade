@@ -6,6 +6,9 @@ import com.mobatrade.core.model.Signal
 import com.mobatrade.core.model.Tick
 import com.mobatrade.core.strategies.Strategy
 import java.time.Instant
+import java.time.LocalDate
+import java.time.ZoneId
+
 
 /**
  * S4: Volume Profile (POC, VAH, VAL)
@@ -316,3 +319,109 @@ class ObvDivergence(
         return lowIndices
     }
 }
+
+/**
+ * VWAP Reclaim Strategy
+ * 1. Stock dips below VWAP in the morning, consolidates (at least 3 candles with shrinking volume)
+ * 2. Then a strong 5m candle closes back above VWAP with volume > 1.3x average
+ * Entry: close of the reclaim candle
+ * Stop: low of the candle that reclaimed VWAP
+ * Target: VWAP + 1 ATR
+ */
+class VwapReclaim(
+    val symbol: String
+) : Strategy {
+    override val name: String = "VWAP Reclaim"
+
+    override fun evaluate(candles: List<Candle>, currentTick: Tick?): Signal? {
+        // Need at least 20 candles for average volume calculation
+        if (candles.size < 20) return null
+
+        val IST = ZoneId.of("Asia/Kolkata")
+        val today = LocalDate.now(IST)
+        val todayStart = today.atTime(9, 15).atZone(IST).toInstant()
+        val todayCandles = candles.filter { it.timestamp >= todayStart }
+
+        // Need at least 3 candles below VWAP to consolidate + 1 candle to break out/reclaim
+        if (todayCandles.size < 4) return null
+
+        // Calculate daily VWAP series at each candle of the day
+        var cumulativeTypicalPriceVolume = 0.0
+        var cumulativeVolume = 0.0
+        val vwapList = ArrayList<Double>()
+        for (c in todayCandles) {
+            val typicalPrice = (c.high + c.low + c.close) / 3.0
+            cumulativeTypicalPriceVolume += typicalPrice * c.volume
+            cumulativeVolume += c.volume
+            val v = if (cumulativeVolume > 0.0) cumulativeTypicalPriceVolume / cumulativeVolume else typicalPrice
+            vwapList.add(v)
+        }
+
+        val n = todayCandles.size - 1
+        val triggerCandle = todayCandles[n]
+        val triggerVwap = vwapList[n]
+
+        // 1. Trigger candle must close above VWAP
+        if (triggerCandle.close <= triggerVwap) return null
+
+        // 2. The previous candle must have closed below or equal to VWAP
+        if (todayCandles[n - 1].close > vwapList[n - 1]) return null
+
+        // 3. Consolidates: the previous 3 candles must have closed below VWAP
+        if (todayCandles[n - 2].close >= vwapList[n - 2] || todayCandles[n - 3].close >= vwapList[n - 3]) return null
+
+        // 4. Shrinking volume during consolidation (v[n-1] <= v[n-2] and v[n-2] <= v[n-3])
+        val vol1 = todayCandles[n - 1].volume
+        val vol2 = todayCandles[n - 2].volume
+        val vol3 = todayCandles[n - 3].volume
+        val isShrinkingVolume = vol1 <= vol2 && vol2 <= vol3
+        if (!isShrinkingVolume) return null
+
+        // 5. Trigger candle volume must be > 1.3x of 20-candle average volume
+        val avgVolume20 = candles.dropLast(1).takeLast(20).map { it.volume.toDouble() }.average()
+        if (avgVolume20 <= 0.0 || triggerCandle.volume <= 1.3 * avgVolume20) return null
+
+        // 6. Calculate ATR14 for target calculation
+        val atr14 = calculateATR14(candles)
+        val stopLoss = triggerCandle.low
+        val target = triggerVwap + atr14
+
+        // Prevent target being lower than entry
+        val currentPrice = currentTick?.price ?: triggerCandle.close
+        val finalTarget = if (target > currentPrice) target else currentPrice + (atr14 * 1.5)
+
+        return Signal(
+            symbol = symbol,
+            direction = Direction.BUY,
+            score = 3,
+            strategyName = name,
+            triggerPrice = currentPrice,
+            timestamp = Instant.now(),
+            metadata = mapOf(
+                "vwap" to triggerVwap,
+                "stopLoss" to stopLoss,
+                "target" to finalTarget,
+                "atr14" to atr14
+            )
+        )
+    }
+
+    private fun calculateATR14(candles: List<Candle>): Double {
+        if (candles.size < 15) return 0.0
+        val trList = ArrayList<Double>()
+        for (i in 1 until candles.size) {
+            val curr = candles[i]
+            val prev = candles[i - 1]
+            val hl = curr.high - curr.low
+            val hcp = Math.abs(curr.high - prev.close)
+            val lcp = Math.abs(curr.low - prev.close)
+            trList.add(maxOf(hl, hcp, lcp))
+        }
+        var atr = trList.take(14).average()
+        for (i in 14 until trList.size) {
+            atr = (atr * 13 + trList[i]) / 14.0
+        }
+        return atr
+    }
+}
+

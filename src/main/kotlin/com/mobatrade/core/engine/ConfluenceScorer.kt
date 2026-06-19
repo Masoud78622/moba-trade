@@ -12,6 +12,7 @@ import com.mobatrade.core.strategies.tier1.DarvasBox
 import com.mobatrade.core.strategies.tier1.SupportResistanceFlip
 import com.mobatrade.core.strategies.tier2.VolumeProfile
 import com.mobatrade.core.strategies.tier2.VwapDevBands
+import com.mobatrade.core.strategies.tier2.VwapReclaim
 import com.mobatrade.core.strategies.tier2.ObvDivergence
 import com.mobatrade.core.strategies.tier3.OrderBlocks
 import com.mobatrade.core.strategies.tier3.BreakOfStructure
@@ -38,6 +39,7 @@ class ConfluenceScorer(
     private val breakOfStructure = BreakOfStructure(symbol)
     private val vwapDevBands = VwapDevBands(symbol)
     private val patternRecognition = PatternRecognition(symbol)
+    private val vwapReclaim = VwapReclaim(symbol)
 
     data class ScoredTrade(
         val symbol: String,
@@ -47,8 +49,12 @@ class ConfluenceScorer(
         val triggers: List<String>,
         val isShariahCompliant: Boolean,
         val isSwingEligible: Boolean,
-        val atr14: Double
+        val atr14: Double,
+        val isVwapReclaim: Boolean = false,
+        val vwapReclaimStopLoss: Double = 0.0,
+        val vwapReclaimTarget: Double = 0.0
     )
+
 
     /**
      * Scores the asset from 0 to 5 by evaluating clean strategy signals.
@@ -169,6 +175,19 @@ class ConfluenceScorer(
             triggers.add("${vwapDevBands.name} (+1.0)")
         }
 
+        // 3.5. VWAP Reclaim Strategy (+1.5 points)
+        val reclaimSignal = vwapReclaim.evaluate(candles, currentTick)
+        var isVwapReclaimTriggered = false
+        var vwapReclaimStop = 0.0
+        var vwapReclaimTarget = 0.0
+        if (reclaimSignal != null && reclaimSignal.direction == Direction.BUY) {
+            totalScore += 1.5
+            isVwapReclaimTriggered = true
+            vwapReclaimStop = reclaimSignal.metadata["stopLoss"] as? Double ?: 0.0
+            vwapReclaimTarget = reclaimSignal.metadata["target"] as? Double ?: 0.0
+            triggers.add("${reclaimSignal.strategyName} (+1.5)")
+        }
+
         // 4. Volume Breakout Signal (1 point)
         val lastCandle = candles.last()
         val avgVolume20 = if (candles.size >= 2) candles.dropLast(1).takeLast(20).map { it.volume.toDouble() }.average() else 0.0
@@ -201,7 +220,10 @@ class ConfluenceScorer(
             triggers = triggers,
             isShariahCompliant = true,
             isSwingEligible = swingEligible,
-            atr14 = atr14
+            atr14 = atr14,
+            isVwapReclaim = isVwapReclaimTriggered,
+            vwapReclaimStopLoss = vwapReclaimStop,
+            vwapReclaimTarget = vwapReclaimTarget
         )
     }
 }

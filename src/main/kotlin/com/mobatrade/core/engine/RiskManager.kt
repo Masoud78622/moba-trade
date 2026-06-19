@@ -85,11 +85,11 @@ class RiskManager(
         // 4. Calculate Risk-based Position Sizing using ATR (total capital risk based on riskPercent)
         val riskRupees = availableCash * (riskPercent / 100.0)
         
-        // Stop distance is 1.5 * ATR, with fallback support for unit tests
-        val stopDistance = if (atr14 > 0.0) {
-            atr14 * 1.5
-        } else if (fallbackStopLoss != null && fallbackStopLoss < entryPrice && fallbackStopLoss > 0.0) {
+        // Stop distance uses fallback/custom stop loss (e.g. ORB or VWAP Reclaim) if provided, otherwise 1.5 * ATR
+        val stopDistance = if (fallbackStopLoss != null && fallbackStopLoss < entryPrice && fallbackStopLoss > 0.0) {
             entryPrice - fallbackStopLoss
+        } else if (atr14 > 0.0) {
+            atr14 * 1.5
         } else {
             entryPrice * 0.02 // default to 2% stop distance
         }

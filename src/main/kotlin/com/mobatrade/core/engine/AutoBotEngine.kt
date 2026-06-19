@@ -337,6 +337,9 @@ object AutoBotEngine {
             val isOrb = sig.optBoolean("isOrb", false)
             val orbStopLoss = sig.optDouble("orbStopLoss", 0.0)
             val orbTarget = sig.optDouble("orbTarget", 0.0)
+            val isVwapReclaim = sig.optBoolean("isVwapReclaim", false)
+            val vwapReclaimStopLoss = sig.optDouble("vwapReclaimStopLoss", 0.0)
+            val vwapReclaimTarget = sig.optDouble("vwapReclaimTarget", 0.0)
 
             val order = riskManager.evaluateAndSizeTrade(
                 symbol = symbol,
@@ -344,7 +347,13 @@ object AutoBotEngine {
                 entryPrice = price,
                 atr14 = atr14,
                 availableCash = totalCapital,
-                fallbackStopLoss = if (isOrb && orbStopLoss > 0) orbStopLoss else null
+                fallbackStopLoss = if (isOrb && orbStopLoss > 0) {
+                    orbStopLoss
+                } else if (isVwapReclaim && vwapReclaimStopLoss > 0) {
+                    vwapReclaimStopLoss
+                } else {
+                    null
+                }
             )
 
             if (order != null) {
@@ -359,12 +368,30 @@ object AutoBotEngine {
                             entryPrice = price,
                             quantity = order.quantity,
                             direction = com.mobatrade.core.model.Direction.BUY,
-                            stopLoss = if (isOrb && orbStopLoss > 0) orbStopLoss else (order.stopLoss ?: (price - (atr14 * 1.5))),
-                            target = if (isOrb && orbTarget > 0) orbTarget else (order.target ?: (price + (atr14 * 1.5 * 2.0))),
+                            stopLoss = if (isOrb && orbStopLoss > 0) {
+                                orbStopLoss
+                            } else if (isVwapReclaim && vwapReclaimStopLoss > 0) {
+                                vwapReclaimStopLoss
+                            } else {
+                                order.stopLoss ?: (price - (atr14 * 1.5))
+                            },
+                            target = if (isOrb && orbTarget > 0) {
+                                orbTarget
+                            } else if (isVwapReclaim && vwapReclaimTarget > 0) {
+                                vwapReclaimTarget
+                            } else {
+                                order.target ?: (price + (atr14 * 1.5 * 2.0))
+                            },
                             entryTime = java.time.Instant.now(),
                             isSwing = isSwingEligible,
                             atr14 = atr14,
-                            initialRiskPerShare = if (isOrb && orbStopLoss > 0) (price - orbStopLoss) else (price - (order.stopLoss ?: (price - (atr14 * 1.5))))
+                            initialRiskPerShare = if (isOrb && orbStopLoss > 0) {
+                                price - orbStopLoss
+                            } else if (isVwapReclaim && vwapReclaimStopLoss > 0) {
+                                price - vwapReclaimStopLoss
+                            } else {
+                                price - (order.stopLoss ?: (price - (atr14 * 1.5)))
+                            }
                         )
                     )
                     break // Place only one order per cycle

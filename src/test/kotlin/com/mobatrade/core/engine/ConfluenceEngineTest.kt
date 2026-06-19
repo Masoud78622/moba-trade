@@ -221,4 +221,86 @@ class ConfluenceEngineTest {
         println("Triggers: ${scored.triggers}")
         assertNotNull(scored)
     }
+
+    @Test
+    fun testVwapReclaimStrategy() {
+        val symbol = "TCS"
+        val IST = java.time.ZoneId.of("Asia/Kolkata")
+        val today = java.time.LocalDate.now(IST)
+        
+        // Construct 24 candles starting at 9:15 AM today
+        val baseTime = today.atTime(9, 15).atZone(IST).toInstant()
+        val candles = ArrayList<Candle>()
+        
+        // 1. Initial 20 flat candles to establish a baseline VWAP and volume
+        val currentPrice = 3000.0
+        val baseVolume = 1000L
+        for (i in 0 until 20) {
+            candles.add(
+                Candle(
+                    timestamp = baseTime.plus((i * 5).toLong(), java.time.temporal.ChronoUnit.MINUTES),
+                    open = currentPrice,
+                    high = currentPrice + 5.0,
+                    low = currentPrice - 5.0,
+                    close = currentPrice,
+                    volume = baseVolume
+                )
+            )
+        }
+        
+        // 2. Dip below VWAP and consolidate with shrinking volume (3 candles)
+        candles.add(
+            Candle(
+                timestamp = baseTime.plus((20 * 5).toLong(), java.time.temporal.ChronoUnit.MINUTES),
+                open = 3000.0,
+                high = 3000.0,
+                low = 2980.0,
+                close = 2985.0,
+                volume = 900L
+            )
+        )
+        
+        candles.add(
+            Candle(
+                timestamp = baseTime.plus((21 * 5).toLong(), java.time.temporal.ChronoUnit.MINUTES),
+                open = 2985.0,
+                high = 2990.0,
+                low = 2975.0,
+                close = 2980.0,
+                volume = 800L
+            )
+        )
+        
+        candles.add(
+            Candle(
+                timestamp = baseTime.plus((22 * 5).toLong(), java.time.temporal.ChronoUnit.MINUTES),
+                open = 2980.0,
+                high = 2985.0,
+                low = 2970.0,
+                close = 2975.0,
+                volume = 700L
+            )
+        )
+        
+        // 3. Reclaim candle (Candle 23): closes back above VWAP on high volume (> 1.3x average volume)
+        candles.add(
+            Candle(
+                timestamp = baseTime.plus((23 * 5).toLong(), java.time.temporal.ChronoUnit.MINUTES),
+                open = 2975.0,
+                high = 3020.0,
+                low = 2972.0,
+                close = 3015.0,
+                volume = 2000L
+            )
+        )
+        
+        val strategy = com.mobatrade.core.strategies.tier2.VwapReclaim(symbol)
+        val signal = strategy.evaluate(candles)
+        
+        assertNotNull(signal, "VWAP Reclaim should trigger a buy signal")
+        assertEquals(Direction.BUY, signal!!.direction)
+        assertEquals("VWAP Reclaim", signal.strategyName)
+        assertEquals(3015.0, signal.triggerPrice)
+        assertEquals(2972.0, signal.metadata["stopLoss"])
+    }
 }
