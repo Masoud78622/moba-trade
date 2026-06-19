@@ -567,8 +567,8 @@ object MobaTradeServer {
                         )
                     }
                     candles = if (fetchResult is com.mobatrade.core.model.FetchResult.Success) fetchResult.data else emptyList()
-                    // Rate limit protection: sleep for 3000ms to respect Angel One SmartAPI guidelines
-                    Thread.sleep(3000)
+                    // Rate limit protection: sleep for 5000ms to respect Angel One SmartAPI guidelines
+                    Thread.sleep(5000)
                 } catch (e: Exception) {
                     System.err.println("BackgroundScanner: Failed to fetch real-world candles for $symbol: ${e.message}")
                 }
