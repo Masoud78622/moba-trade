@@ -69,6 +69,7 @@ application {
 
 tasks.register<JavaExec>("forceZoyaSync") { mainClass.set("com.mobatrade.core.engine.ForceZoyaSyncKt"); classpath = sourceSets["main"].runtimeClasspath }
 tasks.register<JavaExec>("runVolatilityScreener") { mainClass.set("com.mobatrade.core.engine.VolatilityScreener"); classpath = sourceSets["main"].runtimeClasspath }
+tasks.register<JavaExec>("runTestConnection") { mainClass.set("com.mobatrade.core.engine.TestConnectionKt"); classpath = sourceSets["main"].runtimeClasspath }
 tasks.register<JavaExec>("runTrendTemplateShadowScanner") {
     group = "application"
     description = "Runs the Trend Template Shadow Scanner to detect new Version F entries and update active paper trades"
