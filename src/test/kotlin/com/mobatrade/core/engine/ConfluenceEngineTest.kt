@@ -31,6 +31,7 @@ class ConfluenceEngineTest {
         trendFactor: Double = 0.0,
         volumeMultiplier: Double = 1.0
     ): List<Candle> {
+        val random = java.util.Random(42)
         val candles = ArrayList<Candle>()
         var currentPrice = startPrice
         val now = Instant.now()
@@ -38,10 +39,10 @@ class ConfluenceEngineTest {
         for (i in 0 until count) {
             val change = currentPrice * trendFactor
             val open = currentPrice
-            val close = currentPrice + change + (Math.random() - 0.5) * (startPrice * 0.005)
-            val high = Math.max(open, close) + (Math.random() * (startPrice * 0.002))
-            val low = Math.min(open, close) - (Math.random() * (startPrice * 0.002))
-            val volume = (5000 + Math.random() * 2000 * volumeMultiplier).toLong()
+            val close = currentPrice + change + (random.nextDouble() - 0.5) * (startPrice * 0.005)
+            val high = Math.max(open, close) + (random.nextDouble() * (startPrice * 0.002))
+            val low = Math.min(open, close) - (random.nextDouble() * (startPrice * 0.002))
+            val volume = (5000 + random.nextDouble() * 2000 * volumeMultiplier).toLong()
             
             candles.add(
                 Candle(

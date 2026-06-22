@@ -89,7 +89,7 @@ class RegimeDetector(
         val ema50List = calculateEma(prices, 50)
         val ema20List = calculateEma(prices, 20)
         
-        if (ema50List.isNotEmpty() && ema20List.isNotEmpty()) {
+        if (ema50List.size >= 5 && ema20List.isNotEmpty()) {
             val ema50 = ema50List.last()
             val ema20 = ema20List.last()
             val latestPrice = prices.last()

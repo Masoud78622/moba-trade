@@ -414,7 +414,8 @@ object AngelOneClient {
         symbolToken: String,
         symbol: String,
         interval: String = "ONE_HOUR",
-        limitDays: Int = 15,
+        fromDate: ZonedDateTime,
+        toDate: ZonedDateTime,
         apiKey: String = DEFAULT_API_KEY
     ): FetchResult<List<Candle>> {
         return historicalDataLimiter.execute {
@@ -422,13 +423,9 @@ object AngelOneClient {
             val token = jwtToken ?: return@execute FetchResult.Failure("auth_error")
 
             try {
-                val zone = ZoneId.of("Asia/Kolkata")
-                val nowIst = ZonedDateTime.now(zone)
-                val fromIst = nowIst.minusDays(limitDays.toLong())
-
                 val formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm")
-                val fromDateStr = fromIst.format(formatter)
-                val toDateStr = nowIst.format(formatter)
+                val fromDateStr = fromDate.format(formatter)
+                val toDateStr = toDate.format(formatter)
 
                 val requestBodyJson = JSONObject()
                 requestBodyJson.put("exchange", "NSE")
@@ -515,30 +512,64 @@ object AngelOneClient {
         limitDays: Int = 15,
         apiKey: String = DEFAULT_API_KEY
     ): FetchResult<List<Candle>> {
-        return withAuthRetry(maxAttempts = 1) {
-            apiMutex.withLock {
-                var attempts = 0
-                while (attempts < 3) {
-                    val result = fetchHistoricalCandlesCore(symbolToken, symbol, interval, limitDays, apiKey)
-                    if (result is FetchResult.Success) return@withAuthRetry result
-                
-                val failure = result as FetchResult.Failure
-                if (failure.reason == "auth_error") {
-                    return@withAuthRetry result // Pass up to withAuthRetry
-                } else if (failure.reason == "rate_limit") {
-                    System.err.println("Rate limit hit for $symbol! Sleeping 2 seconds to cool down before retry...")
-                    delay(2000L) // Wait and retry
-                } else if (failure.reason == "timeout" || failure.reason == "io_error") {
-                    System.err.println("Network issue fetching $symbol: ${failure.reason}. Retrying...")
-                    delay(1000L)
-                } else {
-                    return@withAuthRetry result // Terminal failure
+        val zone = ZoneId.of("Asia/Kolkata")
+        val nowIst = ZonedDateTime.now(zone)
+        
+        // If we want more than 30 days of sub-daily candles, chunk the requests to bypass broker API limits
+        val maxChunkDays = if (interval == "ONE_DAY") 365 else 30
+        
+        val candles = ArrayList<Candle>()
+        var daysRemaining = limitDays
+        var currentToDate = nowIst
+        
+        while (daysRemaining > 0) {
+            val chunkDays = if (daysRemaining > maxChunkDays) maxChunkDays else daysRemaining
+            val currentFromDate = currentToDate.minusDays(chunkDays.toLong())
+            
+            val result = withAuthRetry(maxAttempts = 1) {
+                apiMutex.withLock {
+                    var attempts = 0
+                    var lastResult: FetchResult<List<Candle>> = FetchResult.Failure("Not started")
+                    while (attempts < 3) {
+                        val res = fetchHistoricalCandlesCore(symbolToken, symbol, interval, currentFromDate, currentToDate, apiKey)
+                        if (res is FetchResult.Success) return@withAuthRetry res
+                        
+                        val failure = res as FetchResult.Failure
+                        if (failure.reason == "auth_error") {
+                            return@withAuthRetry res // Pass up to withAuthRetry
+                        } else if (failure.reason == "rate_limit") {
+                            System.err.println("Rate limit hit for $symbol! Sleeping 2 seconds to cool down before retry...")
+                            delay(2000L) // Wait and retry
+                        } else if (failure.reason == "timeout" || failure.reason == "io_error") {
+                            System.err.println("Network issue fetching $symbol: ${failure.reason}. Retrying...")
+                            delay(1000L)
+                        } else {
+                            return@withAuthRetry res // Terminal failure
+                        }
+                        attempts++
+                        lastResult = res
+                    }
+                    lastResult
                 }
-                attempts++
-                }
-                FetchResult.Failure("Max attempts reached")
             }
+            
+            when (result) {
+                is FetchResult.Success -> {
+                    candles.addAll(result.data)
+                }
+                is FetchResult.Failure -> {
+                    return FetchResult.Failure(result.reason)
+                }
+            }
+            
+            currentToDate = currentFromDate
+            daysRemaining -= chunkDays
+            delay(300L) // Add a small delay between chunk fetches to avoid rate limits
         }
+        
+        // De-duplicate by timestamp and sort chronologically
+        val uniqueCandles = candles.distinctBy { it.timestamp }.sortedBy { it.timestamp }
+        return FetchResult.Success(uniqueCandles)
     }
 
     /**

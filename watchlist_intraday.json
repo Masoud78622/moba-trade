@@ -1,0 +1,1766 @@
+[
+  {
+    "symbol": "CONFIPET",
+    "token": "10238",
+    "sector": "Gas",
+    "atr_pct": 7.482558611178712
+  },
+  {
+    "symbol": "EXICOM",
+    "token": "22947",
+    "sector": "Electrical Equipment",
+    "atr_pct": 7.347376439708205
+  },
+  {
+    "symbol": "NGLFINE",
+    "token": "10277",
+    "sector": "Pharmaceuticals & Biotechnology",
+    "atr_pct": 7.103351223982197
+  },
+  {
+    "symbol": "RELTD",
+    "token": "24596",
+    "sector": "Electrical Equipment",
+    "atr_pct": 7.089730181970298
+  },
+  {
+    "symbol": "ARIHANT",
+    "token": "13885",
+    "sector": "Realty",
+    "atr_pct": 7.004264392324094
+  },
+  {
+    "symbol": "BALAMINES",
+    "token": "14501",
+    "sector": "Chemicals & Petrochemicals",
+    "atr_pct": 6.74231997541323
+  },
+  {
+    "symbol": "YASHO",
+    "token": "18131",
+    "sector": "Chemicals & Petrochemicals",
+    "atr_pct": 6.634921737749504
+  },
+  {
+    "symbol": "PIGL",
+    "token": "15716",
+    "sector": "Electrical Equipment",
+    "atr_pct": 6.598445628808018
+  },
+  {
+    "symbol": "SASKEN",
+    "token": "11983",
+    "sector": "IT - Services",
+    "atr_pct": 6.518640865727211
+  },
+  {
+    "symbol": "SCPL",
+    "token": "12072",
+    "sector": "Food Products",
+    "atr_pct": 6.436485746830574
+  },
+  {
+    "symbol": "AMNPLST",
+    "token": "19867",
+    "sector": "Chemicals & Petrochemicals",
+    "atr_pct": 6.409464721608743
+  },
+  {
+    "symbol": "SECMARK",
+    "token": "19496",
+    "sector": "IT - Software",
+    "atr_pct": 6.375362051571331
+  },
+  {
+    "symbol": "MANOMAY",
+    "token": "13753",
+    "sector": "Textiles & Apparels",
+    "atr_pct": 6.212619452230144
+  },
+  {
+    "symbol": "INOXINDIA",
+    "token": "20607",
+    "sector": "Industrial Products",
+    "atr_pct": 6.189756119362961
+  },
+  {
+    "symbol": "BBTCL",
+    "token": "12153",
+    "sector": "Industrial Products",
+    "atr_pct": 6.123213115630973
+  },
+  {
+    "symbol": "APTECHT",
+    "token": "10755",
+    "sector": "Other Consumer Services",
+    "atr_pct": 5.982746410867185
+  },
+  {
+    "symbol": "PREMEXPLN",
+    "token": "17397",
+    "sector": "Chemicals & Petrochemicals",
+    "atr_pct": 5.944703432772567
+  },
+  {
+    "symbol": "HLEGLAS",
+    "token": "2289",
+    "sector": "Industrial Manufacturing",
+    "atr_pct": 5.939047619047617
+  },
+  {
+    "symbol": "RAIN",
+    "token": "15337",
+    "sector": "UNKNOWN",
+    "atr_pct": 5.842183994016453
+  },
+  {
+    "symbol": "WIPL",
+    "token": "20481",
+    "sector": "UNKNOWN",
+    "atr_pct": 5.8139942048269795
+  },
+  {
+    "symbol": "HALEOSLABS",
+    "token": "21551",
+    "sector": "Pharmaceuticals & Biotechnology",
+    "atr_pct": 5.768685292866263
+  },
+  {
+    "symbol": "ADL",
+    "token": "245",
+    "sector": "UNKNOWN",
+    "atr_pct": 5.660078884647031
+  },
+  {
+    "symbol": "RESPONIND",
+    "token": "20323",
+    "sector": "UNKNOWN",
+    "atr_pct": 5.657767843125529
+  },
+  {
+    "symbol": "INFOBEAN",
+    "token": "11027",
+    "sector": "UNKNOWN",
+    "atr_pct": 5.653745044142456
+  },
+  {
+    "symbol": "HIRECT",
+    "token": "13890",
+    "sector": "Industrial Manufacturing",
+    "atr_pct": 5.625526850795858
+  },
+  {
+    "symbol": "MANINDS",
+    "token": "11884",
+    "sector": "Industrial Products",
+    "atr_pct": 5.620927744821551
+  },
+  {
+    "symbol": "AEROENTER",
+    "token": "12015",
+    "sector": "UNKNOWN",
+    "atr_pct": 5.566245045158712
+  },
+  {
+    "symbol": "SUYOG",
+    "token": "24851",
+    "sector": "Telecom - Services",
+    "atr_pct": 5.418749505829021
+  },
+  {
+    "symbol": "APOLLO",
+    "token": "1134",
+    "sector": "UNKNOWN",
+    "atr_pct": 5.397338434392571
+  },
+  {
+    "symbol": "CHENNPETRO",
+    "token": "2049",
+    "sector": "UNKNOWN",
+    "atr_pct": 5.345105796007601
+  },
+  {
+    "symbol": "CNL",
+    "token": "11155",
+    "sector": "UNKNOWN",
+    "atr_pct": 5.333554596747427
+  },
+  {
+    "symbol": "SHILPAMED",
+    "token": "17752",
+    "sector": "UNKNOWN",
+    "atr_pct": 5.316171993418753
+  },
+  {
+    "symbol": "KERNEX",
+    "token": "13121",
+    "sector": "UNKNOWN",
+    "atr_pct": 5.305612117315044
+  },
+  {
+    "symbol": "RELIABLE",
+    "token": "24378",
+    "sector": "UNKNOWN",
+    "atr_pct": 5.290280495759949
+  },
+  {
+    "symbol": "CARYSIL",
+    "token": "1879",
+    "sector": "UNKNOWN",
+    "atr_pct": 5.283439149027413
+  },
+  {
+    "symbol": "ASTEC",
+    "token": "17728",
+    "sector": "UNKNOWN",
+    "atr_pct": 5.235140314117373
+  },
+  {
+    "symbol": "SPARC",
+    "token": "14788",
+    "sector": "UNKNOWN",
+    "atr_pct": 5.214714723723923
+  },
+  {
+    "symbol": "INDOCO",
+    "token": "11677",
+    "sector": "UNKNOWN",
+    "atr_pct": 5.2053886791535176
+  },
+  {
+    "symbol": "APCL",
+    "token": "20453",
+    "sector": "Cement & Cement Products",
+    "atr_pct": 5.184007440738039
+  },
+  {
+    "symbol": "PPAP",
+    "token": "15209",
+    "sector": "UNKNOWN",
+    "atr_pct": 5.1619211996570495
+  },
+  {
+    "symbol": "OMAXE",
+    "token": "14853",
+    "sector": "UNKNOWN",
+    "atr_pct": 5.141211955031534
+  },
+  {
+    "symbol": "ICIL",
+    "token": "11987",
+    "sector": "UNKNOWN",
+    "atr_pct": 5.138114546376076
+  },
+  {
+    "symbol": "AZAD",
+    "token": "20905",
+    "sector": "UNKNOWN",
+    "atr_pct": 5.108956526482301
+  },
+  {
+    "symbol": "TALBROAUTO",
+    "token": "13648",
+    "sector": "UNKNOWN",
+    "atr_pct": 5.102748548441434
+  },
+  {
+    "symbol": "OPTIEMUS",
+    "token": "21469",
+    "sector": "UNKNOWN",
+    "atr_pct": 5.063270629789852
+  },
+  {
+    "symbol": "SPORTKING",
+    "token": "10733",
+    "sector": "UNKNOWN",
+    "atr_pct": 4.9848223552271165
+  },
+  {
+    "symbol": "HINDWAREAP",
+    "token": "15883",
+    "sector": "UNKNOWN",
+    "atr_pct": 4.977162391198184
+  },
+  {
+    "symbol": "SHAHALLOYS",
+    "token": "11856",
+    "sector": "UNKNOWN",
+    "atr_pct": 4.95005572295373
+  },
+  {
+    "symbol": "KANPRPLA",
+    "token": "1782",
+    "sector": "UNKNOWN",
+    "atr_pct": 4.927529715065124
+  },
+  {
+    "symbol": "MHRIL",
+    "token": "17333",
+    "sector": "UNKNOWN",
+    "atr_pct": 4.897663929194505
+  },
+  {
+    "symbol": "EMSLIMITED",
+    "token": "18593",
+    "sector": "Other Utilities",
+    "atr_pct": 4.850982232104606
+  },
+  {
+    "symbol": "RATNAVEER",
+    "token": "18423",
+    "sector": "UNKNOWN",
+    "atr_pct": 4.846061394026895
+  },
+  {
+    "symbol": "AARTECH",
+    "token": "17145",
+    "sector": "Electrical Equipment",
+    "atr_pct": 4.837242359630422
+  },
+  {
+    "symbol": "NIRAJISPAT",
+    "token": "18840",
+    "sector": "UNKNOWN",
+    "atr_pct": 4.763834772894472
+  },
+  {
+    "symbol": "RELAXO",
+    "token": "24225",
+    "sector": "UNKNOWN",
+    "atr_pct": 4.762239306288763
+  },
+  {
+    "symbol": "LORDSCHLO",
+    "token": "18232",
+    "sector": "UNKNOWN",
+    "atr_pct": 4.7457517606771376
+  },
+  {
+    "symbol": "CONCORDBIO",
+    "token": "18060",
+    "sector": "UNKNOWN",
+    "atr_pct": 4.734023485449235
+  },
+  {
+    "symbol": "ALPHAGEO",
+    "token": "14597",
+    "sector": "UNKNOWN",
+    "atr_pct": 4.70555559365506
+  },
+  {
+    "symbol": "RBZJEWEL",
+    "token": "20874",
+    "sector": "UNKNOWN",
+    "atr_pct": 4.682075350392184
+  },
+  {
+    "symbol": "WAAREEINDO",
+    "token": "19955",
+    "sector": "UNKNOWN",
+    "atr_pct": 4.675870348139255
+  },
+  {
+    "symbol": "ARCHIDPLY",
+    "token": "16795",
+    "sector": "UNKNOWN",
+    "atr_pct": 4.67363473746975
+  },
+  {
+    "symbol": "RPPINFRA",
+    "token": "20760",
+    "sector": "UNKNOWN",
+    "atr_pct": 4.649005141962889
+  },
+  {
+    "symbol": "UDS",
+    "token": "19113",
+    "sector": "UNKNOWN",
+    "atr_pct": 4.645895481162302
+  },
+  {
+    "symbol": "NUCLEUS",
+    "token": "10791",
+    "sector": "UNKNOWN",
+    "atr_pct": 4.629419094307359
+  },
+  {
+    "symbol": "ADFFOODS",
+    "token": "19761",
+    "sector": "UNKNOWN",
+    "atr_pct": 4.626504341348723
+  },
+  {
+    "symbol": "FACT",
+    "token": "1008",
+    "sector": "UNKNOWN",
+    "atr_pct": 4.608125671017685
+  },
+  {
+    "symbol": "ASPINWALL",
+    "token": "17270",
+    "sector": "Transport Services",
+    "atr_pct": 4.607307465720986
+  },
+  {
+    "symbol": "20MICRONS",
+    "token": "16921",
+    "sector": "UNKNOWN",
+    "atr_pct": 4.602476376669925
+  },
+  {
+    "symbol": "DCXINDIA",
+    "token": "11895",
+    "sector": "UNKNOWN",
+    "atr_pct": 4.602374426669651
+  },
+  {
+    "symbol": "TARACHAND",
+    "token": "23512",
+    "sector": "UNKNOWN",
+    "atr_pct": 4.566035816035813
+  },
+  {
+    "symbol": "SICAGEN",
+    "token": "16875",
+    "sector": "UNKNOWN",
+    "atr_pct": 4.547134935304991
+  },
+  {
+    "symbol": "SIS",
+    "token": "21501",
+    "sector": "UNKNOWN",
+    "atr_pct": 4.521731903930855
+  },
+  {
+    "symbol": "THEMISMED",
+    "token": "14485",
+    "sector": "UNKNOWN",
+    "atr_pct": 4.502113437530719
+  },
+  {
+    "symbol": "MAXIND",
+    "token": "22428",
+    "sector": "UNKNOWN",
+    "atr_pct": 4.494850270881709
+  },
+  {
+    "symbol": "OLECTRA",
+    "token": "10637",
+    "sector": "UNKNOWN",
+    "atr_pct": 4.482667894494508
+  },
+  {
+    "symbol": "AURIONPRO",
+    "token": "12022",
+    "sector": "UNKNOWN",
+    "atr_pct": 4.480586164178132
+  },
+  {
+    "symbol": "HPL",
+    "token": "18679",
+    "sector": "Industrial Manufacturing",
+    "atr_pct": 4.473831253492267
+  },
+  {
+    "symbol": "LANDMARK",
+    "token": "13276",
+    "sector": "Automobiles",
+    "atr_pct": 4.4696296544671155
+  },
+  {
+    "symbol": "GANDHAR",
+    "token": "20303",
+    "sector": "UNKNOWN",
+    "atr_pct": 4.437241444897054
+  },
+  {
+    "symbol": "KABRAEXTRU",
+    "token": "1805",
+    "sector": "UNKNOWN",
+    "atr_pct": 4.431611965051856
+  },
+  {
+    "symbol": "GVT&D",
+    "token": "16783",
+    "sector": "UNKNOWN",
+    "atr_pct": 4.4243503853154165
+  },
+  {
+    "symbol": "MUFTI",
+    "token": "20878",
+    "sector": "UNKNOWN",
+    "atr_pct": 4.417606864770383
+  },
+  {
+    "symbol": "DREAMFOLKS",
+    "token": "10859",
+    "sector": "UNKNOWN",
+    "atr_pct": 4.416190341540264
+  },
+  {
+    "symbol": "DYCL",
+    "token": "10417",
+    "sector": "UNKNOWN",
+    "atr_pct": 4.415230304800852
+  },
+  {
+    "symbol": "IFBIND",
+    "token": "1485",
+    "sector": "UNKNOWN",
+    "atr_pct": 4.379691931268423
+  },
+  {
+    "symbol": "EXPLEOSOL",
+    "token": "17486",
+    "sector": "UNKNOWN",
+    "atr_pct": 4.363096339775964
+  },
+  {
+    "symbol": "DIAMINESQ",
+    "token": "18644",
+    "sector": "UNKNOWN",
+    "atr_pct": 4.358514542237211
+  },
+  {
+    "symbol": "KIOCL",
+    "token": "19126",
+    "sector": "UNKNOWN",
+    "atr_pct": 4.347902683085812
+  },
+  {
+    "symbol": "NIITMTS",
+    "token": "17747",
+    "sector": "UNKNOWN",
+    "atr_pct": 4.344525002333757
+  },
+  {
+    "symbol": "KDDL",
+    "token": "14908",
+    "sector": "UNKNOWN",
+    "atr_pct": 4.294354157515965
+  },
+  {
+    "symbol": "PARAGMILK",
+    "token": "17130",
+    "sector": "UNKNOWN",
+    "atr_pct": 4.2867719798167085
+  },
+  {
+    "symbol": "GLOBAL",
+    "token": "1415",
+    "sector": "UNKNOWN",
+    "atr_pct": 4.27360662063093
+  },
+  {
+    "symbol": "IMFA",
+    "token": "19235",
+    "sector": "UNKNOWN",
+    "atr_pct": 4.244929376130833
+  },
+  {
+    "symbol": "FAZE3Q",
+    "token": "12000",
+    "sector": "UNKNOWN",
+    "atr_pct": 4.243873281530186
+  },
+  {
+    "symbol": "ECLERX",
+    "token": "15179",
+    "sector": "UNKNOWN",
+    "atr_pct": 4.231237853568156
+  },
+  {
+    "symbol": "TCPLPACK",
+    "token": "184",
+    "sector": "UNKNOWN",
+    "atr_pct": 4.227381188165502
+  },
+  {
+    "symbol": "NKIND",
+    "token": "2439",
+    "sector": "UNKNOWN",
+    "atr_pct": 4.224489795918366
+  },
+  {
+    "symbol": "TBOTEK",
+    "token": "23740",
+    "sector": "UNKNOWN",
+    "atr_pct": 4.215810367642829
+  },
+  {
+    "symbol": "CCL",
+    "token": "11452",
+    "sector": "UNKNOWN",
+    "atr_pct": 4.209845373126832
+  },
+  {
+    "symbol": "PTCIL",
+    "token": "16682",
+    "sector": "UNKNOWN",
+    "atr_pct": 4.2000763650248185
+  },
+  {
+    "symbol": "JGCHEM",
+    "token": "23056",
+    "sector": "UNKNOWN",
+    "atr_pct": 4.196591799425434
+  },
+  {
+    "symbol": "GODAVARIB",
+    "token": "25941",
+    "sector": "UNKNOWN",
+    "atr_pct": 4.195107731921195
+  },
+  {
+    "symbol": "AERONEU",
+    "token": "13689",
+    "sector": "UNKNOWN",
+    "atr_pct": 4.176163126386488
+  },
+  {
+    "symbol": "REPRO",
+    "token": "13126",
+    "sector": "UNKNOWN",
+    "atr_pct": 4.148833622517829
+  },
+  {
+    "symbol": "WEBELSOLAR",
+    "token": "14602",
+    "sector": "UNKNOWN",
+    "atr_pct": 4.140005730111739
+  },
+  {
+    "symbol": "BAJEL",
+    "token": "20531",
+    "sector": "UNKNOWN",
+    "atr_pct": 4.136770987464754
+  },
+  {
+    "symbol": "BANCOINDIA",
+    "token": "13880",
+    "sector": "UNKNOWN",
+    "atr_pct": 4.134034278819744
+  },
+  {
+    "symbol": "COMSYN",
+    "token": "21578",
+    "sector": "UNKNOWN",
+    "atr_pct": 4.123720352837298
+  },
+  {
+    "symbol": "GALLANTT",
+    "token": "13337",
+    "sector": "UNKNOWN",
+    "atr_pct": 4.118895753437004
+  },
+  {
+    "symbol": "KIRLFER",
+    "token": "14466",
+    "sector": "UNKNOWN",
+    "atr_pct": 4.112236337488015
+  },
+  {
+    "symbol": "APOLLOPIPE",
+    "token": "14361",
+    "sector": "UNKNOWN",
+    "atr_pct": 4.091336079196474
+  },
+  {
+    "symbol": "JBMA",
+    "token": "11655",
+    "sector": "UNKNOWN",
+    "atr_pct": 4.078686334976727
+  },
+  {
+    "symbol": "MINDTECK",
+    "token": "18049",
+    "sector": "UNKNOWN",
+    "atr_pct": 4.073196706762607
+  },
+  {
+    "symbol": "KENNAMET",
+    "token": "11841",
+    "sector": "UNKNOWN",
+    "atr_pct": 4.073093245566823
+  },
+  {
+    "symbol": "DIVGIITTS",
+    "token": "14479",
+    "sector": "UNKNOWN",
+    "atr_pct": 4.070436392135937
+  },
+  {
+    "symbol": "JYOTICNC",
+    "token": "21334",
+    "sector": "UNKNOWN",
+    "atr_pct": 4.057572619128278
+  },
+  {
+    "symbol": "EVEREADY",
+    "token": "11782",
+    "sector": "UNKNOWN",
+    "atr_pct": 4.056042913301959
+  },
+  {
+    "symbol": "REFEX",
+    "token": "17764",
+    "sector": "UNKNOWN",
+    "atr_pct": 4.051647373107745
+  },
+  {
+    "symbol": "VAIBHAVGBL",
+    "token": "11364",
+    "sector": "UNKNOWN",
+    "atr_pct": 4.0416649613228
+  },
+  {
+    "symbol": "COFORGE",
+    "token": "11543",
+    "sector": "UNKNOWN",
+    "atr_pct": 4.0222198357919
+  },
+  {
+    "symbol": "UNIPARTS",
+    "token": "13057",
+    "sector": "UNKNOWN",
+    "atr_pct": 4.02083465667281
+  },
+  {
+    "symbol": "AWFIS",
+    "token": "23864",
+    "sector": "UNKNOWN",
+    "atr_pct": 4.015361488232255
+  },
+  {
+    "symbol": "ZENSARTECH",
+    "token": "1076",
+    "sector": "UNKNOWN",
+    "atr_pct": 3.997576260105561
+  },
+  {
+    "symbol": "GREAVESCOT",
+    "token": "1235",
+    "sector": "UNKNOWN",
+    "atr_pct": 3.9844435809984313
+  },
+  {
+    "symbol": "SAFARI",
+    "token": "13035",
+    "sector": "UNKNOWN",
+    "atr_pct": 3.983032783390887
+  },
+  {
+    "symbol": "RAJRATAN",
+    "token": "18962",
+    "sector": "UNKNOWN",
+    "atr_pct": 3.9814343035475446
+  },
+  {
+    "symbol": "FORCEMOT",
+    "token": "11573",
+    "sector": "UNKNOWN",
+    "atr_pct": 3.9809442046926624
+  },
+  {
+    "symbol": "PKTEA",
+    "token": "10321",
+    "sector": "UNKNOWN",
+    "atr_pct": 3.9795918367346945
+  },
+  {
+    "symbol": "RAYMONDLSL",
+    "token": "25073",
+    "sector": "UNKNOWN",
+    "atr_pct": 3.972561700927827
+  },
+  {
+    "symbol": "GANESHHOU",
+    "token": "14339",
+    "sector": "UNKNOWN",
+    "atr_pct": 3.971298532416868
+  },
+  {
+    "symbol": "SYRMA",
+    "token": "10793",
+    "sector": "UNKNOWN",
+    "atr_pct": 3.9510601841936186
+  },
+  {
+    "symbol": "STANLEY",
+    "token": "24226",
+    "sector": "UNKNOWN",
+    "atr_pct": 3.9413057002877347
+  },
+  {
+    "symbol": "GUJAPOLLO",
+    "token": "14677",
+    "sector": "UNKNOWN",
+    "atr_pct": 3.930047815899261
+  },
+  {
+    "symbol": "UNIENTER",
+    "token": "11293",
+    "sector": "UNKNOWN",
+    "atr_pct": 3.917136723073438
+  },
+  {
+    "symbol": "HGS",
+    "token": "14712",
+    "sector": "UNKNOWN",
+    "atr_pct": 3.903439464748007
+  },
+  {
+    "symbol": "SWELECTES",
+    "token": "11909",
+    "sector": "UNKNOWN",
+    "atr_pct": 3.8962562423890343
+  },
+  {
+    "symbol": "AURUM",
+    "token": "10310",
+    "sector": "UNKNOWN",
+    "atr_pct": 3.8633991186587946
+  },
+  {
+    "symbol": "GIPCL",
+    "token": "1145",
+    "sector": "UNKNOWN",
+    "atr_pct": 3.8580725131701277
+  },
+  {
+    "symbol": "ASIANHOTNR",
+    "token": "18422",
+    "sector": "UNKNOWN",
+    "atr_pct": 3.8513998564249805
+  },
+  {
+    "symbol": "WSI",
+    "token": "14828",
+    "sector": "UNKNOWN",
+    "atr_pct": 3.8489508694629215
+  },
+  {
+    "symbol": "ROSSARI",
+    "token": "19410",
+    "sector": "UNKNOWN",
+    "atr_pct": 3.836308993199707
+  },
+  {
+    "symbol": "MANAKSIA",
+    "token": "15199",
+    "sector": "UNKNOWN",
+    "atr_pct": 3.8177339901477834
+  },
+  {
+    "symbol": "MASTEK",
+    "token": "2124",
+    "sector": "UNKNOWN",
+    "atr_pct": 3.815900698491793
+  },
+  {
+    "symbol": "ARIHANTSUP",
+    "token": "20159",
+    "sector": "UNKNOWN",
+    "atr_pct": 3.8061827389744654
+  },
+  {
+    "symbol": "POWERMECH",
+    "token": "10473",
+    "sector": "UNKNOWN",
+    "atr_pct": 3.8054659872329504
+  },
+  {
+    "symbol": "KAPSTON",
+    "token": "18967",
+    "sector": "UNKNOWN",
+    "atr_pct": 3.7929684279943934
+  },
+  {
+    "symbol": "TARC",
+    "token": "1581",
+    "sector": "UNKNOWN",
+    "atr_pct": 3.787106854153931
+  },
+  {
+    "symbol": "AFFLE",
+    "token": "11343",
+    "sector": "UNKNOWN",
+    "atr_pct": 3.7834646053543386
+  },
+  {
+    "symbol": "RHL",
+    "token": "15157",
+    "sector": "UNKNOWN",
+    "atr_pct": 3.781157753344004
+  },
+  {
+    "symbol": "GESHIP",
+    "token": "13776",
+    "sector": "UNKNOWN",
+    "atr_pct": 3.78034360436809
+  },
+  {
+    "symbol": "ONWARDTEC",
+    "token": "2481",
+    "sector": "UNKNOWN",
+    "atr_pct": 3.766132621272807
+  },
+  {
+    "symbol": "PRECAM",
+    "token": "12603",
+    "sector": "UNKNOWN",
+    "atr_pct": 3.758065726290517
+  },
+  {
+    "symbol": "JAMNAAUTO",
+    "token": "20778",
+    "sector": "UNKNOWN",
+    "atr_pct": 3.750310277469002
+  },
+  {
+    "symbol": "MOLDTECH",
+    "token": "17625",
+    "sector": "UNKNOWN",
+    "atr_pct": 3.7415723190433807
+  },
+  {
+    "symbol": "RPGLIFE",
+    "token": "16725",
+    "sector": "UNKNOWN",
+    "atr_pct": 3.7395400770302003
+  },
+  {
+    "symbol": "AHLEAST",
+    "token": "19438",
+    "sector": "UNKNOWN",
+    "atr_pct": 3.7194931881108264
+  },
+  {
+    "symbol": "FSL",
+    "token": "14304",
+    "sector": "UNKNOWN",
+    "atr_pct": 3.718839395177768
+  },
+  {
+    "symbol": "KIRIINDUS",
+    "token": "16639",
+    "sector": "UNKNOWN",
+    "atr_pct": 3.718484733307993
+  },
+  {
+    "symbol": "ADANIENSOL",
+    "token": "10217",
+    "sector": "UNKNOWN",
+    "atr_pct": 3.7183229401618676
+  },
+  {
+    "symbol": "ROHLTD",
+    "token": "13182",
+    "sector": "UNKNOWN",
+    "atr_pct": 3.715280782209914
+  },
+  {
+    "symbol": "ASHIANA",
+    "token": "24403",
+    "sector": "UNKNOWN",
+    "atr_pct": 3.7012225757829484
+  },
+  {
+    "symbol": "SATIA",
+    "token": "11045",
+    "sector": "UNKNOWN",
+    "atr_pct": 3.6962676962676957
+  },
+  {
+    "symbol": "NATHBIOGEN",
+    "token": "11065",
+    "sector": "UNKNOWN",
+    "atr_pct": 3.688713948074565
+  },
+  {
+    "symbol": "POCL",
+    "token": "14385",
+    "sector": "UNKNOWN",
+    "atr_pct": 3.6815232422082755
+  },
+  {
+    "symbol": "EMAMIPAP",
+    "token": "10074",
+    "sector": "UNKNOWN",
+    "atr_pct": 3.6776279046152314
+  },
+  {
+    "symbol": "NAHARPOLY",
+    "token": "14445",
+    "sector": "UNKNOWN",
+    "atr_pct": 3.6739136580814797
+  },
+  {
+    "symbol": "ZAGGLE",
+    "token": "18608",
+    "sector": "UNKNOWN",
+    "atr_pct": 3.6704441123449443
+  },
+  {
+    "symbol": "RAMAPHO",
+    "token": "10568",
+    "sector": "UNKNOWN",
+    "atr_pct": 3.6527734738146904
+  },
+  {
+    "symbol": "SILVERAG",
+    "token": "16777",
+    "sector": "UNKNOWN",
+    "atr_pct": 3.649919764558133
+  },
+  {
+    "symbol": "GOACARBON",
+    "token": "14687",
+    "sector": "UNKNOWN",
+    "atr_pct": 3.649198372816461
+  },
+  {
+    "symbol": "LOVABLE",
+    "token": "22415",
+    "sector": "UNKNOWN",
+    "atr_pct": 3.6445111162397112
+  },
+  {
+    "symbol": "VTL",
+    "token": "2073",
+    "sector": "UNKNOWN",
+    "atr_pct": 3.636887107112981
+  },
+  {
+    "symbol": "VRAJ",
+    "token": "24321",
+    "sector": "UNKNOWN",
+    "atr_pct": 3.6356523973002624
+  },
+  {
+    "symbol": "BLSE",
+    "token": "22566",
+    "sector": "UNKNOWN",
+    "atr_pct": 3.6118574637713077
+  },
+  {
+    "symbol": "JINDRILL",
+    "token": "13875",
+    "sector": "UNKNOWN",
+    "atr_pct": 3.600975033239769
+  },
+  {
+    "symbol": "TATATECH",
+    "token": "20293",
+    "sector": "UNKNOWN",
+    "atr_pct": 3.6000577394986277
+  },
+  {
+    "symbol": "SENCO",
+    "token": "17271",
+    "sector": "UNKNOWN",
+    "atr_pct": 3.5903139164008726
+  },
+  {
+    "symbol": "ROUTE",
+    "token": "128",
+    "sector": "UNKNOWN",
+    "atr_pct": 3.5838680109990833
+  },
+  {
+    "symbol": "BANSALWIRE",
+    "token": "24386",
+    "sector": "UNKNOWN",
+    "atr_pct": 3.5766678309465574
+  },
+  {
+    "symbol": "AFCONS",
+    "token": "25977",
+    "sector": "UNKNOWN",
+    "atr_pct": 3.5708588747350944
+  },
+  {
+    "symbol": "DATAMATICS",
+    "token": "11423",
+    "sector": "UNKNOWN",
+    "atr_pct": 3.56028874431869
+  },
+  {
+    "symbol": "ESILVER",
+    "token": "20257",
+    "sector": "UNKNOWN",
+    "atr_pct": 3.5454972031167022
+  },
+  {
+    "symbol": "TECHM",
+    "token": "13538",
+    "sector": "UNKNOWN",
+    "atr_pct": 3.5319036808821154
+  },
+  {
+    "symbol": "TVTODAY",
+    "token": "11275",
+    "sector": "UNKNOWN",
+    "atr_pct": 3.520536462699078
+  },
+  {
+    "symbol": "IVP",
+    "token": "1681",
+    "sector": "UNKNOWN",
+    "atr_pct": 3.515444382995315
+  },
+  {
+    "symbol": "FLAIR",
+    "token": "20372",
+    "sector": "UNKNOWN",
+    "atr_pct": 3.5036813580120647
+  },
+  {
+    "symbol": "AMBER",
+    "token": "1185",
+    "sector": "UNKNOWN",
+    "atr_pct": 3.492204335150209
+  },
+  {
+    "symbol": "ARIES",
+    "token": "15204",
+    "sector": "UNKNOWN",
+    "atr_pct": 3.4778730255428387
+  },
+  {
+    "symbol": "AAATECH",
+    "token": "12533",
+    "sector": "UNKNOWN",
+    "atr_pct": 3.4686696040453047
+  },
+  {
+    "symbol": "REDTAPE",
+    "token": "17859",
+    "sector": "UNKNOWN",
+    "atr_pct": 3.4683835511390844
+  },
+  {
+    "symbol": "CPSEETF",
+    "token": "2328",
+    "sector": "UNKNOWN",
+    "atr_pct": 3.4638770183841476
+  },
+  {
+    "symbol": "AMBIKCO",
+    "token": "15234",
+    "sector": "UNKNOWN",
+    "atr_pct": 3.4253043722402317
+  },
+  {
+    "symbol": "TANLA",
+    "token": "13976",
+    "sector": "UNKNOWN",
+    "atr_pct": 3.424488621573113
+  },
+  {
+    "symbol": "RAMKY",
+    "token": "20134",
+    "sector": "UNKNOWN",
+    "atr_pct": 3.4188748641645046
+  },
+  {
+    "symbol": "ORISSAMINE",
+    "token": "19931",
+    "sector": "UNKNOWN",
+    "atr_pct": 3.415673976841476
+  },
+  {
+    "symbol": "NCLIND",
+    "token": "14490",
+    "sector": "UNKNOWN",
+    "atr_pct": 3.4150808541052435
+  },
+  {
+    "symbol": "AARTISURF",
+    "token": "19233",
+    "sector": "UNKNOWN",
+    "atr_pct": 3.4144224020096767
+  },
+  {
+    "symbol": "KRBL",
+    "token": "10577",
+    "sector": "UNKNOWN",
+    "atr_pct": 3.4141725270443284
+  },
+  {
+    "symbol": "AGI",
+    "token": "1412",
+    "sector": "UNKNOWN",
+    "atr_pct": 3.4099901329607953
+  },
+  {
+    "symbol": "HONASA",
+    "token": "19813",
+    "sector": "UNKNOWN",
+    "atr_pct": 3.3926004517763015
+  },
+  {
+    "symbol": "XCHANGING",
+    "token": "11705",
+    "sector": "UNKNOWN",
+    "atr_pct": 3.389466546112116
+  },
+  {
+    "symbol": "ARVSMART",
+    "token": "10457",
+    "sector": "UNKNOWN",
+    "atr_pct": 3.381950454981406
+  },
+  {
+    "symbol": "TCS",
+    "token": "11536",
+    "sector": "UNKNOWN",
+    "atr_pct": 3.3805042016806714
+  },
+  {
+    "symbol": "JSWDULUX",
+    "token": "1467",
+    "sector": "UNKNOWN",
+    "atr_pct": 3.378308003437113
+  },
+  {
+    "symbol": "PLATIND",
+    "token": "22930",
+    "sector": "UNKNOWN",
+    "atr_pct": 3.3746323759464376
+  },
+  {
+    "symbol": "MAANALU",
+    "token": "15017",
+    "sector": "UNKNOWN",
+    "atr_pct": 3.3742331288343586
+  },
+  {
+    "symbol": "UNOMINDA",
+    "token": "14154",
+    "sector": "UNKNOWN",
+    "atr_pct": 3.3633406751011625
+  },
+  {
+    "symbol": "HAPPYFORGE",
+    "token": "20854",
+    "sector": "UNKNOWN",
+    "atr_pct": 3.3573866406630932
+  },
+  {
+    "symbol": "PURVA",
+    "token": "14922",
+    "sector": "UNKNOWN",
+    "atr_pct": 3.3526307600549745
+  },
+  {
+    "symbol": "COHANCE",
+    "token": "17945",
+    "sector": "UNKNOWN",
+    "atr_pct": 3.347471796406132
+  },
+  {
+    "symbol": "HNDFDS",
+    "token": "12173",
+    "sector": "UNKNOWN",
+    "atr_pct": 3.3291424380533314
+  },
+  {
+    "symbol": "SIGNATURE",
+    "token": "18743",
+    "sector": "UNKNOWN",
+    "atr_pct": 3.326418198726662
+  },
+  {
+    "symbol": "TIIL",
+    "token": "14223",
+    "sector": "UNKNOWN",
+    "atr_pct": 3.3163362796106335
+  },
+  {
+    "symbol": "RAILTEL",
+    "token": "2431",
+    "sector": "UNKNOWN",
+    "atr_pct": 3.298595581000088
+  },
+  {
+    "symbol": "JSWINFRA",
+    "token": "19020",
+    "sector": "UNKNOWN",
+    "atr_pct": 3.2973273683966546
+  },
+  {
+    "symbol": "VOLTAMP",
+    "token": "13577",
+    "sector": "UNKNOWN",
+    "atr_pct": 3.296354439211582
+  },
+  {
+    "symbol": "EMCURE",
+    "token": "24398",
+    "sector": "UNKNOWN",
+    "atr_pct": 3.2886904761904776
+  },
+  {
+    "symbol": "SUZLON",
+    "token": "12018",
+    "sector": "UNKNOWN",
+    "atr_pct": 3.2866795366795376
+  },
+  {
+    "symbol": "LTFOODS",
+    "token": "13816",
+    "sector": "UNKNOWN",
+    "atr_pct": 3.2804923535994046
+  },
+  {
+    "symbol": "KCP",
+    "token": "1841",
+    "sector": "UNKNOWN",
+    "atr_pct": 3.272479679986383
+  },
+  {
+    "symbol": "CERA",
+    "token": "15039",
+    "sector": "UNKNOWN",
+    "atr_pct": 3.270116979794399
+  },
+  {
+    "symbol": "JKCEMENT",
+    "token": "13270",
+    "sector": "UNKNOWN",
+    "atr_pct": 3.269997014886631
+  },
+  {
+    "symbol": "KAYNES",
+    "token": "12092",
+    "sector": "UNKNOWN",
+    "atr_pct": 3.240645186788865
+  },
+  {
+    "symbol": "WELCORP",
+    "token": "11821",
+    "sector": "UNKNOWN",
+    "atr_pct": 3.236215098657138
+  },
+  {
+    "symbol": "SANDUMA",
+    "token": "18359",
+    "sector": "UNKNOWN",
+    "atr_pct": 3.2262961863377506
+  },
+  {
+    "symbol": "PTC",
+    "token": "11355",
+    "sector": "UNKNOWN",
+    "atr_pct": 3.2191649764647363
+  },
+  {
+    "symbol": "ESTER",
+    "token": "24265",
+    "sector": "UNKNOWN",
+    "atr_pct": 3.2167121135092667
+  },
+  {
+    "symbol": "ADANIPOWER",
+    "token": "17388",
+    "sector": "UNKNOWN",
+    "atr_pct": 3.216689678978251
+  },
+  {
+    "symbol": "GALAXYSURF",
+    "token": "1315",
+    "sector": "UNKNOWN",
+    "atr_pct": 3.199488904228292
+  },
+  {
+    "symbol": "HGINFRA",
+    "token": "1672",
+    "sector": "UNKNOWN",
+    "atr_pct": 3.19734310469491
+  },
+  {
+    "symbol": "TEXRAIL",
+    "token": "21828",
+    "sector": "UNKNOWN",
+    "atr_pct": 3.187456701044405
+  },
+  {
+    "symbol": "RKFORGE",
+    "token": "11411",
+    "sector": "UNKNOWN",
+    "atr_pct": 3.1825572083768106
+  },
+  {
+    "symbol": "NAVNETEDUL",
+    "token": "2385",
+    "sector": "UNKNOWN",
+    "atr_pct": 3.1630382394864514
+  },
+  {
+    "symbol": "KSB",
+    "token": "1949",
+    "sector": "UNKNOWN",
+    "atr_pct": 3.1573240896824095
+  },
+  {
+    "symbol": "TVSSRICHAK",
+    "token": "14245",
+    "sector": "UNKNOWN",
+    "atr_pct": 3.148835040641354
+  },
+  {
+    "symbol": "ALBERTDAVD",
+    "token": "17256",
+    "sector": "UNKNOWN",
+    "atr_pct": 3.1458101063669517
+  },
+  {
+    "symbol": "HBLENGINE",
+    "token": "13966",
+    "sector": "UNKNOWN",
+    "atr_pct": 3.1326092668827203
+  },
+  {
+    "symbol": "MODIRUBBER",
+    "token": "2229",
+    "sector": "UNKNOWN",
+    "atr_pct": 3.116296447252227
+  },
+  {
+    "symbol": "SCHAEFFLER",
+    "token": "1011",
+    "sector": "UNKNOWN",
+    "atr_pct": 3.0909654792423464
+  },
+  {
+    "symbol": "KEI",
+    "token": "13310",
+    "sector": "UNKNOWN",
+    "atr_pct": 3.090037293553543
+  },
+  {
+    "symbol": "KAUSHALYA",
+    "token": "15136",
+    "sector": "UNKNOWN",
+    "atr_pct": 3.072069640326608
+  },
+  {
+    "symbol": "AIAENG",
+    "token": "13086",
+    "sector": "UNKNOWN",
+    "atr_pct": 3.0541924471943664
+  },
+  {
+    "symbol": "ACE",
+    "token": "13587",
+    "sector": "UNKNOWN",
+    "atr_pct": 3.0463207678397546
+  },
+  {
+    "symbol": "BBL",
+    "token": "13761",
+    "sector": "UNKNOWN",
+    "atr_pct": 3.0350004079301627
+  },
+  {
+    "symbol": "DLF",
+    "token": "14732",
+    "sector": "UNKNOWN",
+    "atr_pct": 3.0332837698730417
+  },
+  {
+    "symbol": "NURECA",
+    "token": "2350",
+    "sector": "UNKNOWN",
+    "atr_pct": 3.0328140536957218
+  },
+  {
+    "symbol": "HINDCOMPOS",
+    "token": "1372",
+    "sector": "UNKNOWN",
+    "atr_pct": 3.0308674376470988
+  },
+  {
+    "symbol": "ALICON",
+    "token": "13656",
+    "sector": "UNKNOWN",
+    "atr_pct": 3.019383288906442
+  },
+  {
+    "symbol": "TOLINS",
+    "token": "25262",
+    "sector": "UNKNOWN",
+    "atr_pct": 3.0144970454025395
+  },
+  {
+    "symbol": "PARKHOTELS",
+    "token": "22649",
+    "sector": "UNKNOWN",
+    "atr_pct": 3.006741997567686
+  },
+  {
+    "symbol": "CENTURYPLY",
+    "token": "13305",
+    "sector": "UNKNOWN",
+    "atr_pct": 3.0045201996421507
+  },
+  {
+    "symbol": "KRISHANA",
+    "token": "12847",
+    "sector": "UNKNOWN",
+    "atr_pct": 2.998002733102071
+  },
+  {
+    "symbol": "PRICOLLTD",
+    "token": "19631",
+    "sector": "UNKNOWN",
+    "atr_pct": 2.981566408196112
+  },
+  {
+    "symbol": "BAJAJELEC",
+    "token": "15034",
+    "sector": "UNKNOWN",
+    "atr_pct": 2.979754776161961
+  },
+  {
+    "symbol": "MAXESTATES",
+    "token": "19646",
+    "sector": "UNKNOWN",
+    "atr_pct": 2.979609873114073
+  },
+  {
+    "symbol": "JKIL",
+    "token": "15266",
+    "sector": "UNKNOWN",
+    "atr_pct": 2.971668475466956
+  },
+  {
+    "symbol": "AWHCL",
+    "token": "1797",
+    "sector": "UNKNOWN",
+    "atr_pct": 2.9572482312208317
+  },
+  {
+    "symbol": "DLINKINDIA",
+    "token": "17851",
+    "sector": "UNKNOWN",
+    "atr_pct": 2.9548206293278194
+  },
+  {
+    "symbol": "SRHHYPOLTD",
+    "token": "14582",
+    "sector": "UNKNOWN",
+    "atr_pct": 2.9496612515480454
+  },
+  {
+    "symbol": "SCHAND",
+    "token": "20698",
+    "sector": "UNKNOWN",
+    "atr_pct": 2.920890375169821
+  },
+  {
+    "symbol": "MAHSEAMLES",
+    "token": "2088",
+    "sector": "UNKNOWN",
+    "atr_pct": 2.90233432626202
+  },
+  {
+    "symbol": "360ONE",
+    "token": "13061",
+    "sector": "UNKNOWN",
+    "atr_pct": 2.8837157079232023
+  },
+  {
+    "symbol": "SAGCEM",
+    "token": "14068",
+    "sector": "UNKNOWN",
+    "atr_pct": 2.8512468755449625
+  },
+  {
+    "symbol": "KEC",
+    "token": "13260",
+    "sector": "UNKNOWN",
+    "atr_pct": 2.8422357954170687
+  },
+  {
+    "symbol": "NMDC",
+    "token": "15332",
+    "sector": "UNKNOWN",
+    "atr_pct": 2.841955601512261
+  },
+  {
+    "symbol": "DECCANCE",
+    "token": "14838",
+    "sector": "UNKNOWN",
+    "atr_pct": 2.824007831915054
+  },
+  {
+    "symbol": "SARDAEN",
+    "token": "17758",
+    "sector": "UNKNOWN",
+    "atr_pct": 2.7847117076564216
+  },
+  {
+    "symbol": "LLOYDSME",
+    "token": "17313",
+    "sector": "UNKNOWN",
+    "atr_pct": 2.7743177443098177
+  },
+  {
+    "symbol": "NH",
+    "token": "11840",
+    "sector": "UNKNOWN",
+    "atr_pct": 2.7674911983210277
+  },
+  {
+    "symbol": "KOKUYOCMLN",
+    "token": "16827",
+    "sector": "UNKNOWN",
+    "atr_pct": 2.739051992783334
+  },
+  {
+    "symbol": "MGL",
+    "token": "17534",
+    "sector": "UNKNOWN",
+    "atr_pct": 2.7330733782346694
+  },
+  {
+    "symbol": "BBNPPGOLD",
+    "token": "20547",
+    "sector": "UNKNOWN",
+    "atr_pct": 2.731391915283576
+  },
+  {
+    "symbol": "NEULANDLAB",
+    "token": "2406",
+    "sector": "UNKNOWN",
+    "atr_pct": 2.712185479553597
+  },
+  {
+    "symbol": "NHPC",
+    "token": "17400",
+    "sector": "UNKNOWN",
+    "atr_pct": 2.7103666578739127
+  },
+  {
+    "symbol": "ZFCVINDIA",
+    "token": "16915",
+    "sector": "UNKNOWN",
+    "atr_pct": 2.7088138199249308
+  },
+  {
+    "symbol": "VBL",
+    "token": "18921",
+    "sector": "UNKNOWN",
+    "atr_pct": 2.69998651018481
+  },
+  {
+    "symbol": "KKCL",
+    "token": "13381",
+    "sector": "UNKNOWN",
+    "atr_pct": 2.6870748299319724
+  },
+  {
+    "symbol": "ASKAUTOLTD",
+    "token": "20152",
+    "sector": "UNKNOWN",
+    "atr_pct": 2.669452887537992
+  },
+  {
+    "symbol": "HCG",
+    "token": "15555",
+    "sector": "UNKNOWN",
+    "atr_pct": 2.659792127015305
+  },
+  {
+    "symbol": "LINDEINDIA",
+    "token": "1627",
+    "sector": "UNKNOWN",
+    "atr_pct": 2.6525414803680336
+  },
+  {
+    "symbol": "ARE&M",
+    "token": "100",
+    "sector": "UNKNOWN",
+    "atr_pct": 2.6519860297164506
+  },
+  {
+    "symbol": "STYRENIX",
+    "token": "19",
+    "sector": "UNKNOWN",
+    "atr_pct": 2.629969796730142
+  },
+  {
+    "symbol": "MOIL",
+    "token": "20830",
+    "sector": "UNKNOWN",
+    "atr_pct": 2.6106614161744366
+  },
+  {
+    "symbol": "FINPIPE",
+    "token": "1041",
+    "sector": "UNKNOWN",
+    "atr_pct": 2.6101248108310435
+  },
+  {
+    "symbol": "KSCL",
+    "token": "14972",
+    "sector": "UNKNOWN",
+    "atr_pct": 2.6065752963928364
+  },
+  {
+    "symbol": "GOLDBETA",
+    "token": "14535",
+    "sector": "UNKNOWN",
+    "atr_pct": 2.5819672131147535
+  },
+  {
+    "symbol": "JUBLFOOD",
+    "token": "18096",
+    "sector": "UNKNOWN",
+    "atr_pct": 2.570746675758606
+  },
+  {
+    "symbol": "GPIL",
+    "token": "13409",
+    "sector": "UNKNOWN",
+    "atr_pct": 2.560121038381907
+  },
+  {
+    "symbol": "WHIRLPOOL",
+    "token": "18011",
+    "sector": "UNKNOWN",
+    "atr_pct": 2.5576631054963013
+  },
+  {
+    "symbol": "MAHSCOOTER",
+    "token": "2085",
+    "sector": "UNKNOWN",
+    "atr_pct": 2.5538960523480645
+  },
+  {
+    "symbol": "ITBETA",
+    "token": "22488",
+    "sector": "UNKNOWN",
+    "atr_pct": 2.5410490505779837
+  },
+  {
+    "symbol": "SHARDAMOTR",
+    "token": "10530",
+    "sector": "UNKNOWN",
+    "atr_pct": 2.531590828497047
+  },
+  {
+    "symbol": "ASTRAL",
+    "token": "14418",
+    "sector": "UNKNOWN",
+    "atr_pct": 2.517439113639101
+  },
+  {
+    "symbol": "GPPL",
+    "token": "19731",
+    "sector": "UNKNOWN",
+    "atr_pct": 2.5024263690320665
+  }
+]

@@ -35,3 +35,8 @@ swing_peaks.json
 .env
 .env.local
 .env.*
+
+# Local shadow trades logs and tmp files
+shadow_trades/
+scrip_master.tmp
+scratch/

@@ -54,7 +54,8 @@ class RiskManager(
         entryPrice: Double,
         atr14: Double,
         availableCash: Double,
-        fallbackStopLoss: Double? = null
+        fallbackStopLoss: Double? = null,
+        isSwing: Boolean = false
     ): Order? {
         checkNewDay()
 
@@ -85,13 +86,16 @@ class RiskManager(
         // 4. Calculate Risk-based Position Sizing using ATR (total capital risk based on riskPercent)
         val riskRupees = availableCash * (riskPercent / 100.0)
         
-        // Stop distance uses fallback/custom stop loss (e.g. ORB or VWAP Reclaim) if provided, otherwise 1.5 * ATR
-        val stopDistance = if (fallbackStopLoss != null && fallbackStopLoss < entryPrice && fallbackStopLoss > 0.0) {
+        // Stop distance uses ATR-based stop loss if isSwing is true,
+        // otherwise uses fallback/custom stop loss (e.g. ORB or VWAP Reclaim) if provided,
+        // otherwise for our promoted Scenario 8 Confluence setup, we use 1.0% of entryPrice
+        val stopDistance = if (isSwing) {
+            val atr = if (atr14 > 0.0) atr14 else (entryPrice * 0.05) // Fallback if ATR is missing
+            2.0 * atr
+        } else if (fallbackStopLoss != null && fallbackStopLoss < entryPrice && fallbackStopLoss > 0.0) {
             entryPrice - fallbackStopLoss
-        } else if (atr14 > 0.0) {
-            atr14 * 1.5
         } else {
-            entryPrice * 0.02 // default to 2% stop distance
+            entryPrice * 0.01 // Scenario 8 standard 1.0% stop distance
         }
 
         val calculatedStopLoss = entryPrice - stopDistance
@@ -123,8 +127,13 @@ class RiskManager(
                 return null
             }
             // Use what we can afford
-            val projectedTarget2 = entryPrice + (stopDistance * rewardToRiskRatio)
-            println("[RISK APPROVED] $symbol: Qty $affordableQty (affordability-capped), Entry ₹$entryPrice, Stop ₹$calculatedStopLoss, Target ₹$projectedTarget2, Cost ₹${affordableQty * entryPrice}")
+            val projectedTarget2 = if (isSwing) {
+                val atr = if (atr14 > 0.0) atr14 else (entryPrice * 0.05)
+                entryPrice + 3.5 * atr
+            } else {
+                entryPrice + (stopDistance * rewardToRiskRatio)
+            }
+            println("[RISK APPROVED] ${if (isSwing) "SWING " else ""}$symbol: Qty $affordableQty (affordability-capped), Entry ₹$entryPrice, Stop ₹$calculatedStopLoss, Target ₹$projectedTarget2, Cost ₹${affordableQty * entryPrice}")
             return Order(
                 symbol = symbol,
                 quantity = affordableQty,
@@ -137,9 +146,14 @@ class RiskManager(
         }
 
         val projectedLoss = targetQuantity * stopDistance
-        val projectedTarget = entryPrice + (stopDistance * rewardToRiskRatio)
+        val projectedTarget = if (isSwing) {
+            val atr = if (atr14 > 0.0) atr14 else (entryPrice * 0.05)
+            entryPrice + 3.5 * atr
+        } else {
+            entryPrice + (stopDistance * rewardToRiskRatio)
+        }
 
-        println("[RISK APPROVED] $symbol: Qty $targetQuantity, Entry ₹$entryPrice, Stop ₹$calculatedStopLoss, Target ₹$projectedTarget, Cost ₹$totalCost, Risk ₹$projectedLoss")
+        println("[RISK APPROVED] ${if (isSwing) "SWING " else ""}$symbol: Qty $targetQuantity, Entry ₹$entryPrice, Stop ₹$calculatedStopLoss, Target ₹$projectedTarget, Cost ₹$totalCost, Risk ₹$projectedLoss")
 
         return Order(
             symbol = symbol,

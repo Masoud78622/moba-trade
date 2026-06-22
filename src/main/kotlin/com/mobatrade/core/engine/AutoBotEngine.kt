@@ -4,12 +4,15 @@ import org.json.JSONArray
 import org.json.JSONObject
 import java.time.LocalTime
 import java.time.ZoneId
+import java.time.LocalDate
+import java.nio.charset.StandardCharsets
 import java.io.File
 import java.util.concurrent.ConcurrentHashMap
 import com.mobatrade.core.model.Direction
 import com.mobatrade.core.model.Order
 import com.mobatrade.core.model.Candle
 import com.mobatrade.core.model.MarketRegime
+import com.mobatrade.core.model.FetchResult
 
 object AutoBotEngine {
     @Volatile
@@ -24,7 +27,33 @@ object AutoBotEngine {
     // Prevents duplicate sell orders when the broker API response is lagging
     private val liquidatedCooldown = ConcurrentHashMap<String, Long>()
 
+    private val symbolToAtrPct = ConcurrentHashMap<String, Double>()
+    
+    @Volatile
+    private var lastSwingCheckSlot: String = ""
+
+    private fun loadAtrPctMap() {
+        try {
+            val isWindows = System.getProperty("os.name").lowercase().contains("win")
+            val file = if (isWindows) File("c:\\moba trade\\volatile_swing_stocks.json") else File("volatile_swing_stocks.json")
+            if (file.exists()) {
+                val array = JSONArray(file.readText())
+                for (i in 0 until array.length()) {
+                    val obj = array.getJSONObject(i)
+                    val symbol = obj.optString("symbol").uppercase()
+                    val atrPct = obj.optDouble("atr_pct", 0.0)
+                    if (symbol.isNotEmpty() && atrPct > 0.0) {
+                        symbolToAtrPct[symbol] = atrPct
+                    }
+                }
+            }
+        } catch (e: Exception) {
+            System.err.println("AutoBotEngine: Failed to load symbolToAtrPct map: ${e.message}")
+        }
+    }
+
     fun start() {
+        loadAtrPctMap()
         if (botThread != null && botThread!!.isAlive) return
         botThread = Thread {
             while (true) {
@@ -51,13 +80,69 @@ object AutoBotEngine {
     }
 
     private fun runScanCycle() {
-        val totalCapital = AngelOneClient.fetchMarginCapital()
-        println("🤖 [SCAN CYCLE] isEnabled=$isEnabled | isLoggedIn=${AngelOneClient.isLoggedIn} | Capital=₹$totalCapital")
+        val isPaperTrading = EnvLoader.get("PAPER_TRADING")?.toBoolean() ?: true
+
+        // 0. Load paper trading state at start of cycle
+        if (isPaperTrading) {
+            val paperPositions = PaperTradingStorage.loadPositions()
+            val paperSymbols = paperPositions.map { it.optString("symbol").uppercase() }.toSet()
+            
+            riskManager.syncState(
+                brokerActiveSymbols = paperSymbols,
+                realDailyPnL = 0.0,
+                getPositionDetails = { sym ->
+                    val p = paperPositions.find { it.optString("symbol").uppercase() == sym }
+                    val entry = p?.optDouble("buyavgprice") ?: 0.0
+                    val qty = p?.optInt("qty") ?: 0
+                    Pair(entry, qty)
+                }
+            )
+            // Re-apply specific saved stopLoss, target, firstPartialDone, etc.
+            for (pObj in paperPositions) {
+                val sym = pObj.optString("symbol").uppercase()
+                val activePos = riskManager.getActivePositions().find { it.symbol == sym }
+                if (activePos != null) {
+                    activePos.stopLoss = pObj.optDouble("stopLoss", activePos.stopLoss)
+                    activePos.target = pObj.optDouble("target", activePos.target)
+                    val isSwingVal = pObj.optBoolean("isSwing", activePos.isSwing)
+                    try {
+                        val f = activePos.javaClass.getDeclaredField("isSwing")
+                        f.isAccessible = true
+                        f.set(activePos, isSwingVal)
+                    } catch (e: Exception) {}
+                    val entryTimeStr = pObj.optString("entryTime", "")
+                    if (entryTimeStr.isNotEmpty()) {
+                        try {
+                            val f = activePos.javaClass.getDeclaredField("entryTime")
+                            f.isAccessible = true
+                            f.set(activePos, java.time.Instant.parse(entryTimeStr))
+                        } catch (e: Exception) {}
+                    }
+                    activePos.firstPartialDone = pObj.optBoolean("firstPartialDone", false)
+                    activePos.secondPartialDone = pObj.optBoolean("secondPartialDone", false)
+                    activePos.atr14 = pObj.optDouble("atr14", activePos.atr14)
+                    activePos.highestClose = pObj.optDouble("highestClose", activePos.highestClose)
+                    activePos.initialRiskPerShare = pObj.optDouble("initialRiskPerShare", activePos.initialRiskPerShare)
+                }
+            }
+        }
+
+        val totalCapital = if (isPaperTrading) {
+            PaperTradingStorage.loadCapital()
+        } else {
+            AngelOneClient.fetchMarginCapital()
+        }
+        
+        println("🤖 [SCAN CYCLE] isEnabled=$isEnabled | isLoggedIn=${AngelOneClient.isLoggedIn} | Capital=₹$totalCapital | Mode=${if (isPaperTrading) "PAPER_TRADING" else "LIVE_TRADING"}")
 
         // Clear any stale ORB fired-today entries from yesterday
         OpeningRangeEngine.clearStaleEntries()
         
-        val activePositionsJson = AngelOneClient.fetchActivePositions()
+        val activePositionsJson = if (isPaperTrading) {
+            PaperTradingStorage.loadPositions()
+        } else {
+            AngelOneClient.fetchActivePositions()
+        }
         val realActivePositions = activePositionsJson.filter { extractQty(it) > 0 }
         val realActiveSymbols = realActivePositions.map { extractSymbol(it).uppercase() }.toSet()
 
@@ -73,7 +158,7 @@ object AutoBotEngine {
             if (qty == 0) {
                 calculatedDailyPnL += realized
             } else {
-                val current = AngelOneClient.fetchRealLtp(symbol, token)
+                val current = if (AngelOneClient.isLoggedIn) AngelOneClient.fetchRealLtp(symbol, token) else entry
                 if (current > 0 && entry > 0) {
                     calculatedDailyPnL += realized + (current - entry) * qty
                 } else {
@@ -83,7 +168,7 @@ object AutoBotEngine {
             }
         }
 
-        // 2. Synchronize RiskManager's active positions map and PnL with the broker
+        // 2. Synchronize RiskManager's active positions map and PnL
         riskManager.syncState(
             brokerActiveSymbols = realActiveSymbols,
             realDailyPnL = calculatedDailyPnL,
@@ -94,6 +179,38 @@ object AutoBotEngine {
                 Pair(entry, qty)
             }
         )
+
+        // If paper trading, re-apply the saved fields again (after syncState)
+        if (isPaperTrading) {
+            val paperPositions = PaperTradingStorage.loadPositions()
+            for (pObj in paperPositions) {
+                val sym = pObj.optString("symbol").uppercase()
+                val activePos = riskManager.getActivePositions().find { it.symbol == sym }
+                if (activePos != null) {
+                    activePos.stopLoss = pObj.optDouble("stopLoss", activePos.stopLoss)
+                    activePos.target = pObj.optDouble("target", activePos.target)
+                    val isSwingVal = pObj.optBoolean("isSwing", activePos.isSwing)
+                    try {
+                        val f = activePos.javaClass.getDeclaredField("isSwing")
+                        f.isAccessible = true
+                        f.set(activePos, isSwingVal)
+                    } catch (e: Exception) {}
+                    val entryTimeStr = pObj.optString("entryTime", "")
+                    if (entryTimeStr.isNotEmpty()) {
+                        try {
+                            val f = activePos.javaClass.getDeclaredField("entryTime")
+                            f.isAccessible = true
+                            f.set(activePos, java.time.Instant.parse(entryTimeStr))
+                        } catch (e: Exception) {}
+                    }
+                    activePos.firstPartialDone = pObj.optBoolean("firstPartialDone", false)
+                    activePos.secondPartialDone = pObj.optBoolean("secondPartialDone", false)
+                    activePos.atr14 = pObj.optDouble("atr14", activePos.atr14)
+                    activePos.highestClose = pObj.optDouble("highestClose", activePos.highestClose)
+                    activePos.initialRiskPerShare = pObj.optDouble("initialRiskPerShare", activePos.initialRiskPerShare)
+                }
+            }
+        }
         
         // 3. 3:15 PM Intraday Auto-Liquidator (skipping swing trades)
         val nowIst = LocalTime.now(ZoneId.of("Asia/Kolkata"))
@@ -121,95 +238,136 @@ object AutoBotEngine {
             return
         }
 
-        // 5. Evaluate Swing Holdings — Phase 7 enhanced management
+        // 5. Evaluate Swing Holdings — Hourly 1-Hour candle checks strictly at candle closes
         if (isSwingManageEnabled) {
-            val swingHoldings = AngelOneClient.fetchSwingHoldings()
-            val realSwingHoldings = swingHoldings.filter { extractQty(it) > 0 }
+            val nowIst = java.time.LocalTime.now(java.time.ZoneId.of("Asia/Kolkata"))
+            val today = java.time.LocalDate.now(java.time.ZoneId.of("Asia/Kolkata"))
+            
+            // Check if current slot is one of: 10:15, 11:15, 12:15, 13:15, 14:15, 15:15 IST
+            val hourlySlots = setOf(10, 11, 12, 13, 14, 15)
+            val currentSlot = "${today}_${nowIst.hour}"
+            
+            val isCheckMinute = nowIst.minute >= 15 && nowIst.minute <= 20 // 5-minute buffer window at the close
+            val shouldRunCheck = nowIst.hour in hourlySlots && isCheckMinute && currentSlot != lastSwingCheckSlot
 
-            for (h in realSwingHoldings) {
-                val symbol = extractSymbol(h)
-                val entry = extractEntryPrice(h)
-                val qty = extractQty(h)
-                val token = h.optString("symboltoken", null) ?: h.optString("token", "")
-                val current = AngelOneClient.fetchRealLtp(symbol, token)
+            if (shouldRunCheck) {
+                println("🤖 [AUTO-BOT] RUNNING HOURLY SWING CHECK FOR SLOT $currentSlot AT ${nowIst} IST...")
+                loadAtrPctMap() // Refresh ATR map
+                
+                val swingHoldings = AngelOneClient.fetchSwingHoldings()
+                val realSwingHoldings = swingHoldings.filter { extractQty(it) > 0 }
 
-                if (entry <= 0 || qty <= 0 || current <= 0) continue
+                for (h in realSwingHoldings) {
+                    val symbol = extractSymbol(h).uppercase()
+                    val entry = extractEntryPrice(h)
+                    val qty = extractQty(h)
+                    val token = h.optString("symboltoken", null) ?: h.optString("token", "")
+                    
+                    if (entry <= 0 || qty <= 0 || token.isEmpty()) continue
 
-                val pnlPercent = ((current - entry) / entry) * 100.0
-                val daysHeld = SwingPeakTracker.getDaysHeld(symbol)
-                println("🤖 [SWING] $symbol | Entry=₹$entry | LTP=₹$current | PnL=${String.format("%.2f", pnlPercent)}% | Days=$daysHeld")
-
-                // Update peak tracker for trailing stop
-                val peak = SwingPeakTracker.updateAndGetPeak(symbol, entry, current)
-                val peakGainPercent = ((peak - entry) / entry) * 100.0
-
-                // ── Rule A: Hard stop loss at -5% ─────────────────────────────────
-                if (pnlPercent <= -5.0) {
-                    println("🤖 SWING STOP-LOSS: $symbol at ${String.format("%.2f", pnlPercent)}%. Liquidating all $qty shares...")
-                    if (liquidatePosition(symbol, token, qty)) {
-                        riskManager.closePosition(symbol, current)
-                        SwingPeakTracker.clear(symbol)
+                    // Fetch most recent ONE_HOUR candles to check exit triggers
+                    println("📡 [SWING CHECK] Fetching 1-hour candles for $symbol...")
+                    val result = kotlinx.coroutines.runBlocking {
+                        AngelOneClient.fetchHistoricalCandles(
+                            symbolToken = token,
+                            symbol = symbol,
+                            interval = "ONE_HOUR",
+                            limitDays = 5 // Fetch last few days to guarantee recent candles
+                        )
                     }
-                    continue
-                }
 
-                // ── Rule B: Full take-profit at +15% ─────────────────────────────
-                if (pnlPercent >= 15.0) {
-                    println("🤖 SWING TARGET HIT: $symbol at +${String.format("%.2f", pnlPercent)}%. Taking full profit on $qty shares...")
-                    if (liquidatePosition(symbol, token, qty)) {
-                        riskManager.closePosition(symbol, current)
-                        SwingPeakTracker.clear(symbol)
-                    }
-                    continue
-                }
+                    if (result is FetchResult.Success && result.data.isNotEmpty()) {
+                        val candles = result.data
+                        val lastCandle = candles.last()
+                        
+                        val high = lastCandle.high
+                        val low = lastCandle.low
+                        val close = lastCandle.close
 
-                // ── Rule C (Phase 7): Time-based stale exit ───────────────────────
-                // If held > 10 days and stuck between -2% and +4%, it's dead money — exit
-                if (daysHeld >= 10 && pnlPercent in -2.0..4.0) {
-                    println("🤖 SWING STALE EXIT: $symbol held $daysHeld days with flat P&L (${String.format("%.2f", pnlPercent)}%). Freeing capital — exiting $qty shares...")
-                    if (liquidatePosition(symbol, token, qty)) {
-                        riskManager.closePosition(symbol, current)
-                        SwingPeakTracker.clear(symbol)
-                    }
-                    continue
-                }
-
-                // ── Rule D (Phase 7): Dynamic trailing stop ───────────────────────
-                // Trail tightens as peak gain grows — protects more profit as trade extends
-                if (peakGainPercent >= 5.0) {
-                    val trailPct = when {
-                        peakGainPercent >= 15.0 -> 0.03   // +15%+ peak → 3% trail (very tight)
-                        peakGainPercent >= 10.0 -> 0.04   // +10-15% peak → 4% trail
-                        else                    -> 0.05   // +5-10% peak → 5% trail (original)
-                    }
-                    val trailingStop = peak * (1.0 - trailPct)
-                    val entryStop = entry * 0.97  // Never let a winner fall below -3% from entry
-                    val effectiveStop = maxOf(trailingStop, entryStop)
-
-                    if (current <= effectiveStop) {
-                        println("🤖 SWING TRAIL STOP: $symbol trailed stop hit at ₹$current (peak=₹$peak, trail=${(trailPct*100).toInt()}%, stop=₹${String.format("%.2f", effectiveStop)}). Exiting $qty shares...")
-                        if (liquidatePosition(symbol, token, qty)) {
-                            riskManager.closePosition(symbol, current)
-                            SwingPeakTracker.clear(symbol)
+                        val isPaper = EnvLoader.get("PAPER_TRADING")?.toBoolean() ?: true
+                        
+                        var stopLoss = 0.0
+                        var target = 0.0
+                        var daysHeld = 0
+                        var atrVal = 0.0
+                        
+                        if (isPaper) {
+                            val paperPositions = PaperTradingStorage.loadPositions()
+                            val pObj = paperPositions.find { it.optString("symbol").uppercase() == symbol }
+                            if (pObj != null) {
+                                stopLoss = pObj.optDouble("stopLoss", 0.0)
+                                target = pObj.optDouble("target", 0.0)
+                                atrVal = pObj.optDouble("atr14", 0.0)
+                                val entryTimeStr = pObj.optString("entryTime", "").split("T")[0]
+                                if (entryTimeStr.isNotEmpty()) {
+                                    daysHeld = getTradingDaysHeld(symbol, LocalDate.parse(entryTimeStr), token)
+                                }
+                            }
+                        } else {
+                            val meta = SwingPositionMetadataStore.getMetadata(symbol)
+                            if (meta != null) {
+                                stopLoss = meta.optDouble("stopLoss", 0.0)
+                                target = meta.optDouble("target", 0.0)
+                                atrVal = meta.optDouble("atr", 0.0)
+                                val entryDateStr = meta.optString("entryDate", "")
+                                if (entryDateStr.isNotEmpty()) {
+                                    daysHeld = getTradingDaysHeld(symbol, LocalDate.parse(entryDateStr), token)
+                                }
+                            }
                         }
-                        continue
+
+                        // Fallback if metadata is missing (e.g. manually placed trades or before update)
+                        if (stopLoss <= 0.0 || target <= 0.0) {
+                            val atrPct = symbolToAtrPct[symbol] ?: 5.0
+                            val atr = entry * (atrPct / 100.0)
+                            stopLoss = entry - 2.0 * atr
+                            target = entry + 3.5 * atr
+                            atrVal = atr
+                        }
+
+                        println("🤖 [SWING CHECK] $symbol | Entry=₹$entry | 1h Candle (High=₹$high, Low=₹$low, Close=₹$close) | SL=₹$stopLoss | TP=₹$target | ATR=${String.format("%.2f", atrVal)} | Days Held: $daysHeld")
+
+                        // Evaluate exits based on the 1-hour candle high/low
+                        var liquidated = false
+
+                        // A. Stop Loss (Conservative: priority if both hit)
+                        if (low <= stopLoss) {
+                            println("🤖 SWING STOP-LOSS HIT: 1h low ₹$low <= SL ₹$stopLoss for $symbol. Liquidating all $qty shares...")
+                            if (liquidatePosition(symbol, token, qty)) {
+                                riskManager.closePosition(symbol, stopLoss)
+                                if (!isPaper) SwingPositionMetadataStore.removeMetadata(symbol)
+                                liquidated = true
+                            }
+                        }
+
+                        // B. Take Profit (Target)
+                        if (!liquidated && high >= target) {
+                            println("🤖 SWING TARGET HIT: 1h high ₹$high >= TP ₹$target for $symbol. Taking profit on $qty shares...")
+                            if (liquidatePosition(symbol, token, qty)) {
+                                riskManager.closePosition(symbol, target)
+                                if (!isPaper) SwingPositionMetadataStore.removeMetadata(symbol)
+                                liquidated = true
+                            }
+                        }
+
+                        // C. 10-Day Time Exit
+                        if (!liquidated && daysHeld >= 10) {
+                            println("🤖 SWING TIME LIMIT REACHED: $symbol held for $daysHeld trading days. Liquidating at close price ₹$close...")
+                            if (liquidatePosition(symbol, token, qty)) {
+                                riskManager.closePosition(symbol, close)
+                                if (!isPaper) SwingPositionMetadataStore.removeMetadata(symbol)
+                                liquidated = true
+                            }
+                        }
                     } else {
-                        println("🤖 [SWING] $symbol trailing stop active. Peak=₹$peak | Trail=${(trailPct*100).toInt()}% | Stop=₹${String.format("%.2f", effectiveStop)} | Price safe.")
+                        System.err.println("⚠️ [SWING CHECK] Failed to fetch 1-hour candles for $symbol: ${if (result is FetchResult.Failure) result.reason else "Empty"}")
                     }
+                    Thread.sleep(350) // Respect rate limits
                 }
-
-                // ── Rule E (Phase 7): Earlier partial exit at +7% ─────────────────
-                // Book 50% at +7% (was +10%) — secures profit, lets the other half run
-                if (pnlPercent >= 7.0 && qty >= 2) {
-                    val halfQty = qty / 2
-                    val lastPartial = liquidatedCooldown["${symbol}_PARTIAL"] ?: 0L
-                    if (System.currentTimeMillis() - lastPartial > 24 * 60 * 60 * 1000L) {
-                        println("🤖 SWING PARTIAL EXIT: $symbol at +${String.format("%.2f", pnlPercent)}%. Booking $halfQty of $qty shares at 1R...")
-                        if (liquidatePosition(symbol, token, halfQty)) {
-                            liquidatedCooldown["${symbol}_PARTIAL"] = System.currentTimeMillis()
-                        }
-                    }
-                }
+                
+                // Mark slot as processed
+                lastSwingCheckSlot = currentSlot
+                println("✅ [AUTO-BOT] Finished swing check for slot $currentSlot.")
             }
         }
 
@@ -323,10 +481,12 @@ object AutoBotEngine {
         for (i in 0 until rawSignalsArray.length()) {
             liveSignalsList.add(rawSignalsArray.getJSONObject(i))
         }
-        // Score-Based Prioritization: sort signals by conviction before evaluating
-        liveSignalsList.sortByDescending { it.optInt("score", 0) }
+        // Prioritize by: score desc, then by rsOutperforming desc, then by relativeStrength magnitude desc
+        liveSignalsList.sortWith(compareByDescending<JSONObject> { it.optInt("score", 0) }
+            .thenByDescending { it.optBoolean("rsOutperforming", false) }
+            .thenByDescending { it.optDouble("relativeStrength", 0.0) })
 
-        println("🤖 [SCAN CYCLE] Evaluating ${liveSignalsList.size} live signals from cache (sorted by score)...")
+        println("🤖 [SCAN CYCLE] Evaluating ${liveSignalsList.size} live signals from cache (sorted by score and relative strength)...")
         for (sig in liveSignalsList) {
             val symbol = sig.optString("symbol", "").uppercase()
             val token = sig.optString("token", "")
@@ -336,8 +496,10 @@ object AutoBotEngine {
             val price = priceStr.toDoubleOrNull() ?: 0.0
             val regime = sig.optString("regime", "UNKNOWN")
             val isSwingEligible = sig.optBoolean("isSwingEligible", false)
+            val relativeStrength = sig.optDouble("relativeStrength", 0.0)
+            val rsOutperforming = sig.optBoolean("rsOutperforming", false)
 
-            println("🤖 [SIGNAL] $symbol | score=$score | compliant=$compliant | price=₹$price | regime=$regime | isSwingEligible=$isSwingEligible")
+            println("🤖 [SIGNAL] $symbol | score=$score | compliant=$compliant | price=₹$price | regime=$regime | isSwingEligible=$isSwingEligible | RS=${String.format("%.4f%%", relativeStrength)} | rsOutperforming=$rsOutperforming")
 
             if (!compliant) { println("  └─ SKIP: Not Shariah-compliant."); continue }
 
@@ -372,12 +534,17 @@ object AutoBotEngine {
                     vwapReclaimStopLoss
                 } else {
                     null
-                }
+                },
+                isSwing = isSwingEligible
             )
 
             if (order != null) {
                 println("🤖 AUTO-BOT: LIVE ORDER INITIATED — ${order.quantity} × $symbol @ ₹${price}")
-                val orderResult = kotlinx.coroutines.runBlocking { AngelOneClient.placeOrder(order, token) }
+                val orderResult = if (isPaperTrading) {
+                    PaperTradingStorage.executePaperBuy(order, totalCapital)
+                } else {
+                    kotlinx.coroutines.runBlocking { AngelOneClient.placeOrder(order, token) }
+                }
                 if (orderResult is com.mobatrade.core.model.OrderResult.Success) {
                     val orderId = orderResult.orderId
                     println("🤖 AUTO-BOT: ORDER SUCCESSFUL. ID: $orderId")
@@ -392,14 +559,14 @@ object AutoBotEngine {
                             } else if (isVwapReclaim && vwapReclaimStopLoss > 0) {
                                 vwapReclaimStopLoss
                             } else {
-                                order.stopLoss ?: (price - (atrToUse * 1.5))
+                                order.stopLoss ?: (price - (atrToUse * 2.0))
                             },
                             target = if (isOrb && orbTarget > 0) {
                                 orbTarget
                             } else if (isVwapReclaim && vwapReclaimTarget > 0) {
                                 vwapReclaimTarget
                             } else {
-                                order.target ?: (price + (atrToUse * 1.5 * 2.0))
+                                order.target ?: (price + (atrToUse * 3.5))
                             },
                             entryTime = java.time.Instant.now(),
                             isSwing = isSwingEligible,
@@ -409,15 +576,35 @@ object AutoBotEngine {
                             } else if (isVwapReclaim && vwapReclaimStopLoss > 0) {
                                 price - vwapReclaimStopLoss
                             } else {
-                                price - (order.stopLoss ?: (price - (atrToUse * 1.5)))
+                                price - (order.stopLoss ?: (price - (atrToUse * 2.0)))
                             }
                         )
                     )
+                    
+                    if (isPaperTrading) {
+                        PaperTradingStorage.savePositions(riskManager.getActivePositions())
+                    } else {
+                        val todayStr = java.time.LocalDate.now(java.time.ZoneId.of("Asia/Kolkata")).toString()
+                        val registeredPos = riskManager.getActivePositions().find { it.symbol == symbol }
+                        if (registeredPos != null) {
+                            SwingPositionMetadataStore.addMetadata(
+                                symbol = symbol,
+                                entryPrice = price,
+                                atr = atrToUse,
+                                stopLoss = registeredPos.stopLoss,
+                                target = registeredPos.target,
+                                entryDate = todayStr
+                            )
+                        }
+                    }
                     break // Place only one order per cycle
                 } else {
-                    System.err.println("  └─ ORDER REJECTED by broker for $symbol. Check AngelOneClient logs.")
+                    System.err.println("  └─ ORDER REJECTED by broker or paper engine for $symbol.")
                 }
             }
+        }
+        if (isPaperTrading) {
+            PaperTradingStorage.savePositions(riskManager.getActivePositions())
         }
         println("🤖 [SCAN CYCLE] Complete.")
     }
@@ -438,6 +625,7 @@ object AutoBotEngine {
     }
 
     private fun liquidatePosition(symbol: String, token: String, qty: Int): Boolean {
+        val isPaperTrading = EnvLoader.get("PAPER_TRADING")?.toBoolean() ?: true
         val nowMs = System.currentTimeMillis()
         val lastLiquidated = liquidatedCooldown[symbol] ?: 0L
         if (nowMs - lastLiquidated < 120_000L) { // 2 minutes cooldown
@@ -454,7 +642,11 @@ object AutoBotEngine {
             stopLoss = null,
             target = null
         )
-        val orderResult = kotlinx.coroutines.runBlocking { AngelOneClient.placeOrder(order, token) }
+        val orderResult = if (isPaperTrading) {
+            PaperTradingStorage.executePaperSell(symbol, qty)
+        } else {
+            kotlinx.coroutines.runBlocking { AngelOneClient.placeOrder(order, token) }
+        }
         if (orderResult is com.mobatrade.core.model.OrderResult.Success) {
             liquidatedCooldown[symbol] = nowMs
             return true
@@ -621,4 +813,96 @@ object SwingPeakTracker {
         entryDates.remove(symbol.uppercase())
         save()
     }
+}
+
+object SwingPositionMetadataStore {
+    private val isWindows = System.getProperty("os.name").lowercase().contains("win")
+    private val FILE_PATH = if (isWindows) File("c:\\moba trade\\swing_positions.json") else File("swing_positions.json")
+    
+    private val metadataMap = ConcurrentHashMap<String, JSONObject>()
+
+    init {
+        load()
+    }
+
+    @Synchronized
+    fun load() {
+        try {
+            if (FILE_PATH.exists()) {
+                val content = FILE_PATH.readText(StandardCharsets.UTF_8)
+                if (content.isNotEmpty()) {
+                    val array = JSONArray(content)
+                    metadataMap.clear()
+                    for (i in 0 until array.length()) {
+                        val obj = array.getJSONObject(i)
+                        val symbol = obj.getString("symbol").uppercase()
+                        metadataMap[symbol] = obj
+                    }
+                }
+            }
+        } catch (e: Exception) {
+            System.err.println("SwingPositionMetadataStore: Failed to load: ${e.message}")
+        }
+    }
+
+    @Synchronized
+    fun save() {
+        try {
+            val array = JSONArray()
+            for (obj in metadataMap.values) {
+                array.put(obj)
+            }
+            FILE_PATH.writeText(array.toString(), StandardCharsets.UTF_8)
+        } catch (e: Exception) {
+            System.err.println("SwingPositionMetadataStore: Failed to save: ${e.message}")
+        }
+    }
+
+    @Synchronized
+    fun addMetadata(symbol: String, entryPrice: Double, atr: Double, stopLoss: Double, target: Double, entryDate: String) {
+        val obj = JSONObject()
+        obj.put("symbol", symbol.uppercase())
+        obj.put("entryPrice", entryPrice)
+        obj.put("atr", atr)
+        obj.put("stopLoss", stopLoss)
+        obj.put("target", target)
+        obj.put("entryDate", entryDate)
+        metadataMap[symbol.uppercase()] = obj
+        save()
+    }
+
+    @Synchronized
+    fun getMetadata(symbol: String): JSONObject? {
+        return metadataMap[symbol.uppercase()]
+    }
+
+    @Synchronized
+    fun removeMetadata(symbol: String) {
+        metadataMap.remove(symbol.uppercase())
+        save()
+    }
+}
+
+private fun getTradingDaysHeld(symbol: String, entryDate: java.time.LocalDate, token: String): Int {
+    try {
+        val fetchResult = kotlinx.coroutines.runBlocking {
+            AngelOneClient.fetchHistoricalCandles(
+                symbolToken = token,
+                symbol = symbol,
+                interval = "ONE_DAY",
+                limitDays = 30
+            )
+        }
+        if (fetchResult is FetchResult.Success) {
+            val candles = fetchResult.data
+            val entryIdx = candles.indexOfFirst { it.timestamp.atZone(ZoneId.of("Asia/Kolkata")).toLocalDate() == entryDate }
+            if (entryIdx != -1) {
+                return candles.size - 1 - entryIdx
+            }
+        }
+    } catch (e: Exception) {
+        System.err.println("Failed to calculate trading days held for $symbol: ${e.message}")
+    }
+    val today = java.time.LocalDate.now(ZoneId.of("Asia/Kolkata"))
+    return java.time.temporal.ChronoUnit.DAYS.between(entryDate, today).toInt()
 }

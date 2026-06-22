@@ -35,6 +35,27 @@ tasks.register<JavaExec>("runBacktest") {
     classpath = sourceSets["main"].runtimeClasspath
 }
 
+tasks.register<JavaExec>("runHistoricalBacktest") {
+    group = "application"
+    description = "Runs the 1-month historical backtest simulator using real market data"
+    mainClass.set("com.mobatrade.core.engine.HistoricalBacktestRunner")
+    classpath = sourceSets["main"].runtimeClasspath
+}
+
+tasks.register<JavaExec>("runSignalDiagnostics") {
+    group = "application"
+    description = "Runs the quantitative signal diagnostics runner to analyze entry edge"
+    mainClass.set("com.mobatrade.core.engine.SignalDiagnosticsRunner")
+    classpath = sourceSets["main"].runtimeClasspath
+}
+
+tasks.register<JavaExec>("runTrendTemplateDiagnostics") {
+    group = "application"
+    description = "Runs the Trend Template signal diagnostics script to analyze MA conditions and pullback triggers"
+    mainClass.set("com.mobatrade.core.engine.TrendTemplateDiagnostics")
+    classpath = sourceSets["main"].runtimeClasspath
+}
+
 tasks.register<JavaExec>("runServer") {
     group = "application"
     description = "Runs the MobaTrade local HTTP API server"
@@ -46,3 +67,11 @@ application {
     mainClass.set("com.mobatrade.core.engine.MobaTradeServer")
 }
 
+tasks.register<JavaExec>("forceZoyaSync") { mainClass.set("com.mobatrade.core.engine.ForceZoyaSyncKt"); classpath = sourceSets["main"].runtimeClasspath }
+tasks.register<JavaExec>("runVolatilityScreener") { mainClass.set("com.mobatrade.core.engine.VolatilityScreener"); classpath = sourceSets["main"].runtimeClasspath }
+tasks.register<JavaExec>("runTrendTemplateShadowScanner") {
+    group = "application"
+    description = "Runs the Trend Template Shadow Scanner to detect new Version F entries and update active paper trades"
+    mainClass.set("com.mobatrade.core.engine.TrendTemplateShadowScanner")
+    classpath = sourceSets["main"].runtimeClasspath
+}

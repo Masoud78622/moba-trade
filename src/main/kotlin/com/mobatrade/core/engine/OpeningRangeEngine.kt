@@ -34,6 +34,9 @@ object OpeningRangeEngine {
     // Tracks which stocks have already had an ORB signal fired today
     private val firedToday = ConcurrentHashMap<String, LocalDate>()
 
+    @Volatile
+    var enableLogging: Boolean = true
+
     private val IST = ZoneId.of("Asia/Kolkata")
     private val ORB_WINDOW_START = LocalTime.of(9, 30)
     private val ORB_WINDOW_END   = LocalTime.of(10, 30)
@@ -43,12 +46,15 @@ object OpeningRangeEngine {
      * Returns an OrbSignal if all conditions are met, otherwise null.
      */
     fun detect(symbol: String, token: String, candles: List<Candle>): OrbSignal? {
+        val lastCandle = candles.lastOrNull() ?: return null
+        val candleTime = lastCandle.timestamp.atZone(IST)
+        val now = candleTime.toLocalTime()
+        val today = candleTime.toLocalDate()
+
         // 1. Only evaluate during the ORB entry window
-        val now = LocalTime.now(IST)
         if (now.isBefore(ORB_WINDOW_START) || now.isAfter(ORB_WINDOW_END)) return null
 
         // 2. Don't fire twice for the same stock on the same day
-        val today = LocalDate.now(IST)
         if (firedToday[symbol] == today) return null
 
         if (candles.size < 6) return null
@@ -98,7 +104,9 @@ object OpeningRangeEngine {
 
         // Require at least score 3 to fire (ORB breakout + at least 1 bonus)
         if (score < 3) {
-            println("  └─ [ORB] $symbol: ORB breakout detected but insufficient confirmation (score=$score/4). Skipping.")
+            if (enableLogging) {
+                println("  └─ [ORB] $symbol: ORB breakout detected but insufficient confirmation (score=$score/4). Skipping.")
+            }
             return null
         }
 
@@ -110,7 +118,9 @@ object OpeningRangeEngine {
         // Mark as fired for today
         firedToday[symbol] = today
 
-        println("🔥 [ORB] $symbol: BREAKOUT CONFIRMED! Entry=₹$entryPrice | ORB High=₹$orbHigh | Stop=₹$stopLoss | Target=₹$target | Score=$score")
+        if (enableLogging) {
+            println("🔥 [ORB] $symbol: BREAKOUT CONFIRMED! Entry=₹$entryPrice | ORB High=₹$orbHigh | Stop=₹$stopLoss | Target=₹$target | Score=$score")
+        }
 
         return OrbSignal(
             symbol       = symbol,
@@ -125,8 +135,7 @@ object OpeningRangeEngine {
     }
 
     /** Call at start of each day to clear yesterday's fired signals */
-    fun clearStaleEntries() {
-        val today = LocalDate.now(IST)
+    fun clearStaleEntries(today: LocalDate = LocalDate.now(IST)) {
         firedToday.entries.removeIf { it.value != today }
     }
 }

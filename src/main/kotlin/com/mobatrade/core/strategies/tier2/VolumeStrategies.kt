@@ -334,11 +334,10 @@ class VwapReclaim(
     override val name: String = "VWAP Reclaim"
 
     override fun evaluate(candles: List<Candle>, currentTick: Tick?): Signal? {
-        // Need at least 20 candles for average volume calculation
         if (candles.size < 20) return null
-
+        val lastCandle = candles.lastOrNull() ?: return null
         val IST = ZoneId.of("Asia/Kolkata")
-        val today = LocalDate.now(IST)
+        val today = lastCandle.timestamp.atZone(IST).toLocalDate()
         val todayStart = today.atTime(9, 15).atZone(IST).toInstant()
         val todayCandles = candles.filter { it.timestamp >= todayStart }
 

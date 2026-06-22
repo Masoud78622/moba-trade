@@ -16,6 +16,7 @@ import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
 import java.time.ZonedDateTime
+import com.mobatrade.core.strategies.tier4.TrendTemplateScreener
 
 object MobaTradeServer {
     @Volatile
@@ -502,7 +503,37 @@ object MobaTradeServer {
     }
 
     private fun computeSignals(): JSONArray {
-        // Dynamically build the list of stocks to scan from halal_stocks.json cache
+        // Fetch Nifty proxy daily candles
+        var niftyCandles: List<Candle> = emptyList()
+        if (AngelOneClient.isLoggedIn) {
+            try {
+                println("BackgroundScanner: Fetching Nifty proxy daily candles (token=10576 NSE)...")
+                val fetchResult = kotlinx.coroutines.runBlocking {
+                    AngelOneClient.fetchHistoricalCandles(
+                        symbolToken = "10576",
+                        symbol = "NIFTYBEES-EQ",
+                        interval = "ONE_DAY",
+                        limitDays = 300
+                    )
+                }
+                if (fetchResult is com.mobatrade.core.model.FetchResult.Success) {
+                    niftyCandles = fetchResult.data
+                }
+                Thread.sleep(1000)
+            } catch (e: Exception) {
+                System.err.println("BackgroundScanner: Failed to fetch Nifty daily candles: ${e.message}")
+            }
+        }
+
+        val targetDate = niftyCandles.lastOrNull()?.timestamp?.atZone(ZoneId.of("Asia/Kolkata"))?.toLocalDate() ?: LocalDate.now()
+        val niftyIdx = niftyCandles.indexOfLast { it.timestamp.atZone(ZoneId.of("Asia/Kolkata")).toLocalDate() == targetDate }
+
+        if (niftyCandles.isEmpty() || niftyIdx == -1) {
+            println("BackgroundScanner: Nifty candles are empty or target date not found. Returning empty signals.")
+            return JSONArray()
+        }
+
+        // Dynamically build the list of stocks to scan from watchlist/halal_stocks cache
         val activeStocks = ArrayList<Triple<String, String, Double>>()
         val symbolToToken = mutableMapOf<String, String>()
         val symbolToDailyBias = mutableMapOf<String, String>()
@@ -523,7 +554,6 @@ object MobaTradeServer {
                     val sector = obj.optString("sector", "IT").uppercase()
                     val rawToken = obj.optString("token")
                     
-                    // Centralized source of truth:
                     val token = TokenIntegrityGuard.verifyAndGetToken(symbol, rawToken) ?: rawToken
 
                     if (symbol.isNotEmpty() && token.isNotEmpty()) {
@@ -532,7 +562,6 @@ object MobaTradeServer {
                         val dailyBias = obj.optString("dailyBias", "UNKNOWN")
                         symbolToDailyAtr[symbol] = dailyAtr
                         symbolToDailyBias[symbol] = dailyBias
-                        // Provide reasonable default start prices if falling back to synthetic
                         val defaultPrice = when (symbol) {
                             "TCS" -> 3045.00
                             "INFY" -> 1520.50
@@ -549,7 +578,6 @@ object MobaTradeServer {
             System.err.println("computeSignals: Failed to load dynamic active stocks list: ${e.message}")
         }
 
-        // If loading from cache failed or returned nothing, fall back to our benchmark 5 stocks
         if (activeStocks.isEmpty()) {
             activeStocks.addAll(listOf(
                 Triple("TCS", "IT", 3045.00),
@@ -558,7 +586,6 @@ object MobaTradeServer {
                 Triple("RELIANCE", "ENERGY", 2450.0),
                 Triple("HCLTECH", "IT", 1300.00)
             ))
-            
             val fallbackSymbols = listOf("TCS", "INFY", "WIPRO", "RELIANCE", "HCLTECH")
             for (sym in fallbackSymbols) {
                 val token = TokenIntegrityGuard.verifyAndGetToken(sym, null)
@@ -568,34 +595,75 @@ object MobaTradeServer {
             }
         }
 
-        val signalsArray = JSONArray()
-
+        // Fetch daily candles for all active stocks
+        val stockCandlesMap = mutableMapOf<String, List<Candle>>()
         for ((symbol, sector, startPrice) in activeStocks) {
             var candles: List<Candle> = emptyList()
             val token = symbolToToken[symbol.uppercase()]
 
             if (AngelOneClient.isLoggedIn && token != null) {
                 try {
-                    println("BackgroundScanner: Fetching real-world 5-min candles for $symbol ($token)...")
+                    println("BackgroundScanner: Fetching daily candles for $symbol ($token)...")
                     val fetchResult = kotlinx.coroutines.runBlocking {
                         AngelOneClient.fetchHistoricalCandles(
                             symbolToken = token,
                             symbol = symbol,
-                            interval = "FIVE_MINUTE",
-                            limitDays = TradingConstants.CANDLE_HISTORY_DAYS_INTRADAY_SCORING
+                            interval = "ONE_DAY",
+                            limitDays = 300
                         )
                     }
                     candles = if (fetchResult is com.mobatrade.core.model.FetchResult.Success) fetchResult.data else emptyList()
-                    // Rate limit protection: sleep for 5000ms to respect Angel One SmartAPI guidelines
-                    Thread.sleep(5000)
+                    Thread.sleep(350)
                 } catch (e: Exception) {
-                    System.err.println("BackgroundScanner: Failed to fetch real-world candles for $symbol: ${e.message}")
+                    System.err.println("BackgroundScanner: Failed to fetch daily candles for $symbol: ${e.message}")
                 }
             }
+            stockCandlesMap[symbol] = candles
+        }
 
-            // SAFE FAIL: Do not use synthetic data if API fails. Return a neutral 0-score signal.
-            if (candles.isEmpty()) {
-                println("BackgroundScanner: No real-world candles available for $symbol. Returning neutral 0 score to avoid fake trades.")
+        // Compute custom RS scores
+        val rsScores = mutableMapOf<String, Double>()
+        val niftyPrices = niftyCandles.subList(0, niftyIdx + 1).map { it.close }
+        for ((symbol, _, _) in activeStocks) {
+            val stockCandles = stockCandlesMap[symbol] ?: continue
+            val stockIdx = stockCandles.indexOfLast { it.timestamp.atZone(ZoneId.of("Asia/Kolkata")).toLocalDate() == targetDate }
+            if (stockIdx == -1 || stockIdx < 120) continue
+            
+            val currentPrice = stockCandles[stockIdx].close
+            val stockPrices = stockCandles.subList(0, stockIdx + 1).map { it.close }
+            
+            val stockReturn3m = ((currentPrice - stockPrices[stockIdx - 60]) / stockPrices[stockIdx - 60]) * 100.0
+            val niftyReturn3m = ((niftyPrices.last() - niftyPrices[niftyIdx - 60]) / niftyPrices[niftyIdx - 60]) * 100.0
+            val outperformance3m = stockReturn3m - niftyReturn3m
+
+            val stockReturn6m = ((currentPrice - stockPrices[stockIdx - 120]) / stockPrices[stockIdx - 120]) * 100.0
+            val niftyReturn6m = ((niftyPrices.last() - niftyPrices[niftyIdx - 120]) / niftyPrices[niftyIdx - 120]) * 100.0
+            val outperformance6m = stockReturn6m - niftyReturn6m
+
+            rsScores[symbol] = (outperformance3m + outperformance6m) / 2.0
+        }
+
+        val sortedStocks = rsScores.toList().sortedBy { it.second }
+        val totalStocks = sortedStocks.size
+        val percentileRanks = mutableMapOf<String, Double>()
+        if (totalStocks > 1) {
+            for (rank in 0 until totalStocks) {
+                val symbol = sortedStocks[rank].first
+                val percentile = (rank.toDouble() / (totalStocks - 1)) * 100.0
+                percentileRanks[symbol] = percentile
+            }
+        }
+
+        val signalsListTemp = ArrayList<JSONObject>()
+
+        for ((symbol, sector, startPrice) in activeStocks) {
+            val candles = stockCandlesMap[symbol] ?: emptyList()
+            val token = symbolToToken[symbol.uppercase()]
+            val rsPercentile = percentileRanks[symbol]
+            val rsScore = rsScores[symbol] ?: 0.0
+
+            if (candles.isEmpty() || rsPercentile == null) {
+                println("BackgroundScanner: No candle history or RS score for $symbol. Returning neutral 0 score.")
                 val item = JSONObject()
                 item.put("symbol", symbol)
                 item.put("token", token)
@@ -607,70 +675,115 @@ object MobaTradeServer {
                 item.put("atr14", 0.0)
                 item.put("triggers", JSONArray(listOf("FAILED_TO_FETCH_MARKET_DATA")))
                 item.put("price", String.format("₹%,.2f", startPrice))
-                signalsArray.put(item)
-                // Phase 6: count failed fetch as a miss — candle fetch failure = dead signal
+                item.put("dailyBias", symbolToDailyBias[symbol.uppercase()] ?: "UNKNOWN")
+                item.put("dailyAtr", symbolToDailyAtr[symbol.uppercase()] ?: 0.0)
+                item.put("relativeStrength", 0.0)
+                item.put("rsOutperforming", false)
+                signalsListTemp.add(item)
                 SelfHealingWatchlist.recordScore(symbol, 0)
                 continue
             }
 
-            val scorer = ConfluenceScorer(symbol, sector)
-            val scored = scorer.scoreTrade(candles)
+            // Screen using TrendTemplateScreener
+            val res = TrendTemplateScreener.screen(
+                symbol = symbol,
+                targetDate = targetDate,
+                stockCandles = candles,
+                niftyCandles = niftyCandles,
+                minRsScore = 15.0,
+                rsPercentile = rsPercentile,
+                requireVcp = true,
+                maxVcpPriceRangePct = 5.0,
+                minVcpVolumeContractionPct = 15.0,
+                requirePullback = false,
+                requireNiftyStage2 = false,
+                requireLiquiditySweep = true
+            )
 
-            // Check Opening Range Breakout (ORB) as an independent strategy
-            val orbSignal = OpeningRangeEngine.detect(symbol, token ?: "", candles)
+            val currentPrice = candles.last().close
+            val stockIdx = candles.indexOfFirst { it.timestamp.atZone(ZoneId.of("Asia/Kolkata")).toLocalDate() == targetDate }
+            val atr = if (stockIdx != -1) calculateATR14(candles, stockIdx) else 0.0
 
             val item = JSONObject()
-            item.put("symbol", scored.symbol)
+            item.put("symbol", symbol)
             item.put("token", token)
+            item.put("compliant", com.mobatrade.core.halal.ShariahFilter.isCompliantSymbol(symbol))
+            
+            val db = symbolToDailyBias[symbol.uppercase()] ?: "UNKNOWN"
 
-            if (orbSignal != null) {
-                // ORB overrides the confluence score — it's a standalone edge
-                item.put("score", orbSignal.score)
+            if (res.isTriggered && com.mobatrade.core.halal.ShariahFilter.isCompliantSymbol(symbol)) {
+                val stop = res.price - 2.0 * atr
+                val targetPrice = res.price + 3.5 * atr
+                
+                item.put("score", 5)
                 item.put("direction", "BUY")
-                item.put("regime", scored.marketRegime.name)
-                item.put("compliant", scored.isShariahCompliant)
-                item.put("isSwingEligible", false) // ORB is always intraday
-                item.put("atr14", scored.atr14)
-                item.put("orbStopLoss", orbSignal.stopLoss)
-                item.put("orbTarget", orbSignal.target)
-                item.put("isOrb", true)
-                val triggersArray = JSONArray()
-                for (trigger in orbSignal.triggers) triggersArray.put(trigger)
-                item.put("triggers", triggersArray)
-                item.put("price", String.format("₹%,.2f", orbSignal.entryPrice))
-            } else {
-                item.put("score", scored.totalScore)
-                item.put("direction", scored.recommendedDirection.name)
-                item.put("regime", scored.marketRegime.name)
-                item.put("compliant", scored.isShariahCompliant)
-                item.put("isSwingEligible", scored.isSwingEligible)
-                item.put("atr14", scored.atr14)
+                item.put("regime", res.niftyRegime.name)
+                item.put("isSwingEligible", true)
+                item.put("atr14", atr)
+                item.put("dailyAtr", atr)
                 item.put("isOrb", false)
-                item.put("isVwapReclaim", scored.isVwapReclaim)
-                item.put("vwapReclaimStopLoss", scored.vwapReclaimStopLoss)
-                item.put("vwapReclaimTarget", scored.vwapReclaimTarget)
-                val triggersArray = JSONArray()
-                for (trigger in scored.triggers) triggersArray.put(trigger)
-                item.put("triggers", triggersArray)
-                val currentPrice = if (candles.isNotEmpty()) candles.last().close else startPrice
+                item.put("isVwapReclaim", false)
+                item.put("price", String.format("₹%,.2f", res.price))
+                item.put("triggers", JSONArray(listOf(res.details)))
+                
+                // Expose stop and target parameters in standard keys for RiskManager/AutoBotEngine
+                item.put("orbStopLoss", stop)
+                item.put("orbTarget", targetPrice)
+                item.put("vwapReclaimStopLoss", stop)
+                item.put("vwapReclaimTarget", targetPrice)
+                
+                SelfHealingWatchlist.recordScore(symbol, 5)
+            } else {
+                item.put("score", 0)
+                item.put("direction", "HOLD")
+                item.put("regime", res.niftyRegime.name)
+                item.put("isSwingEligible", false)
+                item.put("atr14", atr)
+                item.put("dailyAtr", atr)
+                item.put("isOrb", false)
+                item.put("isVwapReclaim", false)
                 item.put("price", String.format("₹%,.2f", currentPrice))
+                item.put("triggers", JSONArray(listOf("Trend template or Sweep setup not triggered")))
+                SelfHealingWatchlist.recordScore(symbol, 0)
             }
 
-            // Phase 6: record the score so SelfHealingWatchlist can track stale stocks
-            val finalScore = if (orbSignal != null) orbSignal.score else scored.totalScore
-            SelfHealingWatchlist.recordScore(symbol, finalScore)
-
-            val db = symbolToDailyBias[symbol.uppercase()] ?: "UNKNOWN"
-            val da = symbolToDailyAtr[symbol.uppercase()] ?: 0.0
             item.put("dailyBias", db)
-            item.put("dailyAtr", da)
+            item.put("relativeStrength", rsScore)
+            item.put("rsOutperforming", rsPercentile >= 85.0)
 
+            signalsListTemp.add(item)
+        }
+
+        // Check for stale stocks and heal the watchlist
+        SelfHealingWatchlist.checkAndHeal()
+
+        // Prioritize: sort by score desc, then by rsOutperforming desc, then by relativeStrength magnitude desc
+        signalsListTemp.sortWith(compareByDescending<JSONObject> { it.optInt("score", 0) }
+            .thenByDescending { it.optBoolean("rsOutperforming", false) }
+            .thenByDescending { it.optDouble("relativeStrength", 0.0) })
+
+        val signalsArray = JSONArray()
+        for (item in signalsListTemp) {
             signalsArray.put(item)
         }
 
-        // Phase 6: after scoring all symbols, check for stale stocks and heal the watchlist
-        SelfHealingWatchlist.checkAndHeal()
-
         return signalsArray
+    }
+
+    private fun calculateATR14(candles: List<Candle>, endIdx: Int): Double {
+        val period = 14
+        if (endIdx < period) return 0.0
+        var total = 0.0
+        for (i in (endIdx - period + 1)..endIdx) {
+            val current = candles[i]
+            val prev = candles[i - 1]
+            val tr = maxOf(
+                current.high - current.low,
+                Math.abs(current.high - prev.close),
+                Math.abs(current.low - prev.close)
+            )
+            total += tr
+        }
+        return total / period
     }
 }
