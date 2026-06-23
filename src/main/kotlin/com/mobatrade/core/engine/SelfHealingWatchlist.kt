@@ -66,6 +66,12 @@ object SelfHealingWatchlist {
      * Updates miss counters and triggers healing if any stock exceeds [MISS_THRESHOLD].
      */
     fun checkAndHeal() {
+        val bypass = EnvLoader.get("BYPASS_WATCHLIST_HEALING")?.toBoolean() ?: true
+        if (bypass) {
+            latestScores.clear()
+            return
+        }
+
         // Update miss counters from latest scores
         for ((symbol, score) in latestScores) {
             if (score > 0) {

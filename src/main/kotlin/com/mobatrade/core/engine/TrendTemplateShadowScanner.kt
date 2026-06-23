@@ -31,13 +31,15 @@ object TrendTemplateShadowScanner {
         val signalsFile = File(shadowDir, "version_f_signals.csv")
         val resultsFile = File(shadowDir, "version_f_results.csv")
 
-        if (!signalsFile.exists()) {
-            signalsFile.writeText("TradeID,Stock,EntryDate,EntryPrice,ATR,StopPrice,TargetPrice,SweepDepthAtr\n", StandardCharsets.UTF_8)
-            println("📄 Created version_f_signals.csv")
+        val signalsHeader = "TradeID,Stock,EntryDate,EntryPrice,ATR,StopPrice,TargetPrice,SweepDepthAtr,RSPercentile,VCPWidth,MarketRegime\n"
+        if (!signalsFile.exists() || signalsFile.readText(StandardCharsets.UTF_8).trim() == "TradeID,Stock,EntryDate,EntryPrice,ATR,StopPrice,TargetPrice,SweepDepthAtr") {
+            signalsFile.writeText(signalsHeader, StandardCharsets.UTF_8)
+            println("📄 Initialized/Updated version_f_signals.csv with new headers")
         }
-        if (!resultsFile.exists()) {
-            resultsFile.writeText("TradeID,ExitDate,ExitPrice,ExitReason,PLPct,RMultiple\n", StandardCharsets.UTF_8)
-            println("📄 Created version_f_results.csv")
+        val resultsHeader = "TradeID,ExitDate,ExitPrice,ExitReason,PLPct,RMultiple,DaysToExit\n"
+        if (!resultsFile.exists() || resultsFile.readText(StandardCharsets.UTF_8).trim() == "TradeID,ExitDate,ExitPrice,ExitReason,PLPct,RMultiple") {
+            resultsFile.writeText(resultsHeader, StandardCharsets.UTF_8)
+            println("📄 Initialized/Updated version_f_results.csv with new headers")
         }
 
         // 2. Read Existing Logs to Determine Active Trades
@@ -175,21 +177,21 @@ object TrendTemplateShadowScanner {
                 val checkDate = checkCandle.timestamp.atZone(IST).toLocalDate()
 
                 if (checkCandle.low <= stopPrice && checkCandle.high >= targetPrice) {
-                    closeTrade(tradeId, checkDate, stopPrice, "STOP", entryPrice, atr, resultsFile)
+                    closeTrade(tradeId, checkDate, stopPrice, "STOP", entryPrice, atr, resultsFile, dayCount)
                     exited = true
                     break
                 } else if (checkCandle.low <= stopPrice) {
-                    closeTrade(tradeId, checkDate, stopPrice, "STOP", entryPrice, atr, resultsFile)
+                    closeTrade(tradeId, checkDate, stopPrice, "STOP", entryPrice, atr, resultsFile, dayCount)
                     exited = true
                     break
                 } else if (checkCandle.high >= targetPrice) {
-                    closeTrade(tradeId, checkDate, targetPrice, "TARGET", entryPrice, atr, resultsFile)
+                    closeTrade(tradeId, checkDate, targetPrice, "TARGET", entryPrice, atr, resultsFile, dayCount)
                     exited = true
                     break
                 }
 
                 if (dayCount >= 10) {
-                    closeTrade(tradeId, checkDate, checkCandle.close, "TIME", entryPrice, atr, resultsFile)
+                    closeTrade(tradeId, checkDate, checkCandle.close, "TIME", entryPrice, atr, resultsFile, dayCount)
                     exited = true
                     break
                 }
@@ -285,7 +287,10 @@ object TrendTemplateShadowScanner {
                             String.format("%.2f", atr),
                             String.format("%.2f", stop),
                             String.format("%.2f", targetPrice),
-                            String.format("%.3f", sweepDepth)
+                            String.format("%.3f", sweepDepth),
+                            String.format("%.2f", rsPercentile ?: 0.0),
+                            String.format("%.2f", res.vcpWidth),
+                            res.niftyRegime.name
                         ))
 
                         val setupInfo = "🎯 TRIGGERED: $symbol\n" +
@@ -315,7 +320,7 @@ object TrendTemplateShadowScanner {
         }
     }
 
-    private fun closeTrade(tradeId: String, exitDate: LocalDate, exitPrice: Double, reason: String, entryPrice: Double, atr: Double, resultsFile: File) {
+    private fun closeTrade(tradeId: String, exitDate: LocalDate, exitPrice: Double, reason: String, entryPrice: Double, atr: Double, resultsFile: File, daysHeld: Int) {
         val plPct = ((exitPrice - entryPrice) / entryPrice) * 100.0
         val rMultiple = if (atr > 0.0) (exitPrice - entryPrice) / (2.0 * atr) else 0.0
 
@@ -325,10 +330,11 @@ object TrendTemplateShadowScanner {
             String.format("%.2f", exitPrice),
             reason,
             String.format("%.3f%%", plPct),
-            String.format("%.3f", rMultiple)
+            String.format("%.3f", rMultiple),
+            daysHeld.toString()
         ))
 
-        println("🚪 CLOSED: $tradeId exited at ${String.format("%.2f", exitPrice)} on $exitDate due to $reason | P/L: ${String.format("%.2f%%", plPct)} | R: ${String.format("%.2f", rMultiple)}")
+        println("🚪 CLOSED: $tradeId exited at ${String.format("%.2f", exitPrice)} on $exitDate due to $reason | Days Held: $daysHeld | P/L: ${String.format("%.2f%%", plPct)} | R: ${String.format("%.2f", rMultiple)}")
     }
 
     private fun calculateATR14(candles: List<Candle>, endIdx: Int): Double {

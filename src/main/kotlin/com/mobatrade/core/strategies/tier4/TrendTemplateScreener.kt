@@ -16,7 +16,8 @@ object TrendTemplateScreener {
         val price: Double,
         val rsScore: Double,
         val niftyRegime: MarketRegime,
-        val details: String
+        val details: String,
+        val vcpWidth: Double = 0.0
     )
 
     fun screen(
@@ -99,11 +100,12 @@ object TrendTemplateScreener {
         // VCP Check
         var vcpMet = true
         var vcpDetails = ""
+        var consRangePct = 0.0
         if (requireVcp && stockIdx >= 20) {
             val consCandles = stockCandles.subList(stockIdx - 5, stockIdx)
             val consHigh = consCandles.maxOf { it.high }
             val consLow = consCandles.minOf { it.low }
-            val consRangePct = ((consHigh - consLow) / consLow) * 100.0
+            consRangePct = ((consHigh - consLow) / consLow) * 100.0
 
             val consVol = consCandles.map { it.volume.toDouble() }.average()
             val baseVol = stockCandles.subList(stockIdx - 20, stockIdx - 5).map { it.volume.toDouble() }.average()
@@ -206,7 +208,7 @@ object TrendTemplateScreener {
             }
         }
 
-        return ScreenResult(true, currentPrice, rsScore, niftyRegime, "SETUP TRIGGERED! $triggerReason. VCP: $vcpDetails")
+        return ScreenResult(true, currentPrice, rsScore, niftyRegime, "SETUP TRIGGERED! $triggerReason. VCP: $vcpDetails", consRangePct)
     }
 
     fun calculateSma(prices: List<Double>, period: Int): List<Double> {

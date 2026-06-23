@@ -679,6 +679,9 @@ object MobaTradeServer {
                 item.put("dailyAtr", symbolToDailyAtr[symbol.uppercase()] ?: 0.0)
                 item.put("relativeStrength", 0.0)
                 item.put("rsOutperforming", false)
+                item.put("rsPercentile", 0.0)
+                item.put("vcpWidth", 0.0)
+                item.put("sweepDepthAtr", 0.0)
                 signalsListTemp.add(item)
                 SelfHealingWatchlist.recordScore(symbol, 0)
                 continue
@@ -750,6 +753,17 @@ object MobaTradeServer {
             item.put("dailyBias", db)
             item.put("relativeStrength", rsScore)
             item.put("rsOutperforming", rsPercentile >= 85.0)
+
+            item.put("rsPercentile", rsPercentile)
+            item.put("vcpWidth", res.vcpWidth)
+            val sweepDepth = if (stockIdx > 0 && atr > 0.0) {
+                val yesterdayLow = candles[stockIdx - 1].low
+                val todayLow = candles[stockIdx].low
+                (yesterdayLow - todayLow) / atr
+            } else {
+                0.0
+            }
+            item.put("sweepDepthAtr", sweepDepth)
 
             signalsListTemp.add(item)
         }
