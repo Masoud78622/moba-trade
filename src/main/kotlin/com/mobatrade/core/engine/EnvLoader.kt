@@ -37,4 +37,12 @@ object EnvLoader {
     fun get(key: String): String? {
         return envMap[key] ?: System.getenv(key)
     }
+
+    fun setForTest(key: String, value: String?) {
+        if (value == null) {
+            envMap.remove(key)
+        } else {
+            envMap[key] = value
+        }
+    }
 }

@@ -202,8 +202,10 @@ class ConfluenceEngineTest {
     @Test
     fun testRealCandlesScoring() {
         val loginSuccess = AngelOneClient.login(
-            tradingPassword = "3112",
-            totpSecret = "K336YHYAV6NN5H2DYMPBBZ55NM"
+            clientId = EnvLoader.get("ANGEL_CLIENT_ID") ?: AngelOneClient.DEFAULT_CLIENT_ID,
+            tradingPassword = EnvLoader.get("ANGEL_PIN") ?: "3112",
+            apiKey = EnvLoader.get("ANGEL_API_KEY") ?: AngelOneClient.DEFAULT_API_KEY,
+            totpSecret = EnvLoader.get("ANGEL_TOTP_SECRET") ?: "K336YHYAV6NN5H2DYMPBBZ55NM"
         )
         assertTrue(loginSuccess, "Login must succeed to run real candles test")
         val fetchResult = kotlinx.coroutines.runBlocking {

@@ -121,6 +121,8 @@ class ZoyaSyncTest {
     @Test
     fun testFetchHistoricalCandlesUnauthenticated() {
         // Ensure we are logged out and auto-login fails by using an invalid client ID
+        val originalEnvClientId = EnvLoader.get("ANGEL_CLIENT_ID")
+        EnvLoader.setForTest("ANGEL_CLIENT_ID", "INVALID_CLIENT")
         AngelOneClient.logout()
         val originalClientId = AngelOneClient.activeClientId
         AngelOneClient.login(clientId = "INVALID_CLIENT")
@@ -140,6 +142,7 @@ class ZoyaSyncTest {
         } finally {
             AngelOneClient.autoRefreshEnabled = true
             // Restore correct client ID by logging back in (will use default credentials or env)
+            EnvLoader.setForTest("ANGEL_CLIENT_ID", originalEnvClientId)
             AngelOneClient.login(clientId = originalClientId)
         }
     }

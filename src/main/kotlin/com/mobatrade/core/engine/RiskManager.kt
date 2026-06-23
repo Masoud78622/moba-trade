@@ -6,11 +6,11 @@ import com.mobatrade.core.model.Position
 import java.time.LocalDate
 
 class RiskManager(
-    private val maxDailyDrawdownPercent: Double = 3.0,  // Halt if daily loss exceeds 3% of capital
-    private val maxConcurrentPositions: Int = 2,
+    private val maxDailyDrawdownPercent: Double = EnvLoader.get("MAX_DAILY_DRAWDOWN_PERCENT")?.toDoubleOrNull() ?: 3.0,
+    private val maxConcurrentPositions: Int = EnvLoader.get("MAX_CONCURRENT_POSITIONS")?.toIntOrNull() ?: 2,
     private val rewardToRiskRatio: Double = EnvLoader.get("REWARD_TO_RISK_RATIO")?.toDoubleOrNull() ?: 2.0,
-    private val riskPercent: Double = 1.0,
-    private val maxAllocationPercent: Double = 25.0
+    private val riskPercent: Double = EnvLoader.get("RISK_PERCENT")?.toDoubleOrNull() ?: 1.0,
+    private val maxAllocationPercent: Double = EnvLoader.get("MAX_ALLOCATION_PERCENT")?.toDoubleOrNull() ?: 25.0
 ) {
     private val activePositions = HashMap<String, Position>()
     private var dailyPnL = 0.0
