@@ -256,6 +256,7 @@ object TrendTemplateShadowScanner {
                     niftyCandles = niftyCandles,
                     minRsScore = 15.0,
                     rsPercentile = rsPercentile,
+                    minRsPercentile = 70.0,
                     requireVcp = true,
                     maxVcpPriceRangePct = 5.0,
                     minVcpVolumeContractionPct = 15.0,

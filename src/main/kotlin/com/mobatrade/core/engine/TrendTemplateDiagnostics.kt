@@ -303,6 +303,7 @@ object TrendTemplateDiagnostics {
                         niftyCandles = niftyCandles,
                         minRsScore = 15.0,
                         rsPercentile = rsPercentile,
+                        minRsPercentile = config.rsPercentile,
                         requireVcp = true,
                         maxVcpPriceRangePct = config.maxVcpPriceRangePct,
                         minVcpVolumeContractionPct = 15.0,

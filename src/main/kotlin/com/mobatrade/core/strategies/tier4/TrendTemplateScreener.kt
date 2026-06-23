@@ -34,6 +34,7 @@ object TrendTemplateScreener {
         niftyCandles: List<Candle>,
         minRsScore: Double = 15.0,
         rsPercentile: Double? = null,
+        minRsPercentile: Double = 70.0,
         requireVcp: Boolean = false,
         maxVcpPriceRangePct: Double = 3.0,
         minVcpVolumeContractionPct: Double = 15.0,
@@ -103,7 +104,7 @@ object TrendTemplateScreener {
         val c5 = currentPrice > cur50
         val c6 = currentPrice >= low52 * 1.30
         val c7 = currentPrice >= high52 * 0.75
-        val c8 = if (rsPercentile != null) rsPercentile >= 85.0 else rsScore >= minRsScore
+        val c8 = if (rsPercentile != null) rsPercentile >= minRsPercentile else rsScore >= minRsScore
 
         // VCP Check
         var vcpMet = true
@@ -164,7 +165,7 @@ object TrendTemplateScreener {
             if (!c5) failed.add("Price > MA50")
             if (!c6) failed.add("Price >= 30% above 52w low")
             if (!c7) failed.add("Price within 25% of 52w high")
-            if (!c8) failed.add(if (rsPercentile != null) "RS Percentile ($rsPercentile) < 85%" else "RS Score ($rsScore) < $minRsScore")
+            if (!c8) failed.add(if (rsPercentile != null) "RS Percentile ($rsPercentile) < $minRsPercentile%" else "RS Score ($rsScore) < $minRsScore")
             if (!vcpMet) failed.add("VCP failed: $vcpDetails")
             return ScreenResult(false, currentPrice, rsScore, MarketRegime.RANGING, "Failed Trend Template: ${failed.joinToString(", ")}")
         }

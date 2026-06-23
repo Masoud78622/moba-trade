@@ -709,6 +709,7 @@ object MobaTradeServer {
                 niftyCandles = niftyCandles,
                 minRsScore = 15.0,
                 rsPercentile = rsPercentile,
+                minRsPercentile = 70.0,
                 requireVcp = true,
                 maxVcpPriceRangePct = 5.0,
                 minVcpVolumeContractionPct = 15.0,
@@ -773,7 +774,7 @@ object MobaTradeServer {
 
             item.put("dailyBias", db)
             item.put("relativeStrength", rsScore)
-            item.put("rsOutperforming", rsPercentile >= 85.0)
+            item.put("rsOutperforming", rsPercentile >= 70.0)
 
             item.put("rsPercentile", rsPercentile)
             item.put("vcpWidth", res.vcpWidth)
