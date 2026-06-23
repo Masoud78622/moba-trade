@@ -259,6 +259,7 @@ object MobaTradeServer {
         private val learningReportHandler = LearningReportHandler()
         private val learningTriggerHandler = LearningTriggerHandler()
         private val logsHandler = LogsHandler()
+        private val statisticsHandler = StatisticsHandler()
 
         override fun handle(exchange: HttpExchange) {
             // Options handler for CORS preflight
@@ -281,6 +282,7 @@ object MobaTradeServer {
                 "/learning/report" -> learningReportHandler.handle(exchange)
                 "/learning/trigger" -> learningTriggerHandler.handle(exchange)
                 "/logs" -> logsHandler.handle(exchange)
+                "/statistics" -> statisticsHandler.handle(exchange)
                 else -> {
                     val errJson = JSONObject()
                     errJson.put("error", "Not Found")
@@ -345,6 +347,16 @@ object MobaTradeServer {
             statusJson.put("swingManageEnabled", AutoBotEngine.isSwingManageEnabled)
             statusJson.put("cachedSignalsLength", cachedSignalsJson.length)
             statusJson.put("serverTime", Instant.now().toString())
+
+            val telemetryJson = JSONObject()
+            telemetryJson.put("lastScanTime", ScanTelemetry.lastScanTime)
+            telemetryJson.put("scanned", ScanTelemetry.scanned)
+            telemetryJson.put("stage2Passed", ScanTelemetry.stage2)
+            telemetryJson.put("rsHighPassed", ScanTelemetry.rsHigh)
+            telemetryJson.put("vcpTightPassed", ScanTelemetry.vcpTight)
+            telemetryJson.put("sweepPassed", ScanTelemetry.sweep)
+            telemetryJson.put("triggered", ScanTelemetry.triggered)
+            statusJson.put("scanTelemetry", telemetryJson)
 
             sendResponse(exchange, 200, statusJson.toString())
         }
@@ -578,6 +590,8 @@ object MobaTradeServer {
             System.err.println("computeSignals: Failed to load dynamic active stocks list: ${e.message}")
         }
 
+        ScanTelemetry.reset(activeStocks.size)
+
         if (activeStocks.isEmpty()) {
             activeStocks.addAll(listOf(
                 Triple("TCS", "IT", 3045.00),
@@ -700,7 +714,13 @@ object MobaTradeServer {
                 minVcpVolumeContractionPct = 15.0,
                 requirePullback = false,
                 requireNiftyStage2 = false,
-                requireLiquiditySweep = true
+                requireLiquiditySweep = true,
+                telemetryCollector = object : com.mobatrade.core.strategies.tier4.TelemetryCollector {
+                    override fun recordStage2Pass() { ScanTelemetry.stage2++ }
+                    override fun recordRsPass() { ScanTelemetry.rsHigh++ }
+                    override fun recordVcpPass() { ScanTelemetry.vcpTight++ }
+                    override fun recordSweepPass() { ScanTelemetry.sweep++ }
+                }
             )
 
             val currentPrice = candles.last().close
@@ -717,6 +737,7 @@ object MobaTradeServer {
             if (res.isTriggered && com.mobatrade.core.halal.ShariahFilter.isCompliantSymbol(symbol)) {
                 val stop = res.price - 2.0 * atr
                 val targetPrice = res.price + 3.5 * atr
+                ScanTelemetry.triggered++
                 
                 item.put("score", 5)
                 item.put("direction", "BUY")
@@ -799,5 +820,39 @@ object MobaTradeServer {
             total += tr
         }
         return total / period
+    }
+
+    // 9. Statistics Handler
+    class StatisticsHandler : HttpHandler {
+        override fun handle(exchange: HttpExchange) {
+            if (exchange.requestMethod.uppercase() == "OPTIONS") {
+                exchange.sendResponseHeaders(204, -1)
+                return
+            }
+            val stats = StatisticsAnalyzer.calculateStats()
+            sendResponse(exchange, 200, stats.toString())
+        }
+    }
+}
+
+object ScanTelemetry {
+    @Volatile var lastScanTime: String = "NEVER"
+    @Volatile var scanned: Int = 0
+    @Volatile var stage2: Int = 0
+    @Volatile var rsHigh: Int = 0
+    @Volatile var vcpTight: Int = 0
+    @Volatile var sweep: Int = 0
+    @Volatile var triggered: Int = 0
+
+    @Synchronized
+    fun reset(total: Int) {
+        lastScanTime = java.time.LocalDateTime.now(java.time.ZoneId.of("Asia/Kolkata"))
+            .format(java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"))
+        scanned = total
+        stage2 = 0
+        rsHigh = 0
+        vcpTight = 0
+        sweep = 0
+        triggered = 0
     }
 }

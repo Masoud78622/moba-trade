@@ -25,7 +25,8 @@ object TrendTemplateShadowScanner {
         println("======================================================================")
 
         // 1. Initialize Directories & CSV Files
-        val shadowDir = File("c:\\moba trade\\shadow_trades")
+        val isWindowsOs = System.getProperty("os.name").lowercase().contains("win")
+        val shadowDir = if (isWindowsOs) File("c:\\moba trade\\shadow_trades") else File("shadow_trades")
         shadowDir.mkdirs()
 
         val signalsFile = File(shadowDir, "version_f_signals.csv")

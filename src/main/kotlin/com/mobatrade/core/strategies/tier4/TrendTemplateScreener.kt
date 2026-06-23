@@ -6,6 +6,13 @@ import com.mobatrade.core.strategies.tier5.RegimeDetector
 import java.time.LocalDate
 import java.time.ZoneId
 
+interface TelemetryCollector {
+    fun recordStage2Pass()
+    fun recordRsPass()
+    fun recordVcpPass()
+    fun recordSweepPass()
+}
+
 object TrendTemplateScreener {
 
     private val IST = ZoneId.of("Asia/Kolkata")
@@ -32,7 +39,8 @@ object TrendTemplateScreener {
         minVcpVolumeContractionPct: Double = 15.0,
         requirePullback: Boolean = true,
         requireNiftyStage2: Boolean = false,
-        requireLiquiditySweep: Boolean = false
+        requireLiquiditySweep: Boolean = false,
+        telemetryCollector: TelemetryCollector? = null
     ): ScreenResult {
         // 1. Align Nifty and Stock candles up to the target date
         val stockIdx = stockCandles.indexOfLast { it.timestamp.atZone(IST).toLocalDate() == targetDate }
@@ -116,6 +124,33 @@ object TrendTemplateScreener {
 
             vcpMet = priceTight && volDry
             vcpDetails = "Range=${String.format("%.1f%%", consRangePct)} (max ${maxVcpPriceRangePct}%) | VolDry=${String.format("%.1f%%", volContraction)} (min ${minVcpVolumeContractionPct}%)"
+        }
+
+        val passedTrendTemplate = c1 && c2 && c3 && c4 && c5 && c6 && c7
+        if (passedTrendTemplate) {
+            telemetryCollector?.recordStage2Pass()
+        }
+
+        val passedRs = passedTrendTemplate && c8
+        if (passedRs) {
+            telemetryCollector?.recordRsPass()
+        }
+
+        val passedVcp = passedRs && vcpMet
+        if (passedVcp) {
+            telemetryCollector?.recordVcpPass()
+        }
+
+        val yesterdayLow = stockLows[stockIdx - 1]
+        val todayLow = stockLows[stockIdx]
+        val isGreen = currentPrice > stockCandles[stockIdx].open
+        val isSweep = todayLow < yesterdayLow
+        val isRecovery = currentPrice > yesterdayLow
+        val passedSweep = isSweep && isRecovery && isGreen
+
+        val passedSweepFunnel = passedVcp && (!requireLiquiditySweep || passedSweep)
+        if (passedSweepFunnel && requireLiquiditySweep) {
+            telemetryCollector?.recordSweepPass()
         }
 
         val trendTemplateMet = c1 && c2 && c3 && c4 && c5 && c6 && c7 && c8 && vcpMet
