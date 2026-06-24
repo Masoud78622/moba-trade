@@ -103,7 +103,7 @@ object TrendTemplateShadowScanner {
                 symbolToken = "10576",
                 symbol = "NIFTYBEES-EQ",
                 interval = "ONE_DAY",
-                limitDays = 300 // fetch enough history for daily scan
+                limitDays = 450 // fetch enough history for daily scan
             )
         }
         val niftyCandles = when (niftyResult) {
@@ -138,7 +138,7 @@ object TrendTemplateShadowScanner {
                     symbolToken = token,
                     symbol = symbol,
                     interval = "ONE_DAY",
-                    limitDays = 300
+                    limitDays = 450
                 )
             }
             if (result is FetchResult.Success) {

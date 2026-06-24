@@ -502,7 +502,7 @@ object MobaTradeServer {
                         symbolToken = "10576",
                         symbol = "NIFTYBEES-EQ",
                         interval = "ONE_DAY",
-                        limitDays = 300
+                        limitDays = 450
                     )
                 }
                 if (fetchResult is com.mobatrade.core.model.FetchResult.Success) {
@@ -597,7 +597,7 @@ object MobaTradeServer {
                             symbolToken = token,
                             symbol = symbol,
                             interval = "ONE_DAY",
-                            limitDays = 300
+                            limitDays = 450
                         )
                     }
                     candles = if (fetchResult is com.mobatrade.core.model.FetchResult.Success) fetchResult.data else emptyList()
