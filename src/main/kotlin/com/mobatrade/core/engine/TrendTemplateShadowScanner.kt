@@ -75,9 +75,9 @@ object TrendTemplateShadowScanner {
         ShariahFilter.loadUniverse()
 
         val isWindows = System.getProperty("os.name").lowercase().contains("win")
-        val cacheFile = if (isWindows) File("c:\\moba trade\\watchlist_intraday.json") else File("watchlist_intraday.json")
+        val cacheFile = if (isWindows) File("c:\\moba trade\\halal_stocks.json") else File("halal_stocks.json")
         if (!cacheFile.exists()) {
-            System.err.println("❌ Watchlist file is missing. Run audit first.")
+            System.err.println("❌ Halal stocks file is missing.")
             return
         }
 

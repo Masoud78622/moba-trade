@@ -149,7 +149,7 @@ object MobaTradeServer {
                 )
                 if (success) {
                     println("Server startup: Angel One login successful. brokerConnected = true")
-                    WatchlistAuditor.runDailyAudit(force = false)
+                    println("Server startup: Bypassing WatchlistAuditor for daily Version F swing scanner.")
                 } else {
                     System.err.println("Server startup: Angel One login failed. Check ANGEL_CLIENT_ID, ANGEL_API_KEY, ANGEL_PIN, and ANGEL_TOTP_SECRET env vars.")
                 }
@@ -170,30 +170,7 @@ object MobaTradeServer {
                             continue
                         }
 
-                        // Check if we need to run the weekly audit (Saturday >= 9 AM, OR if the file is completely missing)
-                        val nowIst = java.time.ZonedDateTime.now(ZoneId.of("Asia/Kolkata"))
-                        val today = nowIst.toLocalDate()
-                        
-                        val isWindows = System.getProperty("os.name").lowercase().contains("win")
-                        val watchListFile = if (isWindows) File("c:\\moba trade\\watchlist_intraday.json") else File("watchlist_intraday.json")
-                        val isMissing = !watchListFile.exists() || watchListFile.length() <= 2
-                        val isSaturdayRefresh = nowIst.dayOfWeek == java.time.DayOfWeek.SATURDAY && nowIst.hour >= 9 && today != lastWeeklyAuditDate
-
-                        if (isSaturdayRefresh || isMissing) {
-                            println("BackgroundScanner: ${if (isMissing) "watchlist_intraday.json missing" else "Saturday refresh"} — triggering watchlist audit...")
-                            val auditStarted = WatchlistAuditor.runDailyAudit(force = true)
-                            if (auditStarted) {
-                                if (isSaturdayRefresh) lastWeeklyAuditDate = today
-                                // Wait for the audit to finish before scanning, so we never
-                                // fall back to scanning all 58 stocks on the first cycle.
-                                var waited = 0
-                                while (WatchlistAuditor.isRunning() && waited < 120) {
-                                    Thread.sleep(5000)
-                                    waited++
-                                }
-                                println("BackgroundScanner: Audit complete. Proceeding with Top 15 scan.")
-                            }
-                        }
+                        // Bypassed daily/weekly watchlist audit for Version F swing scanner
 
 
                         val scanStart = System.currentTimeMillis()
@@ -553,10 +530,7 @@ object MobaTradeServer {
 
         try {
             val isWindows = System.getProperty("os.name").lowercase().contains("win")
-            var cacheFile = if (isWindows) File("c:\\moba trade\\watchlist_intraday.json") else File("watchlist_intraday.json")
-            if (!cacheFile.exists() || cacheFile.length() <= 2) {
-                cacheFile = if (isWindows) File("c:\\moba trade\\halal_stocks.json") else File("halal_stocks.json")
-            }
+            val cacheFile = if (isWindows) File("c:\\moba trade\\halal_stocks.json") else File("halal_stocks.json")
             if (cacheFile.exists()) {
                 val content = cacheFile.readText(StandardCharsets.UTF_8)
                 val array = JSONArray(content)
@@ -790,8 +764,7 @@ object MobaTradeServer {
             signalsListTemp.add(item)
         }
 
-        // Check for stale stocks and heal the watchlist
-        SelfHealingWatchlist.checkAndHeal()
+        // Bypassed Self-Healing watchlist eviction for daily Version F swing scanner
 
         // Prioritize: sort by score desc, then by rsOutperforming desc, then by relativeStrength magnitude desc
         signalsListTemp.sortWith(compareByDescending<JSONObject> { it.optInt("score", 0) }
