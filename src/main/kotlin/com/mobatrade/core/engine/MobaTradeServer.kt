@@ -601,7 +601,7 @@ object MobaTradeServer {
                         )
                     }
                     candles = if (fetchResult is com.mobatrade.core.model.FetchResult.Success) fetchResult.data else emptyList()
-                    Thread.sleep(350)
+                    Thread.sleep(450)
                 } catch (e: Exception) {
                     System.err.println("BackgroundScanner: Failed to fetch daily candles for $symbol: ${e.message}")
                 }

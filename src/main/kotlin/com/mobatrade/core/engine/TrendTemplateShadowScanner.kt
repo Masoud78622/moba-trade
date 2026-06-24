@@ -144,7 +144,7 @@ object TrendTemplateShadowScanner {
             if (result is FetchResult.Success) {
                 stockDailyCandles[symbol] = result.data
             }
-            Thread.sleep(350)
+            Thread.sleep(450)
         }
 
         // Update active trades lifecycle

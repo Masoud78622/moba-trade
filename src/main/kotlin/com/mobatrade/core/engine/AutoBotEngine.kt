@@ -362,7 +362,7 @@ object AutoBotEngine {
                     } else {
                         System.err.println("⚠️ [SWING CHECK] Failed to fetch 1-hour candles for $symbol: ${if (result is FetchResult.Failure) result.reason else "Empty"}")
                     }
-                    Thread.sleep(350) // Respect rate limits
+                    Thread.sleep(450) // Respect rate limits
                 }
                 
                 // Mark slot as processed

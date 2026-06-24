@@ -200,7 +200,7 @@ object TrendTemplateDiagnostics {
             } else {
                 System.err.println("   └─ FAILED: ${(result as FetchResult.Failure).reason}")
             }
-            Thread.sleep(350)
+            Thread.sleep(450)
         }
 
         // 6. Gather trading dates
