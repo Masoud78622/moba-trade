@@ -564,7 +564,11 @@ object MobaTradeServer {
             System.err.println("computeSignals: Failed to load dynamic active stocks list: ${e.message}")
         }
 
-        ScanTelemetry.reset(activeStocks.size)
+        var localStage2 = 0
+        var localRsHigh = 0
+        var localVcpTight = 0
+        var localSweep = 0
+        var localTriggered = 0
 
         if (activeStocks.isEmpty()) {
             activeStocks.addAll(listOf(
@@ -691,10 +695,10 @@ object MobaTradeServer {
                 requireNiftyStage2 = false,
                 requireLiquiditySweep = true,
                 telemetryCollector = object : com.mobatrade.core.strategies.tier4.TelemetryCollector {
-                    override fun recordStage2Pass() { ScanTelemetry.stage2++ }
-                    override fun recordRsPass() { ScanTelemetry.rsHigh++ }
-                    override fun recordVcpPass() { ScanTelemetry.vcpTight++ }
-                    override fun recordSweepPass() { ScanTelemetry.sweep++ }
+                    override fun recordStage2Pass() { localStage2++ }
+                    override fun recordRsPass() { localRsHigh++ }
+                    override fun recordVcpPass() { localVcpTight++ }
+                    override fun recordSweepPass() { localSweep++ }
                 }
             )
 
@@ -712,7 +716,7 @@ object MobaTradeServer {
             if (res.isTriggered && com.mobatrade.core.halal.ShariahFilter.isCompliantSymbol(symbol)) {
                 val stop = res.price - 2.0 * atr
                 val targetPrice = res.price + 3.5 * atr
-                ScanTelemetry.triggered++
+                localTriggered++
                 
                 item.put("score", 5)
                 item.put("direction", "BUY")
@@ -776,6 +780,8 @@ object MobaTradeServer {
             signalsArray.put(item)
         }
 
+        ScanTelemetry.publish(activeStocks.size, localStage2, localRsHigh, localVcpTight, localSweep, localTriggered)
+
         return signalsArray
     }
 
@@ -819,14 +825,14 @@ object ScanTelemetry {
     @Volatile var triggered: Int = 0
 
     @Synchronized
-    fun reset(total: Int) {
+    fun publish(total: Int, stg2: Int, rs: Int, vcp: Int, swp: Int, trg: Int) {
         lastScanTime = java.time.LocalDateTime.now(java.time.ZoneId.of("Asia/Kolkata"))
             .format(java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"))
         scanned = total
-        stage2 = 0
-        rsHigh = 0
-        vcpTight = 0
-        sweep = 0
-        triggered = 0
+        stage2 = stg2
+        rsHigh = rs
+        vcpTight = vcp
+        sweep = swp
+        triggered = trg
     }
 }
