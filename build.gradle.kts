@@ -76,3 +76,10 @@ tasks.register<JavaExec>("runTrendTemplateShadowScanner") {
     mainClass.set("com.mobatrade.core.engine.TrendTemplateShadowScanner")
     classpath = sourceSets["main"].runtimeClasspath
 }
+
+tasks.register<JavaExec>("verifyBugMisses") {
+    group = "application"
+    description = "Runs candle-by-candle verification for bug-missed trades"
+    mainClass.set("com.mobatrade.core.engine.VerifyBugMissesRunner")
+    classpath = sourceSets["main"].runtimeClasspath
+}

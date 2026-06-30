@@ -48,32 +48,40 @@ object SelfLearningEngine {
                 val candles = if (fetchResult is com.mobatrade.core.model.FetchResult.Success) fetchResult.data else emptyList()
                 if (candles.isEmpty()) continue
 
-                val dailyLow = candles.minOf { it.low }
-                val dailyHigh = candles.maxOf { it.high }
+                val scorer = ConfluenceScorer(symbol, "UNKNOWN")
+                val scoredTrade = scorer.scoreTrade(candles, null)
                 
-                if (dailyLow > 0) {
-                    val percentMove = ((dailyHigh - dailyLow) / dailyLow) * 100.0
-                    if (percentMove >= 0.5) { // Lowered to 0.5% for aggressive testing
-                        val scorer = ConfluenceScorer(symbol, "UNKNOWN")
-                        val scoredTrade = scorer.scoreTrade(candles, null)
+                val validTriggers = scoredTrade.triggers.filterNot { 
+                    it.startsWith("FAILED_") || it.startsWith("NON_SHARIAH") || it.startsWith("REGIME_")
+                }
+                
+                // Evaluate missed trade using institutional MFE/MAE analysis
+                if (scoredTrade.totalScore < 4 && validTriggers.isNotEmpty() && candles.size > 15) {
+                    val entryPrice = candles.last().close
+                    val atr = if (scoredTrade.atr14 > 0.0) scoredTrade.atr14 else entryPrice * 0.02
+                    val stopPrice = entryPrice - (1.5 * atr)
+                    val targetPrice = entryPrice + (3.0 * atr)
+                    
+                    // Run MFE/MAE candle simulation over the daily candles
+                    val mfeMae = MfeMaeAnalyzer.evaluateLongTrade(symbol, entryPrice, stopPrice, targetPrice, candles.takeLast(15))
+                    
+                    // Only adjust weights if MFE/MAE backtest proves positive expectancy (Hit target or positive returns)
+                    if (mfeMae.exitReason == "HIT_TARGET" || mfeMae.realizedPLPct > 0.0) {
+                        println("🧠 VERIFIED MISSED TRADE: $symbol | Outcome=${mfeMae.exitReason} | Realized P&L=${String.format("%.2f", mfeMae.realizedPLPct)}% | MFE=${String.format("%.2f", mfeMae.mfePct)}% | MAE=${String.format("%.2f", mfeMae.maePct)}%")
+                        missedTradesDetected++
                         
-                        // We missed a big trade if score is < 4
-                        if (scoredTrade.totalScore < 4) {
-                            println("🧠 MISSED TRADE DETECTED: $symbol moved $percentMove% but scored ${scoredTrade.totalScore}")
-                            missedTradesDetected++
-                            
-                            // Adjust weights for strategies that DID fire but were ignored
-                            for (trigger in scoredTrade.triggers) {
-                                val strategyName = trigger.substringBefore(" (").trim()
-                                LearnedWeights.addBonus(strategyName, 1)
-                                println("🧠 -> Increased weight for $strategyName")
-                            }
+                        for (trigger in validTriggers) {
+                            val strategyName = trigger.substringBefore(" (").substringBefore(" [").trim()
+                            LearnedWeights.addBonus(strategyName, 1)
+                            println("🧠 -> Increased weight for $strategyName (Validated by MFE/MAE)")
                         }
+                    } else {
+                        println("🧠 FILTERED FALSE POSITIVE: $symbol moved but failed MFE/MAE expectancy check (MAE=${String.format("%.2f", mfeMae.maePct)}%)")
                     }
                 }
                 Thread.sleep(1000) // Rate limit (comply with Angel One 3-requests-per-second limit)
             }
-            println("🧠 EOD Analysis Complete. Found $missedTradesDetected missed trades.")
+            println("🧠 EOD Analysis Complete. Verified $missedTradesDetected high-expectancy missed trades.")
         } catch (e: Exception) {
             System.err.println("🧠 Analysis Failed: ${e.message}")
         }

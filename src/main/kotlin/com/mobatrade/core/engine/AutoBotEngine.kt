@@ -499,7 +499,9 @@ object AutoBotEngine {
             val relativeStrength = sig.optDouble("relativeStrength", 0.0)
             val rsOutperforming = sig.optBoolean("rsOutperforming", false)
 
-            println("🤖 [SIGNAL] $symbol | score=$score | compliant=$compliant | price=₹$price | regime=$regime | isSwingEligible=$isSwingEligible | RS=${String.format("%.4f%%", relativeStrength)} | rsOutperforming=$rsOutperforming")
+            if (score > 0) {
+                println("🤖 [SIGNAL] $symbol | score=$score | compliant=$compliant | price=₹$price | regime=$regime | isSwingEligible=$isSwingEligible | RS=${String.format("%.4f%%", relativeStrength)} | rsOutperforming=$rsOutperforming")
+            }
 
             if (!compliant) { println("  └─ SKIP: Not Shariah-compliant."); continue }
 

@@ -165,6 +165,48 @@ object StatisticsAnalyzer {
             stats.put("medianReturnPct", Math.round(medianReturn * 100.0) / 100.0)
             stats.put("maxConsecutiveLosses", maxConsecutiveLosses)
 
+            // Institutional Execution Reliability & Bug Severity Metrics
+            val bugMissesFile = File(shadowDir, "version_f_bug_misses.csv")
+            var bugMissesCount = 0
+            var sumMissedR = 0.0
+            if (bugMissesFile.exists()) {
+                val bugLines = bugMissesFile.readLines(StandardCharsets.UTF_8).filter { it.trim().isNotEmpty() }
+                if (bugLines.size > 1) {
+                    val bHeaders = bugLines[0].split(",").map { it.replace("\"", "").trim() }
+                    for (i in 1 until bugLines.size) {
+                        val v = bugLines[i].split(",").map { it.replace("\"", "").trim() }
+                        if (v.size == bHeaders.size) {
+                            val row = bHeaders.zip(v).toMap()
+                            bugMissesCount++
+                            val rVal = row["RMultiple"]?.toDoubleOrNull() ?: 0.0
+                            sumMissedR += rVal
+                        }
+                    }
+                }
+            }
+            val eligibleSignals = total + bugMissesCount
+            val reliability = if (eligibleSignals > 0) (total.toDouble() / eligibleSignals) * 100.0 else 100.0
+            val totalAvailableR = sumRMultiple + sumMissedR
+            val bugSeverity = if (totalAvailableR > 0.0) (sumMissedR / totalAvailableR) * 100.0 else 0.0
+            
+            // Deployment Gates Status
+            val isStrategyGatePassed = expectancy > 0.0 && profitFactor > 1.5
+            val isSoftwareGatePassed = reliability >= 95.0 && bugMissesCount == 0
+
+            stats.put("executedTrades", total)
+            stats.put("bugMisses", bugMissesCount)
+            stats.put("eligibleSignals", eligibleSignals)
+            stats.put("executionReliabilityPct", Math.round(reliability * 100.0) / 100.0)
+            stats.put("missedRMultiple", Math.round(sumMissedR * 100.0) / 100.0)
+            stats.put("totalAvailableRMultiple", Math.round(totalAvailableR * 100.0) / 100.0)
+            stats.put("bugSeverityPct", Math.round(bugSeverity * 100.0) / 100.0)
+            
+            val gatesJson = JSONObject()
+            gatesJson.put("strategyGatePassed", isStrategyGatePassed)
+            gatesJson.put("softwareGatePassed", isSoftwareGatePassed)
+            gatesJson.put("readyForCapitalAllocation", isStrategyGatePassed && isSoftwareGatePassed)
+            stats.put("deploymentGates", gatesJson)
+
             val reasonJson = JSONObject()
             for ((k, v) in exitsByReason) {
                 reasonJson.put(k, v)

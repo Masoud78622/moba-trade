@@ -1,2552 +1,2552 @@
 [
   {
     "symbol": "ARE&M",
-    "token": "100",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "100"
   },
   {
     "symbol": "EBBE30INAV",
-    "token": "10016",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "10016"
   },
   {
     "symbol": "ICICI2INAV",
-    "token": "10028",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "10028"
   },
   {
     "symbol": "LICN50INAV",
-    "token": "10098",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "10098"
   },
   {
     "symbol": "MOM100INAV",
-    "token": "10122",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "10122"
   },
   {
     "symbol": "MOM50INAV",
-    "token": "10127",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "10127"
   },
   {
     "symbol": "NGLFINE",
-    "token": "10277",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "10277"
   },
   {
     "symbol": "SENSEXBETA",
-    "token": "10515",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "10515"
   },
   {
     "symbol": "MOMENTUM",
-    "token": "10693",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "10693"
   },
   {
     "symbol": "EBBE23INAV",
-    "token": "10012",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "10012"
   },
   {
     "symbol": "SETF50INAV",
-    "token": "10161",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "10161"
   },
   {
     "symbol": "SHYAMCENT",
-    "token": "10188",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "10188"
   },
   {
     "symbol": "APTECHT",
-    "token": "10755",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "14074"
   },
   {
     "symbol": "DYCL",
-    "token": "10417",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "10417"
   },
   {
     "symbol": "POWERMECH",
-    "token": "10473",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "10473"
   },
   {
     "symbol": "SHARDAMOTR",
-    "token": "10530",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "10530"
   },
   {
     "symbol": "RADICO",
-    "token": "10990",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "10990"
   },
   {
     "symbol": "NATHBIOGEN",
-    "token": "11065",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "11065"
   },
   {
     "symbol": "KRBL",
-    "token": "10577",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "10577"
   },
   {
     "symbol": "OLECTRA",
-    "token": "10637",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "10637"
   },
   {
     "symbol": "PNB",
-    "token": "10666",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "10666"
   },
   {
     "symbol": "SPORTKING",
-    "token": "10733",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "10733"
   },
   {
     "symbol": "TVTODAY",
-    "token": "11275",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "11275"
   },
   {
     "symbol": "ZENSARTECH",
-    "token": "1076",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "1076"
   },
   {
     "symbol": "NUCLEUS",
-    "token": "10791",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "10791"
   },
   {
     "symbol": "UNIENTER",
-    "token": "11293",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "11293"
   },
   {
     "symbol": "AFFLE",
-    "token": "11343",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "11343"
   },
   {
     "symbol": "PETRONET",
-    "token": "11351",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "11351"
   },
   {
     "symbol": "BIOCON",
-    "token": "11373",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "11373"
   },
   {
     "symbol": "PVTBANIETF",
-    "token": "11386",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "11386"
   },
   {
     "symbol": "SIRCA",
-    "token": "11050",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "11050"
   },
   {
     "symbol": "LT",
-    "token": "11483",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "11483"
   },
   {
     "symbol": "APOLLO",
-    "token": "1134",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "1134"
   },
   {
     "symbol": "PTC",
-    "token": "11355",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "11355"
   },
   {
     "symbol": "DHANBANK",
-    "token": "11359",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "11359"
   },
   {
     "symbol": "DATAMATICS",
-    "token": "11423",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "11423"
   },
   {
     "symbol": "GIPCL",
-    "token": "1145",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "1145"
   },
   {
     "symbol": "FORCEMOT",
-    "token": "11573",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "11573"
   },
   {
     "symbol": "ICICI1INAV",
-    "token": "10050",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "10050"
   },
   {
     "symbol": "FACT",
-    "token": "1008",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "1008"
   },
   {
     "symbol": "SCHAEFFLER",
-    "token": "1011",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "1011"
   },
   {
     "symbol": "EMAMIPAP",
-    "token": "10074",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "10074"
   },
   {
     "symbol": "MON100INAV",
-    "token": "10130",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "10130"
   },
   {
     "symbol": "CONFIPET",
-    "token": "10238",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "10238"
   },
   {
     "symbol": "ADANIENSOL",
-    "token": "10217",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "10217"
   },
   {
     "symbol": "AURUM",
-    "token": "10310",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "10310"
   },
   {
     "symbol": "PKTEA",
-    "token": "10321",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "10321"
   },
   {
     "symbol": "AXISBNKETF",
-    "token": "1044",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "1044"
   },
   {
     "symbol": "ARVSMART",
-    "token": "10457",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "10457"
   },
   {
     "symbol": "FINPIPE",
-    "token": "1041",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "1041"
   },
   {
     "symbol": "CONS",
-    "token": "10512",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "10512"
   },
   {
     "symbol": "NIFTYQLITY",
-    "token": "10690",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "10690"
   },
   {
     "symbol": "RAMAPHO",
-    "token": "10568",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "10568"
   },
   {
     "symbol": "NIFTYBEES",
-    "token": "10576",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "10576"
   },
   {
     "symbol": "SYRMA",
-    "token": "10793",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "10793"
   },
   {
     "symbol": "MNC",
-    "token": "10676",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "10676"
   },
   {
     "symbol": "INFRAIETF",
-    "token": "10723",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "10723"
   },
   {
     "symbol": "DREAMFOLKS",
-    "token": "10859",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "10859"
   },
   {
     "symbol": "GVPTECH",
-    "token": "10865",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "10865"
   },
   {
     "symbol": "RADAAN",
-    "token": "10932",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "10932"
   },
   {
     "symbol": "INFOBEAN",
-    "token": "11027",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "11027"
   },
   {
     "symbol": "SATIA",
-    "token": "11045",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "11045"
   },
   {
     "symbol": "CNL",
-    "token": "11155",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "11155"
   },
   {
     "symbol": "DANGEE",
-    "token": "1110",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "1110"
   },
   {
     "symbol": "RKFORGE",
-    "token": "11411",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "11411"
   },
   {
     "symbol": "BAGFILMS",
-    "token": "11226",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "11226"
   },
   {
     "symbol": "HDFCGROWTH",
-    "token": "11241",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "11241"
   },
   {
     "symbol": "PILANIINVS",
-    "token": "11445",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "11445"
   },
   {
     "symbol": "UPL",
-    "token": "11287",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "11287"
   },
   {
     "symbol": "SIL",
-    "token": "11297",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "11297"
   },
   {
     "symbol": "COFORGE",
-    "token": "11543",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "11543"
   },
   {
     "symbol": "LICNETFN50",
-    "token": "11319",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "11319"
   },
   {
     "symbol": "VAIBHAVGBL",
-    "token": "11364",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "11364"
   },
   {
     "symbol": "ALKEM",
-    "token": "11703",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "11703"
   },
   {
     "symbol": "EVEREADY",
-    "token": "11782",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "11782"
   },
   {
     "symbol": "NH",
-    "token": "11840",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "11840"
   },
   {
     "symbol": "DCXINDIA",
-    "token": "11895",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "11895"
   },
   {
     "symbol": "YESBANK",
-    "token": "11915",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "11915"
   },
   {
     "symbol": "SASKEN",
-    "token": "11983",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "11983"
   },
   {
     "symbol": "KAYNES",
-    "token": "12092",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "12092"
   },
   {
     "symbol": "HDFCNIFIT",
-    "token": "12101",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "12101"
   },
   {
     "symbol": "BBTCL",
-    "token": "12153",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "12153"
   },
   {
     "symbol": "GRASIM",
-    "token": "1232",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "1232"
   },
   {
     "symbol": "CCL",
-    "token": "11452",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "11452"
   },
   {
     "symbol": "CENTEXT",
-    "token": "11511",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "11511"
   },
   {
     "symbol": "ULTRACEMCO",
-    "token": "11532",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "11532"
   },
   {
     "symbol": "TCS",
-    "token": "11536",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "11536"
   },
   {
     "symbol": "HDFCMOMENT",
-    "token": "11538",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "11538"
   },
   {
     "symbol": "FINIETF",
-    "token": "12578",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "12578"
   },
   {
     "symbol": "JBMA",
-    "token": "11655",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "11655"
   },
   {
     "symbol": "INDOCO",
-    "token": "11677",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "11677"
   },
   {
     "symbol": "ROUTE",
-    "token": "128",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "128"
   },
   {
     "symbol": "KRISHANA",
-    "token": "12847",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "12847"
   },
   {
     "symbol": "MANINDS",
-    "token": "11884",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "11884"
   },
   {
     "symbol": "GALAXYSURF",
-    "token": "1315",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "1315"
   },
   {
     "symbol": "SPLIL",
-    "token": "11935",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "11935"
   },
   {
     "symbol": "MALUPAPER",
-    "token": "13352",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "13352"
   },
   {
     "symbol": "FAZE3Q",
-    "token": "12000",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "12000"
   },
   {
     "symbol": "AEROENTER",
-    "token": "12015",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "12015"
   },
   {
     "symbol": "AURIONPRO",
-    "token": "12022",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "12022"
   },
   {
     "symbol": "SCPL",
-    "token": "12072",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "12072"
   },
   {
     "symbol": "JKLAKSHMI",
-    "token": "13491",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "13491"
   },
   {
     "symbol": "HNDFDS",
-    "token": "12173",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "12173"
   },
   {
     "symbol": "IRCTC",
-    "token": "13611",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "13611"
   },
   {
     "symbol": "TALBROAUTO",
-    "token": "13648",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "13648"
   },
   {
     "symbol": "INFOMEDIA",
-    "token": "13693",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "13693"
   },
   {
     "symbol": "GESHIP",
-    "token": "13776",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "13776"
   },
   {
     "symbol": "LTFOODS",
-    "token": "13816",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "13816"
   },
   {
     "symbol": "SAFARI",
-    "token": "13035",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "13035"
   },
   {
     "symbol": "KERNEX",
-    "token": "13121",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "13121"
   },
   {
     "symbol": "REPRO",
-    "token": "13126",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "13126"
   },
   {
     "symbol": "CELEBRITY",
-    "token": "13162",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "13162"
   },
   {
     "symbol": "HINDUNILVR",
-    "token": "1394",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "1394"
   },
   {
     "symbol": "EBB433INAV",
-    "token": "13168",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "13168"
   },
   {
     "symbol": "PTL",
-    "token": "14101",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "14101"
   },
   {
     "symbol": "HCL-INSYS",
-    "token": "1327",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "1327"
   },
   {
     "symbol": "NSLNISP",
-    "token": "14180",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "14180"
   },
   {
     "symbol": "GALLANTT",
-    "token": "13337",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "13337"
   },
   {
     "symbol": "GPIL",
-    "token": "13409",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "13409"
   },
   {
     "symbol": "GANESHHOU",
-    "token": "14339",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "14339"
   },
   {
     "symbol": "ATLANTAA",
-    "token": "13585",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "13585"
   },
   {
     "symbol": "POCL",
-    "token": "14385",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "14385"
   },
   {
     "symbol": "AERONEU",
-    "token": "13689",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "13689"
   },
   {
     "symbol": "JHS",
-    "token": "13720",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "13720"
   },
   {
     "symbol": "KIRLFER",
-    "token": "14466",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "14466"
   },
   {
     "symbol": "DIVGIITTS",
-    "token": "14479",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "14479"
   },
   {
     "symbol": "JINDRILL",
-    "token": "13875",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "13875"
   },
   {
     "symbol": "PRAENG",
-    "token": "13941",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "13941"
   },
   {
     "symbol": "HBLENGINE",
-    "token": "13966",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "13966"
   },
   {
     "symbol": "NAGREEKEXP",
-    "token": "14702",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "14702"
   },
   {
     "symbol": "151NSETEST",
-    "token": "14782",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "14782"
   },
   {
     "symbol": "SAGCEM",
-    "token": "14068",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "14068"
   },
   {
     "symbol": "SPARC",
-    "token": "14788",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "14788"
   },
   {
     "symbol": "DECCANCE",
-    "token": "14838",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "14838"
   },
   {
     "symbol": "AGI",
-    "token": "1412",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "1412"
   },
   {
     "symbol": "GANDHITUBE",
-    "token": "14116",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "14116"
   },
   {
     "symbol": "HDFCSML250",
-    "token": "14233",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "14233"
   },
   {
     "symbol": "OMAXE",
-    "token": "14853",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "14853"
   },
   {
     "symbol": "KDDL",
-    "token": "14908",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "14908"
   },
   {
     "symbol": "TVSSRICHAK",
-    "token": "14245",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "14245"
   },
   {
     "symbol": "CERA",
-    "token": "15039",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "15039"
   },
   {
     "symbol": "MOGSEC",
-    "token": "1507",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "1507"
   },
   {
     "symbol": "JYOTHYLAB",
-    "token": "15146",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "15146"
   },
   {
     "symbol": "PAGEIND",
-    "token": "14413",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "14413"
   },
   {
     "symbol": "RHL",
-    "token": "15157",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "15157"
   },
   {
     "symbol": "MANAKSIA",
-    "token": "15199",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "15199"
   },
   {
     "symbol": "BALAMINES",
-    "token": "14501",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "14501"
   },
   {
     "symbol": "VIRINCHI",
-    "token": "15295",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "15295"
   },
   {
     "symbol": "ABSLLIQUID",
-    "token": "14518",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "14518"
   },
   {
     "symbol": "WEBELSOLAR",
-    "token": "14602",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "14602"
   },
   {
     "symbol": "RECLTD",
-    "token": "15355",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "15355"
   },
   {
     "symbol": "GOLDADD",
-    "token": "15356",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "15356"
   },
   {
     "symbol": "HGS",
-    "token": "14712",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "14712"
   },
   {
     "symbol": "ATALREAL",
-    "token": "15649",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "15649"
   },
   {
     "symbol": "AXSENSEX",
-    "token": "14742",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "14742"
   },
   {
     "symbol": "011NSETEST",
-    "token": "14747",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "14747"
   },
   {
     "symbol": "051NSETEST",
-    "token": "14758",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "14758"
   },
   {
     "symbol": "PIGL",
-    "token": "15716",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "15716"
   },
   {
     "symbol": "IFBIND",
-    "token": "1485",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "1485"
   },
   {
     "symbol": "131NSETEST",
-    "token": "14778",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "14778"
   },
   {
     "symbol": "MKPL",
-    "token": "16736",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "16736"
   },
   {
     "symbol": "IVP",
-    "token": "1681",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "1681"
   },
   {
     "symbol": "20MICRONS",
-    "token": "16921",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "16921"
   },
   {
     "symbol": "RVHL",
-    "token": "1565",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "1565"
   },
   {
     "symbol": "EBBETF0430",
-    "token": "16253",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "16253"
   },
   {
     "symbol": "AARTECH",
-    "token": "17145",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "17145"
   },
   {
     "symbol": "SENCO",
-    "token": "17271",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "17271"
   },
   {
     "symbol": "LLOYDSME",
-    "token": "17313",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "17313"
   },
   {
     "symbol": "SILVERAG",
-    "token": "16777",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "16777"
   },
   {
     "symbol": "GVT&D",
-    "token": "16783",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "16783"
   },
   {
     "symbol": "ADANIPOWER",
-    "token": "17388",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "17388"
   },
   {
     "symbol": "NHPC",
-    "token": "17400",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "17400"
   },
   {
     "symbol": "EXPLEOSOL",
-    "token": "17486",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "17486"
   },
   {
     "symbol": "DAMODARIND",
-    "token": "17541",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "17541"
   },
   {
     "symbol": "KOTARISUG",
-    "token": "11647",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "11647"
   },
   {
     "symbol": "ITADD",
-    "token": "17207",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "17207"
   },
   {
     "symbol": "XCHANGING",
-    "token": "11705",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "11705"
   },
   {
     "symbol": "SHILPAMED",
-    "token": "17752",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "17752"
   },
   {
     "symbol": "AMBER",
-    "token": "1185",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "1185"
   },
   {
     "symbol": "QUAL30IETF",
-    "token": "17808",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "17808"
   },
   {
     "symbol": "GEEKAYWIRE",
-    "token": "17922",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "17922"
   },
   {
     "symbol": "SWELECTES",
-    "token": "11909",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "11909"
   },
   {
     "symbol": "HDFCPVTBAN",
-    "token": "12108",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "12108"
   },
   {
     "symbol": "JUBLFOOD",
-    "token": "18096",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "18096"
   },
   {
     "symbol": "GREAVESCOT",
-    "token": "1235",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "1235"
   },
   {
     "symbol": "AAATECH",
-    "token": "12533",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "12533"
   },
   {
     "symbol": "PRECAM",
-    "token": "12603",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "12603"
   },
   {
     "symbol": "RATNAVEER",
-    "token": "18423",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "18423"
   },
   {
     "symbol": "ASIANHOTNR",
-    "token": "18422",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "18422"
   },
   {
     "symbol": "V1NSETEST",
-    "token": "12863",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "12863"
   },
   {
     "symbol": "MITTAL",
-    "token": "18562",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "18562"
   },
   {
     "symbol": "360ONE",
-    "token": "13061",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "13061"
   },
   {
     "symbol": "IDFNIFTYET",
-    "token": "18783",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "18783"
   },
   {
     "symbol": "IIFLCAPS",
-    "token": "13072",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "13072"
   },
   {
     "symbol": "AIAENG",
-    "token": "13086",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "13086"
   },
   {
     "symbol": "CARYSIL",
-    "token": "1879",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "1879"
   },
   {
     "symbol": "NIRAJISPAT",
-    "token": "18840",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "18840"
   },
   {
     "symbol": "ROHLTD",
-    "token": "13182",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "13182"
   },
   {
     "symbol": "KEC",
-    "token": "13260",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "13260"
   },
   {
     "symbol": "VBL",
-    "token": "18921",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "18921"
   },
   {
     "symbol": "JKCEMENT",
-    "token": "13270",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "13270"
   },
   {
     "symbol": "LANDMARK",
-    "token": "13276",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "13276"
   },
   {
     "symbol": "ALLCARGO",
-    "token": "13501",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "13501"
   },
   {
     "symbol": "VIDHIING",
-    "token": "13536",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "13536"
   },
   {
     "symbol": "SUNTV",
-    "token": "13404",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "13404"
   },
   {
     "symbol": "EMAMILTD",
-    "token": "13517",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "13517"
   },
   {
     "symbol": "ITBEES",
-    "token": "19084",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "19084"
   },
   {
     "symbol": "TECHM",
-    "token": "13538",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "13538"
   },
   {
     "symbol": "VOLTAMP",
-    "token": "13577",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "13577"
   },
   {
     "symbol": "AVONMORE",
-    "token": "13557",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "13557"
   },
   {
     "symbol": "HEADSUP",
-    "token": "19205",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "19205"
   },
   {
     "symbol": "MONIFTY500",
-    "token": "19237",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "19237"
   },
   {
     "symbol": "BANKADD",
-    "token": "13644",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "13644"
   },
   {
     "symbol": "ALICON",
-    "token": "13656",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "13656"
   },
   {
     "symbol": "MADHUCON",
-    "token": "13671",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "13668"
   },
   {
     "symbol": "ROSSARI",
-    "token": "19410",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "19410"
   },
   {
     "symbol": "MANOMAY",
-    "token": "13753",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "13753"
   },
   {
     "symbol": "TICL",
-    "token": "19501",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "19501"
   },
   {
     "symbol": "UGARSUGAR",
-    "token": "19578",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "19578"
   },
   {
     "symbol": "PRICOLLTD",
-    "token": "19631",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "19631"
   },
   {
     "symbol": "ALPHAETF",
-    "token": "19640",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "19640"
   },
   {
     "symbol": "SBGLP",
-    "token": "14139",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "14139"
   },
   {
     "symbol": "UNOMINDA",
-    "token": "14154",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "14154"
   },
   {
     "symbol": "CTE",
-    "token": "14218",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "14218"
   },
   {
     "symbol": "OSWALSEEDS",
-    "token": "14305",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "14305"
   },
   {
     "symbol": "HONASA",
-    "token": "19813",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "19813"
   },
   {
     "symbol": "RADIOCITY",
-    "token": "19877",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "19877"
   },
   {
     "symbol": "ORISSAMINE",
-    "token": "19931",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "19931"
   },
   {
     "symbol": "EGOLD",
-    "token": "19933",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "19933"
   },
   {
     "symbol": "NCLIND",
-    "token": "14490",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "14490"
   },
   {
     "symbol": "GOLDBETA",
-    "token": "14535",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "14535"
   },
   {
     "symbol": "ESILVER",
-    "token": "20257",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "20257"
   },
   {
     "symbol": "JSWDULUX",
-    "token": "1467",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "1467"
   },
   {
     "symbol": "GUJAPOLLO",
-    "token": "14677",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "14677"
   },
   {
     "symbol": "071NSETEST",
-    "token": "14764",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "14764"
   },
   {
     "symbol": "GANDHAR",
-    "token": "20303",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "20303"
   },
   {
     "symbol": "COALINDIA",
-    "token": "20374",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "20374"
   },
   {
     "symbol": "BBNPPGOLD",
-    "token": "20547",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "20547"
   },
   {
     "symbol": "KSCL",
-    "token": "14972",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "14972"
   },
   {
     "symbol": "SCHAND",
-    "token": "20698",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "20698"
   },
   {
     "symbol": "POWERGRID",
-    "token": "14977",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "14977"
   },
   {
     "symbol": "MUFTI",
-    "token": "20878",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "20878"
   },
   {
     "symbol": "BAJAJELEC",
-    "token": "15034",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "15034"
   },
   {
     "symbol": "BVCL",
-    "token": "15073",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "15073"
   },
   {
     "symbol": "MAHSEAMLES",
-    "token": "2088",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "2088"
   },
   {
     "symbol": "MADHAV",
-    "token": "15151",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "15151"
   },
   {
     "symbol": "LICNFNHGP",
-    "token": "15229",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "15229"
   },
   {
     "symbol": "AMBIKCO",
-    "token": "15234",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "15234"
   },
   {
     "symbol": "JKIL",
-    "token": "15266",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "15266"
   },
   {
     "symbol": "NMDC",
-    "token": "15332",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "15332"
   },
   {
     "symbol": "RAIN",
-    "token": "15337",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "15337"
   },
   {
     "symbol": "RKEC",
-    "token": "1547",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "1547"
   },
   {
     "symbol": "HCG",
-    "token": "15555",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "15555"
   },
   {
     "symbol": "HINDWAREAP",
-    "token": "15883",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "15883"
   },
   {
     "symbol": "LIQUIDCASE",
-    "token": "21750",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "21750"
   },
   {
     "symbol": "HGINFRA",
-    "token": "1672",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "1672"
   },
   {
     "symbol": "SIGMA",
-    "token": "16658",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "16658"
   },
   {
     "symbol": "RPGLIFE",
-    "token": "16725",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "16725"
   },
   {
     "symbol": "ARCHIDPLY",
-    "token": "16795",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "16795"
   },
   {
     "symbol": "KOKUYOCMLN",
-    "token": "16827",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "16827"
   },
   {
     "symbol": "ZFCVINDIA",
-    "token": "16915",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "16915"
   },
   {
     "symbol": "PARAGMILK",
-    "token": "17130",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "17130"
   },
   {
     "symbol": "MHRIL",
-    "token": "17333",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "17333"
   },
   {
     "symbol": "UTKARSHBNK",
-    "token": "17358",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "17358"
   },
   {
     "symbol": "VINATIORGA",
-    "token": "17364",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "17364"
   },
   {
     "symbol": "BANKETF",
-    "token": "17419",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "17419"
   },
   {
     "symbol": "INCREDIBLE",
-    "token": "17507",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "17507"
   },
   {
     "symbol": "MGL",
-    "token": "17534",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "17534"
   },
   {
     "symbol": "MAXIND",
-    "token": "22428",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "22428"
   },
   {
     "symbol": "TREL",
-    "token": "17795",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "17795"
   },
   {
     "symbol": "BLSE",
-    "token": "22566",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "22566"
   },
   {
     "symbol": "SBICARD",
-    "token": "17971",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "17971"
   },
   {
     "symbol": "GATECH",
-    "token": "17888",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "17888"
   },
   {
     "symbol": "KAJARIACER",
-    "token": "1808",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "1808"
   },
   {
     "symbol": "MINDTECK",
-    "token": "18049",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "18049"
   },
   {
     "symbol": "JIOFIN",
-    "token": "18143",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "18143"
   },
   {
     "symbol": "TEXMOPIPES",
-    "token": "18214",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "18214"
   },
   {
     "symbol": "HLEGLAS",
-    "token": "2289",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "2289"
   },
   {
     "symbol": "PLATIND",
-    "token": "22930",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "22930"
   },
   {
     "symbol": "JGCHEM",
-    "token": "23056",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "23056"
   },
   {
     "symbol": "MURUDCERA",
-    "token": "2313",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "2313"
   },
   {
     "symbol": "ZAGGLE",
-    "token": "18608",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "18608"
   },
   {
     "symbol": "HPL",
-    "token": "18679",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "18679"
   },
   {
     "symbol": "KAPSTON",
-    "token": "18967",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "18967"
   },
   {
     "symbol": "TBOTEK",
-    "token": "23740",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "23740"
   },
   {
     "symbol": "SENSEXETF",
-    "token": "19224",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "19224"
   },
   {
     "symbol": "NAVNETEDUL",
-    "token": "2385",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "2385"
   },
   {
     "symbol": "IMFA",
-    "token": "19235",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "19235"
   },
   {
     "symbol": "MOM50",
-    "token": "19289",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "19289"
   },
   {
     "symbol": "KSB",
-    "token": "1949",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "1949"
   },
   {
     "symbol": "SECMARK",
-    "token": "19496",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "19496"
   },
   {
     "symbol": "RELAXO",
-    "token": "24225",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "24225"
   },
   {
     "symbol": "VRAJ",
-    "token": "24321",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "24321"
   },
   {
     "symbol": "LMW",
-    "token": "1979",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "1979"
   },
   {
     "symbol": "AMNPLST",
-    "token": "19867",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "19867"
   },
   {
     "symbol": "BANSALWIRE",
-    "token": "24386",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "24386"
   },
   {
     "symbol": "EMCURE",
-    "token": "24398",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "24398"
   },
   {
     "symbol": "EVINDIA",
-    "token": "24461",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "24461"
   },
   {
     "symbol": "AHLADA",
-    "token": "2004",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "2004"
   },
   {
     "symbol": "ADL",
-    "token": "245",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "245"
   },
   {
     "symbol": "SBINEQWETF",
-    "token": "24524",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "24524"
   },
   {
     "symbol": "GREENPOWER",
-    "token": "20110",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "20110"
   },
   {
     "symbol": "ARIHANTSUP",
-    "token": "20159",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "20159"
   },
   {
     "symbol": "NTPC",
-    "token": "11630",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "11630"
   },
   {
     "symbol": "SHAH",
-    "token": "20296",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "20296"
   },
   {
     "symbol": "GOKEX",
-    "token": "11778",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "11778"
   },
   {
     "symbol": "SAKSOFT",
-    "token": "11794",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "11794"
   },
   {
     "symbol": "MANGALAM",
-    "token": "11817",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "11817"
   },
   {
     "symbol": "WELCORP",
-    "token": "11821",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "11821"
   },
   {
     "symbol": "KENNAMET",
-    "token": "11841",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "11841"
   },
   {
     "symbol": "SHAHALLOYS",
-    "token": "11856",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "11856"
   },
   {
     "symbol": "APCL",
-    "token": "20453",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "20453"
   },
   {
     "symbol": "WIPL",
-    "token": "20481",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "20481"
   },
   {
     "symbol": "DOLLAR",
-    "token": "20560",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "20560"
   },
   {
     "symbol": "ICIL",
-    "token": "11987",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "11987"
   },
   {
     "symbol": "SUZLON",
-    "token": "12018",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "12018"
   },
   {
     "symbol": "VTL",
-    "token": "2073",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "2073"
   },
   {
     "symbol": "RPPINFRA",
-    "token": "20760",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "20760"
   },
   {
     "symbol": "JAMNAAUTO",
-    "token": "20778",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "20778"
   },
   {
     "symbol": "UNIPARTS",
-    "token": "13057",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "13057"
   },
   {
     "symbol": "HAPPYFORGE",
-    "token": "20854",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "20854"
   },
   {
     "symbol": "RBZJEWEL",
-    "token": "20874",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "20874"
   },
   {
     "symbol": "CENTURYPLY",
-    "token": "13305",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "13305"
   },
   {
     "symbol": "LOWVOLIETF",
-    "token": "21254",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "21254"
   },
   {
     "symbol": "SALASAR",
-    "token": "21362",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "21362"
   },
   {
     "symbol": "SIS",
-    "token": "21501",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "21501"
   },
   {
     "symbol": "HALEOSLABS",
-    "token": "21551",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "21551"
   },
   {
     "symbol": "KEI",
-    "token": "13310",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "13310"
   },
   {
     "symbol": "KKCL",
-    "token": "13381",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "13381"
   },
   {
     "symbol": "KELLTONTEC",
-    "token": "13430",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "13430"
   },
   {
     "symbol": "ACE",
-    "token": "13587",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "13587"
   },
   {
     "symbol": "ICICIGI",
-    "token": "21770",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "21770"
   },
   {
     "symbol": "HINDCOMPOS",
-    "token": "1372",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "1372"
   },
   {
     "symbol": "BBL",
-    "token": "13761",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "13761"
   },
   {
     "symbol": "KAMOPAINTS",
-    "token": "13814",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "13814"
   },
   {
     "symbol": "BANCOINDIA",
-    "token": "13880",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "13880"
   },
   {
     "symbol": "ARIHANT",
-    "token": "13885",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "13885"
   },
   {
     "symbol": "HIRECT",
-    "token": "13890",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "13890"
   },
   {
     "symbol": "LIQUID1",
-    "token": "13950",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "13950"
   },
   {
     "symbol": "TANLA",
-    "token": "13976",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "13976"
   },
   {
     "symbol": "NIFTYBETF",
-    "token": "21959",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "21959"
   },
   {
     "symbol": "IEX",
-    "token": "220",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "220"
   },
   {
     "symbol": "GLOBAL",
-    "token": "1415",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "1415"
   },
   {
     "symbol": "NETWORK18",
-    "token": "14111",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "14111"
   },
   {
     "symbol": "TIIL",
-    "token": "14223",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "14223"
   },
   {
     "symbol": "HDFCBSE500",
-    "token": "14230",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "14230"
   },
   {
     "symbol": "HMI150INAV",
-    "token": "14241",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "14241"
   },
   {
     "symbol": "HSM250INAV",
-    "token": "14243",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "14243"
   },
   {
     "symbol": "GOLDETF",
-    "token": "14286",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "14286"
   },
   {
     "symbol": "FSL",
-    "token": "14304",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "14304"
   },
   {
     "symbol": "ORIENTALTL",
-    "token": "14346",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "14346"
   },
   {
     "symbol": "APOLLOPIPE",
-    "token": "14361",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "14361"
   },
   {
     "symbol": "IDEA",
-    "token": "14366",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "14366"
   },
   {
     "symbol": "RAJTV",
-    "token": "14403",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "14403"
   },
   {
     "symbol": "ASTRAL",
-    "token": "14418",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "14418"
   },
   {
     "symbol": "GOLDBEES",
-    "token": "14428",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "14428"
   },
   {
     "symbol": "NAHARPOLY",
-    "token": "14445",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "14445"
   },
   {
     "symbol": "THEMISMED",
-    "token": "14485",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "14485"
   },
   {
     "symbol": "SRHHYPOLTD",
-    "token": "14582",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "14582"
   },
   {
     "symbol": "PSUBNKIETF",
-    "token": "14584",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "14584"
   },
   {
     "symbol": "ALPHAGEO",
-    "token": "14597",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "14597"
   },
   {
     "symbol": "MODIRUBBER",
-    "token": "2229",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "2229"
   },
   {
     "symbol": "GOACARBON",
-    "token": "14687",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "14687"
   },
   {
     "symbol": "DLF",
-    "token": "14732",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "14732"
   },
   {
     "symbol": "021NSETEST",
-    "token": "14751",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "14751"
   },
   {
     "symbol": "141NSETEST",
-    "token": "14781",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "14781"
   },
   {
     "symbol": "WSI",
-    "token": "14828",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "14828"
   },
   {
     "symbol": "PURVA",
-    "token": "14922",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "14922"
   },
   {
     "symbol": "LAL",
-    "token": "14924",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "14924"
   },
   {
     "symbol": "MAGNUM",
-    "token": "14957",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "14957"
   },
   {
     "symbol": "MAANALU",
-    "token": "15017",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "15017"
   },
   {
     "symbol": "KAUSHALYA",
-    "token": "15136",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "15136"
   },
   {
     "symbol": "ECLERX",
-    "token": "15179",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "15179"
   },
   {
     "symbol": "ARIES",
-    "token": "15204",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "15204"
   },
   {
     "symbol": "PPAP",
-    "token": "15209",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "15209"
   },
   {
     "symbol": "MON100",
-    "token": "22739",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "22739"
   },
   {
     "symbol": "BANG",
-    "token": "15303",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "15303"
   },
   {
     "symbol": "APCOTEXIND",
-    "token": "154",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "154"
   },
   {
     "symbol": "APOLLOHOSP",
-    "token": "157",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "157"
   },
   {
     "symbol": "GOLDCASE",
-    "token": "22901",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "22901"
   },
   {
     "symbol": "GILLETTE",
-    "token": "1576",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "1576"
   },
   {
     "symbol": "SCILAL",
-    "token": "23127",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "23127"
   },
   {
     "symbol": "TARC",
-    "token": "1581",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "1581"
   },
   {
     "symbol": "LINDEINDIA",
-    "token": "1627",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "1627"
   },
   {
     "symbol": "KIRIINDUS",
-    "token": "16639",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "16639"
   },
   {
     "symbol": "171NSETEST",
-    "token": "23446",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "23446"
   },
   {
     "symbol": "BAJAJFINSV",
-    "token": "16675",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "16675"
   },
   {
     "symbol": "PTCIL",
-    "token": "16682",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "16682"
   },
   {
     "symbol": "AAKASH",
-    "token": "235",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "235"
   },
   {
     "symbol": "TARACHAND",
-    "token": "23512",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "23512"
   },
   {
     "symbol": "SICAGEN",
-    "token": "16875",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "16875"
   },
   {
     "symbol": "SETF10GILT",
-    "token": "17395",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "17395"
   },
   {
     "symbol": "PREMEXPLN",
-    "token": "17397",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "17397"
   },
   {
     "symbol": "PSUBANKADD",
-    "token": "17616",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "17616"
   },
   {
     "symbol": "ASTEC",
-    "token": "17728",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "17728"
   },
   {
     "symbol": "NIITMTS",
-    "token": "17747",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "17747"
   },
   {
     "symbol": "REDTAPE",
-    "token": "17859",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "17859"
   },
   {
     "symbol": "SARDAEN",
-    "token": "17758",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "17758"
   },
   {
     "symbol": "ICIQ30INAV",
-    "token": "17822",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "17822"
   },
   {
     "symbol": "RAILTEL",
-    "token": "2431",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "2431"
   },
   {
     "symbol": "NIRLON",
-    "token": "2433",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "2433"
   },
   {
     "symbol": "COHANCE",
-    "token": "17945",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "17945"
   },
   {
     "symbol": "RELIABLE",
-    "token": "24378",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "24378"
   },
   {
     "symbol": "AWHCL",
-    "token": "1797",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "1797"
   },
   {
     "symbol": "NKIND",
-    "token": "2439",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "2439"
   },
   {
     "symbol": "KARMAENG",
-    "token": "24385",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "24385"
   },
   {
     "symbol": "KABRAEXTRU",
-    "token": "1805",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "1805"
   },
   {
     "symbol": "CONCORDBIO",
-    "token": "18060",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "18060"
   },
   {
     "symbol": "YASHO",
-    "token": "18131",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "18131"
   },
   {
     "symbol": "HATHWAY",
-    "token": "18154",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "18154"
   },
   {
     "symbol": "TCPLPACK",
-    "token": "184",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "184"
   },
   {
     "symbol": "ALBERTDAVD",
-    "token": "17256",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "17256"
   },
   {
     "symbol": "ASPINWALL",
-    "token": "17270",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "17270"
   },
   {
     "symbol": "KCP",
-    "token": "1841",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "1841"
   },
   {
     "symbol": "EMSLIMITED",
-    "token": "18593",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "18593"
   },
   {
     "symbol": "SENSEXADD",
-    "token": "17613",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "17613"
   },
   {
     "symbol": "DIAMINESQ",
-    "token": "18644",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "18644"
   },
   {
     "symbol": "MOLDTECH",
-    "token": "17625",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "17625"
   },
   {
     "symbol": "ALOKINDS",
-    "token": "17675",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "17675"
   },
   {
     "symbol": "SIGNATURE",
-    "token": "18743",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "18743"
   },
   {
     "symbol": "KANPRPLA",
-    "token": "1782",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "1782"
   },
   {
     "symbol": "REFEX",
-    "token": "17764",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "17764"
   },
   {
     "symbol": "DLINKINDIA",
-    "token": "17851",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "17851"
   },
   {
     "symbol": "RAJRATAN",
-    "token": "18962",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "18962"
   },
   {
     "symbol": "ABBOTINDIA",
-    "token": "17903",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "17903"
   },
   {
     "symbol": "SILLYMONKS",
-    "token": "19097",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "19097"
   },
   {
     "symbol": "KIOCL",
-    "token": "19126",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "19126"
   },
   {
     "symbol": "NESTLEIND",
-    "token": "17963",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "17963"
   },
   {
     "symbol": "AARTISURF",
-    "token": "19233",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "19233"
   },
   {
     "symbol": "ARENTERP",
-    "token": "181",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "181"
   },
   {
     "symbol": "WHIRLPOOL",
-    "token": "18011",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "18011"
   },
   {
     "symbol": "AHLEAST",
-    "token": "19438",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "19438"
   },
   {
     "symbol": "LORDSCHLO",
-    "token": "18232",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "18232"
   },
   {
     "symbol": "PRAKASHSTL",
-    "token": "19599",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "19599"
   },
   {
     "symbol": "ITETF",
-    "token": "19633",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "19633"
   },
   {
     "symbol": "SANDUMA",
-    "token": "18359",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "18359"
   },
   {
     "symbol": "TVVISION",
-    "token": "18504",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "18504"
   },
   {
     "symbol": "LICHSGFIN",
-    "token": "1997",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "1997"
   },
   {
     "symbol": "WAAREEINDO",
-    "token": "19955",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "19955"
   },
   {
     "symbol": "INFRABEES",
-    "token": "20072",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "20072"
   },
   {
     "symbol": "ASKAUTOLTD",
-    "token": "20152",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "20152"
   },
   {
     "symbol": "SJVN",
-    "token": "18883",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "18883"
   },
   {
     "symbol": "STYRENIX",
-    "token": "19",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "19"
   },
   {
     "symbol": "JSWINFRA",
-    "token": "19020",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "19020"
   },
   {
     "symbol": "IREDA",
-    "token": "20261",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "20261"
   },
   {
     "symbol": "UDS",
-    "token": "19113",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "19113"
   },
   {
     "symbol": "RESPONIND",
-    "token": "20323",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "20323"
   },
   {
     "symbol": "CHENNPETRO",
-    "token": "2049",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "2049"
   },
   {
     "symbol": "BAJEL",
-    "token": "20531",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "20531"
   },
   {
     "symbol": "SPCENET",
-    "token": "19372",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "19372"
   },
   {
     "symbol": "PSB",
-    "token": "21001",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "21001"
   },
   {
     "symbol": "MOM100",
-    "token": "21423",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "21423"
   },
   {
     "symbol": "MAXESTATES",
-    "token": "19646",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "19646"
   },
   {
     "symbol": "LIQUIDSBI",
-    "token": "19705",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "19705"
   },
   {
     "symbol": "TEXRAIL",
-    "token": "21828",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "21828"
   },
   {
     "symbol": "GPPL",
-    "token": "19731",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "19731"
   },
   {
     "symbol": "ADFFOODS",
-    "token": "19761",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "19761"
   },
   {
     "symbol": "RAMKY",
-    "token": "20134",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "20134"
   },
   {
     "symbol": "URJA",
-    "token": "20203",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "20203"
   },
   {
     "symbol": "TATATECH",
-    "token": "20293",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "20293"
   },
   {
     "symbol": "M&M",
-    "token": "2031",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "2031"
   },
   {
     "symbol": "FLAIR",
-    "token": "20372",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "20372"
   },
   {
     "symbol": "HDFCNIFBAN",
-    "token": "22433",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "22433"
   },
   {
     "symbol": "INOXINDIA",
-    "token": "20607",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "20607"
   },
   {
     "symbol": "PFS",
-    "token": "22602",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "22602"
   },
   {
     "symbol": "JINDWORLD",
-    "token": "20642",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "20642"
   },
   {
     "symbol": "PARKHOTELS",
-    "token": "22649",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "22649"
   },
   {
     "symbol": "MOIL",
-    "token": "20830",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "20830"
   },
   {
     "symbol": "SMALLCAP",
-    "token": "22832",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "22832"
   },
   {
     "symbol": "EXICOM",
-    "token": "22947",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "22947"
   },
   {
     "symbol": "MUNJALSHOW",
-    "token": "2307",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "2307"
   },
   {
     "symbol": "HEIDELBERG",
-    "token": "2316",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "2316"
   },
   {
     "symbol": "CPSEETF",
-    "token": "2328",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "2328"
   },
   {
     "symbol": "MAHSCOOTER",
-    "token": "2085",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "2085"
   },
   {
     "symbol": "AZAD",
-    "token": "20905",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "20905"
   },
   {
     "symbol": "NURECA",
-    "token": "2350",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "2350"
   },
   {
     "symbol": "UEL",
-    "token": "23507",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "23507"
   },
   {
     "symbol": "GLOSTERLTD",
-    "token": "23590",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "23590"
   },
   {
     "symbol": "ABSLPSE",
-    "token": "23806",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "23806"
   },
   {
     "symbol": "AWFIS",
-    "token": "23864",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "23864"
   },
   {
     "symbol": "LIQUIDBETF",
-    "token": "23915",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "23915"
   },
   {
     "symbol": "NEULANDLAB",
-    "token": "2406",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "2406"
   },
   {
     "symbol": "TOP100INAV",
-    "token": "24086",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "24086"
   },
   {
     "symbol": "STANLEY",
-    "token": "24226",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "24226"
   },
   {
     "symbol": "ESTER",
-    "token": "24265",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "24265"
   },
   {
     "symbol": "ASHIANA",
-    "token": "24403",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "24403"
   },
   {
     "symbol": "MASTEK",
-    "token": "2124",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "2124"
   },
   {
     "symbol": "JYOTICNC",
-    "token": "21334",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "21334"
   },
   {
     "symbol": "RUSHIL",
-    "token": "24595",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "24595"
   },
   {
     "symbol": "TATAGOLD",
-    "token": "21401",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "21401"
   },
   {
     "symbol": "RELTD",
-    "token": "24596",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "24596"
   },
   {
     "symbol": "ONWARDTEC",
-    "token": "2481",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "2481"
   },
   {
     "symbol": "OPTIEMUS",
-    "token": "21469",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "21469"
   },
   {
     "symbol": "COMSYN",
-    "token": "21578",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "21578"
   },
   {
     "symbol": "SUYOG",
-    "token": "24851",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "24851"
   },
   {
     "symbol": "GENCON",
-    "token": "2188",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "2188"
   },
   {
     "symbol": "RAYMONDLSL",
-    "token": "25073",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "25073"
   },
   {
     "symbol": "MULTICAP",
-    "token": "25080",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "25080"
   },
   {
     "symbol": "ACC",
-    "token": "22",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "22"
   },
   {
     "symbol": "BANKBETF",
-    "token": "21986",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "21986"
   },
   {
     "symbol": "TOLINS",
-    "token": "25262",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "25262"
   },
   {
     "symbol": "LOVABLE",
-    "token": "22415",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "22415"
   },
   {
     "symbol": "ITBETA",
-    "token": "22488",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "22488"
   },
   {
     "symbol": "GILT10BETA",
-    "token": "22524",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "22524"
   },
   {
     "symbol": "METAL",
-    "token": "25744",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "25744"
   },
   {
     "symbol": "GODAVARIB",
-    "token": "25941",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "25941"
   },
   {
     "symbol": "MUKKA",
-    "token": "22980",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "22980"
   },
   {
     "symbol": "AFCONS",
-    "token": "25977",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "25977"
   },
   {
     "symbol": "EMULTIMQ",
-    "token": "25996",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "25996"
   },
   {
     "symbol": "LANCORHOL",
-    "token": "23027",
-    "sector": "UNKNOWN"
+    "sector": "UNKNOWN",
+    "token": "23027"
   }
 ]

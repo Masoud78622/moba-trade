@@ -107,8 +107,8 @@ object MobaTradeServer {
         // Start AutoBot Engine (dormant until toggled)
         AutoBotEngine.start()
         
-        // Start EOD Self-Learning Engine (daemon)
-        SelfLearningEngine.start()
+        // Start EOD Self-Learning Engine (daemon) - Disabled for strict Version F validation freeze
+        // SelfLearningEngine.start()
 
         // CRITICAL FIX: Load Token Integrity Guard in a background thread.
         // Previously this was synchronous in main() and blocked for 60-120s downloading 35MB,
@@ -595,7 +595,7 @@ object MobaTradeServer {
 
             if (AngelOneClient.isLoggedIn && token != null) {
                 try {
-                    println("BackgroundScanner: Fetching daily candles for $symbol ($token)...")
+                    // Silenced per-stock fetch log to preserve log buffer on Render
                     val fetchResult = kotlinx.coroutines.runBlocking {
                         AngelOneClient.fetchHistoricalCandles(
                             symbolToken = token,
